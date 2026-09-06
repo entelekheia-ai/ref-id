@@ -3,6 +3,16 @@ vibe-ops-template: plan@3
 ---
 
 <!--
+ Copyright (c) 2026 Danilo Borges (https://github.com/daniloborges)
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+-->
+
+<!--
  PLAN TEMPLATE — copy to plans/<NNN>-<slug>.md.
  A plan answers "how do we build X?". An RFC asks "should we, and how?"; a task dossier is ephemeral.
  A plan is PERMANENT: it stays as the design record after the work ships.

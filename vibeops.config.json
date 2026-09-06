@@ -1,0 +1,19 @@
+{
+  "harness": {
+    "applied": {
+      "adr": 2,
+      "rfc": 2,
+      "plan": 3,
+      "task": 3,
+      "log": 2
+    },
+    "boundary": 2,
+    "agreed": {
+      "project/templates/adr.md": "norm",
+      "project/templates/rfc.md": "norm",
+      "project/templates/plan.md": "norm",
+      "project/templates/task.md": "norm",
+      "project/templates/log.md": "norm"
+    }
+  }
+}
