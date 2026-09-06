@@ -3,6 +3,16 @@ vibe-ops-template: rfc@2
 ---
 
 <!--
+ Copyright (c) 2026 Danilo Borges (https://github.com/daniloborges)
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+-->
+
+<!--
  RFC TEMPLATE — copy to rfc/<NNNN>-<kebab-name>.md and fill in.
  An RFC answers "should we do X, and how?". It requires ratification (see rfc/AGENTS.md).
  Delete these HTML comments before committing, and keep the section order. The `vibe-ops-template` line

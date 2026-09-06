@@ -3,6 +3,16 @@ vibe-ops-template: task@3
 ---
 
 <!--
+ Copyright (c) 2026 Danilo Borges (https://github.com/daniloborges)
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+-->
+
+<!--
  TASK DOSSIER TEMPLATE — copy to tasks/<NNN>-<slug>.md (NNN = the GitHub issue number).
  A dossier is the detailed WORKING LOG for one issue, for work already decided (see the project/**
  governance rule). If the design is still open, write an RFC first. The dossier is EPHEMERAL: committed
