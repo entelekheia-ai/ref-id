@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# pre-commit — run the governance gate before a commit is allowed to land.
+#
+# Wiring only, no check logic: the checks are fragments under scripts/checks/, composed with the
+# runner's built-ins by scripts/checks/_run.sh. To run the identical thing by hand without committing,
+# use scripts/check.sh — never the runner directly (see _run.sh for why a bare invocation is a silent
+# trap).
+#
+# `set -e` is deliberately absent: the runner's exit code is captured, never propagated by accident.
+#
+# SILENT ON SUCCESS. The runner prints a banner, its composition list, and one line per passing or
+# skipped check — none of which asks for an action. The expensive reader is not the terminal but the
+# agent: a commit made through a tool call puts every one of those lines into a conversation, on every
+# commit, forever. So a clean run says nothing, and a failure says only what failed. GATE_VERBOSE=1
+# gets the full run back.
+#
+# To skip once: git commit --no-verify. Wired via `git config core.hooksPath .githooks` — that setting
+# is local and does not travel with a clone, so a tracked hook nobody wired is still silently absent.
+set -uo pipefail
+
+ROOT=$(git rev-parse --show-toplevel)
+CHECK_DIR="$ROOT/scripts/checks"
+
+# A destination for the reading taken at *this* attempt, whether or not the commit that follows is
+# allowed to happen — which is the whole reason "attempt" is the moment a gate measures. A blocked
+# commit never reaches anything that fires afterwards, and that reading is the data point.
+#
+# Per-clone and .git/-relative: this is neither shared nor meant to travel with a clone. Created here
+# rather than by a fragment, because a fragment must not write outside this directory and mkdir on a
+# path only this hook knows is the honest place for it. Never set for a manual scripts/check.sh run:
+# the population this feeds is commit attempts, and a manual run backs none.
+GIT_DIR=$(git rev-parse --git-dir)
+export GATE_ARTIFACT_DIR="$GIT_DIR/gate-artifacts"
+mkdir -p "$GATE_ARTIFACT_DIR"
+
+# The fragments' own self-test, when and only when the fragments changed. It costs about as much as the
+# whole gate, and a fragment cannot stop detecting on its own — staging one is the only moment its
+# answer can change.
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '^scripts/checks/'; then
+  if [ -x "$CHECK_DIR/self-test.sh" ]; then
+    if ! "$CHECK_DIR/self-test.sh"; then
+      echo "pre-commit: the fragments' self-test failed — commit refused." >&2
+      exit 1
+    fi
+  fi
+fi
+
+if [ ! -f "$CHECK_DIR/_run.sh" ]; then
+  echo "pre-commit: $CHECK_DIR/_run.sh not found — scripts/checks/ is missing or moved." >&2
+  echo "The gate cannot even check its own composition without this file. Commit refused." >&2
+  exit 1
+fi
+# shellcheck source=scripts/checks/_run.sh
+. "$CHECK_DIR/_run.sh"
+run_composed_checks "$ROOT"
+RC=$?
+
+if [ "${GATE_VERBOSE:-}" = "1" ]; then
+  printf '%s\n' "$RUN_OUTPUT"
+  exit "$RC"
+fi
+
+# A failing run prints its FAIL and WARN lines and nothing else — success stays silent even here. A
+# gate-integrity failure has no FAIL line to filter to, so it falls through to the whole message, which
+# is correct: there the message is the finding.
+if [ "$RC" -ne 0 ]; then
+  run_actionable_lines
+  exit "$RC"
+fi
+
+printf '%s\n' "$RUN_OUTPUT" | grep -E '^WARN ' || true
+exit 0

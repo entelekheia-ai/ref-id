@@ -1,0 +1,15 @@
+.DS_Store
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+
+# Clone-local configuration: what is true of one working tree on one machine, layered over the committed
+# vibeops.config.*. The .json name is retired — this tooling's own record (which norm was promulgated
+# here, the boundary it agreed to) is committed in vibeops.config.json, which must NOT be listed here.
+# The four names stay literal: a glob would un-track that file with no error.
+vibeops.config.local.ts
+vibeops.config.local.mjs
+vibeops.config.local.js
+vibeops.config.local.json

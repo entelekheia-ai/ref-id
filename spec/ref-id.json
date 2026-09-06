@@ -1,0 +1,784 @@
+{
+  "specVersion": "1.0.0",
+  "scheme": "ref",
+  "grammar": {
+    "dialect": "ecmascript-2018",
+    "expression": "^ref:(?:(?<version>[0-9]+):)?(?<type>[a-z][a-z0-9+.-]*):(?<locator>[^;#]+)(?:;(?<state>[^#]*))?(?:#(?<fragment>.*))?$",
+    "groups": [
+      "version",
+      "type",
+      "locator",
+      "state",
+      "fragment"
+    ],
+    "adaptations": {
+      "ecmascript-2018": {
+        "replace": []
+      },
+      "pcre2": {
+        "replace": []
+      },
+      "rust-regex": {
+        "replace": []
+      },
+      "python-re": {
+        "replace": [
+          [
+            "(?<",
+            "(?P<"
+          ]
+        ]
+      },
+      "go-regexp": {
+        "replace": [
+          [
+            "(?<",
+            "(?P<"
+          ]
+        ]
+      }
+    },
+    "state": {
+      "separator": ";",
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>.*)$",
+      "unknownKey": "carry-through"
+    },
+    "fragment": {
+      "separator": ";",
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>.*)$",
+      "path": "the text before the first separator, verbatim"
+    }
+  },
+  "version": {
+    "default": 1,
+    "supported": [
+      1
+    ],
+    "mints": [
+      "normalisation or percent-encoding",
+      "separators or shape"
+    ],
+    "note": "A leading digit can only be a version because a type starts with a letter; ref:v2:... is type v2."
+  },
+  "encoding": {
+    "locator": {
+      "reserved": [
+        "#"
+      ],
+      "table": {
+        "#": "%23"
+      },
+      "decodeBeforeDelegation": true
+    },
+    "nested": {
+      "reserved": [
+        ";",
+        "#",
+        "%"
+      ],
+      "table": {
+        ";": "%3B",
+        "#": "%23",
+        "%": "%25"
+      },
+      "depth": 1
+    }
+  },
+  "dispatch": {
+    "pkg": {
+      "locator": "package-url",
+      "validator": "package-url",
+      "reference": "https://github.com/package-url/purl-spec"
+    },
+    "folder": {
+      "locator": "declared-corpus-name",
+      "validator": "declared-name",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins"
+    }
+  },
+  "unknownType": "uncovered",
+  "roles": {
+    "identity": [
+      "type",
+      "locator",
+      "fragment.path"
+    ],
+    "location": [
+      "path",
+      "byte range"
+    ],
+    "freeze": [
+      "at"
+    ]
+  },
+  "qualifiers": {
+    "at": {
+      "role": "freeze",
+      "forms": [
+        "swhid"
+      ]
+    },
+    "by": {
+      "role": "instrument",
+      "forms": [
+        "ref",
+        "sha256"
+      ]
+    },
+    "over": {
+      "role": "population",
+      "forms": [
+        "ref",
+        "sha256"
+      ]
+    }
+  },
+  "forms": {
+    "swhid": {
+      "pattern": "^swh:1:(cnt|dir|rev|rel|snp):[0-9a-f]{40}$",
+      "reference": "ISO/IEC 18670 core identifier, no SWHID qualifiers"
+    },
+    "sha256": {
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "ref": {
+      "nested": true,
+      "depth": 1,
+      "encoding": "nested"
+    }
+  },
+  "refinements": {
+    "lines": {
+      "pattern": "^[0-9]+(,[0-9]+)?$",
+      "reference": "RFC 5147 placement"
+    },
+    "item": {
+      "pattern": "^[0-9]+$"
+    },
+    "para": {
+      "pattern": "^[0-9]+$"
+    }
+  },
+  "unknownRefinement": "carry-through",
+  "resolutionStates": [
+    "resolved",
+    "unresolved",
+    "uncovered",
+    "archival"
+  ],
+  "stateLevels": [
+    "properties",
+    "content-hash",
+    "none"
+  ],
+  "fragmentGrammars": {
+    "governed-record": {
+      "declaredName": "the name field of its front matter",
+      "tieBreak": "none"
+    },
+    "markdown": {
+      "declaredName": "the heading text",
+      "tieBreak": "ordinal on collision within one document"
+    },
+    "code-symbol": {
+      "declaredName": "the fully-qualified name, no path",
+      "tieBreak": "per the language"
+    },
+    "behavior-state": {
+      "declaredName": "the state name within its agent, never within its file",
+      "tieBreak": "none"
+    }
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "over": "identifier-strings",
+    "order": "declared",
+    "join": "\n",
+    "encoding": "utf-8",
+    "dedupe": false,
+    "output": "sha256:<64 lowercase hex>"
+  },
+  "canonicalisation": {
+    "form": "json-sorted-keys-compact",
+    "rules": [
+      "object keys sorted by UTF-16 code unit order",
+      "no whitespace outside strings",
+      "strings escaped as JSON.stringify does",
+      "numbers are integers only",
+      "UTF-8 bytes of the result are what the digest covers"
+    ],
+    "sidecar": "ref-id.json.sha256 holds the digest of this file; the file never contains its own digest"
+  },
+  "envelope": {
+    "fields": {
+      "id": "required",
+      "sets": "required when the identifier carries a digest",
+      "alsoKnownAs": "optional, a declaration never a similarity match",
+      "data": "opaque"
+    },
+    "invariant": "for every qualifier whose value is a digest, sets[qualifier] exists and digest(sets[qualifier]) equals it; and id equals the identifier the envelope was requested under",
+    "onFailure": "refuse at ingestion"
+  },
+  "vectors": {
+    "parse": [
+      {
+        "name": "pkg with declared name",
+        "input": "ref:pkg:npm/@entelekheia/eita-core@0.1.0#Observation",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "Observation",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "pkg:npm/@entelekheia/eita-core@0.1.0"
+        }
+      },
+      {
+        "name": "pkg with versioned declared-name path",
+        "input": "ref:pkg:npm/@entelekheia/eita-trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "citation-fidelity@1/not-invented",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "pkg:npm/@entelekheia/eita-trait-citation-fidelity@0.0.1"
+        }
+      },
+      {
+        "name": "folder corpus with declared name",
+        "input": "ref:folder:entelekheia-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "learnings/a-chunk-carrying-no-answer-means-death-or-health",
+            "refinements": []
+          },
+          "type": "folder",
+          "locator": "entelekheia-governance"
+        }
+      },
+      {
+        "name": "folder with at and by digest",
+        "input": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "at",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ],
+            [
+              "by",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "explicit version 1 is version 1",
+        "input": "ref:1:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0",
+          "explicitVersion": true
+        }
+      },
+      {
+        "name": "version outside the supported range is unsupported, not malformed",
+        "input": "ref:2:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "unsupported",
+          "version": 2,
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0"
+        }
+      },
+      {
+        "name": "letter-led token is a type, not a version",
+        "input": "ref:v2:pkg:npm/x",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "v2",
+          "locator": "pkg:npm/x"
+        }
+      },
+      {
+        "name": "unknown type is uncovered, never an exception",
+        "input": "ref:doi:10.1000/182",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "doi",
+          "locator": "10.1000/182"
+        }
+      },
+      {
+        "name": "unknown qualifier key is carried through",
+        "input": "ref:folder:vibe-ops;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "zz",
+              "1"
+            ],
+            [
+              "at",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "nested by carrying a fragment",
+        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops",
+          "nested": {
+            "by": "ref:pkg:npm/@entelekheia/eita-profiles@0.1.0#profile/conformance@1"
+          }
+        }
+      },
+      {
+        "name": "nested by carrying its own qualifier",
+        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops",
+          "nested": {
+            "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+          }
+        }
+      },
+      {
+        "name": "two different nested values are two different identifiers",
+        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops",
+          "nested": {
+            "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000"
+          }
+        }
+      },
+      {
+        "name": "purl subpath is percent-encoded inside the locator",
+        "input": "ref:pkg:npm/x@1.0.0%23src/y#S",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "S",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0%23src/y",
+          "decodedLocator": "pkg:npm/x@1.0.0#src/y"
+        }
+      },
+      {
+        "name": "refinement after the declared-name path",
+        "input": "ref:folder:vibe-ops#AGENTS.md;lines=10,20",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "lines",
+                "10,20"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "qualifier before the hash, refinement after it",
+        "input": "ref:folder:vibe-ops;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "at",
+              "swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          ],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "lines",
+                "1"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "unknown refinement key is carried through",
+        "input": "ref:folder:vibe-ops#AGENTS.md;zz=q",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "zz",
+                "q"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "over as a digest",
+        "input": "ref:folder:vibe-ops;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "over",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "vibe-ops"
+        }
+      },
+      {
+        "name": "uppercase type is malformed",
+        "input": "ref:Pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "missing scheme is malformed",
+        "input": "pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "empty locator is malformed",
+        "input": "ref:pkg:",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "abbreviated SWHID fails the at validator",
+        "input": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6",
+        "expect": {
+          "status": "malformed",
+          "part": "at"
+        }
+      },
+      {
+        "name": "invalid purl fails the locator validator",
+        "input": "ref:pkg:not-a-purl",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "malformed refinement value",
+        "input": "ref:folder:vibe-ops#AGENTS.md;lines=ten",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "corpus name with a path separator is malformed",
+        "input": "ref:folder:vibe-ops/docs#AGENTS.md",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      }
+    ],
+    "roundtrip": [
+      "ref:pkg:npm/@entelekheia/eita-core@0.1.0#Observation",
+      "ref:1:pkg:npm/x@1.0.0",
+      "ref:folder:vibe-ops;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:vibe-ops;by=ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1",
+      "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+      "ref:pkg:npm/x@1.0.0%23src/y#S",
+      "ref:folder:vibe-ops;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+      "ref:folder:vibe-ops#AGENTS.md;zz=q",
+      "ref:doi:10.1000/182",
+      "ref:2:pkg:npm/x@1.0.0"
+    ],
+    "build": [
+      {
+        "name": "same declared name through two paths is one identifier",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0",
+          "fragment": "Observation",
+          "location": {
+            "path": "src/a.ts"
+          }
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "same declared name through two paths is one identifier (other path)",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0",
+          "fragment": "Observation",
+          "location": {
+            "path": "lib/b.ts",
+            "lines": "4,9"
+          }
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "nested qualifier value is encoded by the builder",
+        "parts": {
+          "type": "folder",
+          "locator": "vibe-ops",
+          "qualifiers": [
+            [
+              "by",
+              {
+                "nested": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+              }
+            ]
+          ]
+        },
+        "expect": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+      },
+      {
+        "name": "purl subpath is encoded by the builder",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0#src/y",
+          "fragment": "S"
+        },
+        "expect": "ref:pkg:npm/x@1.0.0%23src/y#S"
+      }
+    ],
+    "digest": [
+      {
+        "name": "two members in declared order",
+        "members": [
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": "sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde"
+      },
+      {
+        "name": "same members, other order, different digest",
+        "members": [
+          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:f5878187b9619efdd372fef9d6739fb1e0bd350d47e277ae6d2f05d3167aca46"
+      },
+      {
+        "name": "a repeated member is not deduplicated",
+        "members": [
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:9f10bc1041ebdc0be86cc69f22872415daae7e3a0936300098664ecec9dbeea4"
+      },
+      {
+        "name": "a single member",
+        "members": [
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c"
+      },
+      {
+        "name": "a member whose content changed changes the digest",
+        "members": [
+          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
+          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": "sha256:22f20c82d72703bf61d3ceab1fffff98a47c1004b605e05448ffe9ee5522a17e"
+      },
+      {
+        "name": "empty sequence",
+        "members": [],
+        "expect": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "envelope": [
+      {
+        "name": "members recompute to the digest",
+        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "sets": {
+            "over": [
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "admissible"
+      },
+      {
+        "name": "a member changed and the digest did not",
+        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "sets": {
+            "over": [
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
+              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "members reordered",
+        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "sets": {
+            "over": [
+              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "sets missing for a digest-carrying qualifier",
+        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "served under an identifier that is not its own",
+        "requestedId": "ref:folder:vibe-ops#AGENTS.md",
+        "envelope": {
+          "id": "ref:folder:vibe-ops#GOVERNANCE.md"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "no digest, no sets required",
+        "requestedId": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+          "data": {
+            "anything": true
+          }
+        },
+        "expect": "admissible"
+      },
+      {
+        "name": "two digest qualifiers, both must recompute",
+        "requestedId": "ref:folder:vibe-ops;by=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c;over=sha256:8ee7de5372cb0a998b7b2459032a3e54c42c490f031f86662c1f221cdd42bedc",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;by=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c;over=sha256:8ee7de5372cb0a998b7b2459032a3e54c42c490f031f86662c1f221cdd42bedc",
+          "sets": {
+            "by": [
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ],
+            "over": [
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "alsoKnownAs is opaque to the invariant",
+        "requestedId": "ref:folder:vibe-ops;over=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c",
+        "envelope": {
+          "id": "ref:folder:vibe-ops;over=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c",
+          "sets": {
+            "over": [
+              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          },
+          "alsoKnownAs": [
+            "ref:pkg:npm/vibe-ops@0.6.0"
+          ]
+        },
+        "expect": "admissible"
+      }
+    ]
+  }
+}

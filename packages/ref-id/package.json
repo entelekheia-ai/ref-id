@@ -1,0 +1,40 @@
+{
+  "name": "@entelekheia/ref-id",
+  "version": "0.0.1",
+  "description": "The ref: identifier scheme — a specification published as data with conformance vectors, and the package that consumes it.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/entelekheia-ai/ref-id.git",
+    "directory": "packages/ref-id"
+  },
+  "dependencies": {
+    "packageurl-js": "^2.0.1"
+  }
+}

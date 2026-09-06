@@ -1,0 +1,14 @@
+name: changeset
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npx changeset status --since origin/main
