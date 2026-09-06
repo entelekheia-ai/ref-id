@@ -19,7 +19,7 @@ identifier; each captured part is handed to the validator that already owns that
 
 ## Install
 
-Not yet published — see the repository's [`project/plans/`](../../project/plans/).
+Not yet published — see the repository's `project/plans/`.
 
 ## Usage
 
@@ -33,4 +33,4 @@ Node.js 22 or later. Runtime dependency: `packageurl-js` (pure JavaScript). No n
 
 ## License
 
-Apache-2.0 — see the repository [LICENSE](../../LICENSE).
+Apache-2.0 — see the repository's `LICENSE`.

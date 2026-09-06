@@ -28,14 +28,6 @@
             "(?P<"
           ]
         ]
-      },
-      "go-regexp": {
-        "replace": [
-          [
-            "(?<",
-            "(?P<"
-          ]
-        ]
       }
     },
     "state": {
@@ -88,15 +80,35 @@
     "pkg": {
       "locator": "package-url",
       "validator": "package-url",
+      "delegate": "type-prefixed",
       "reference": "https://github.com/package-url/purl-spec"
     },
     "folder": {
       "locator": "declared-corpus-name",
       "validator": "declared-name",
+      "delegate": "verbatim",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
       "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins"
     }
   },
+  "delegation": {
+    "type-prefixed": "the validator receives <type>:<decoded locator> — the type token is also the delegated format's own scheme",
+    "verbatim": "the validator receives the decoded locator alone"
+  },
+  "statuses": [
+    "ok",
+    "malformed",
+    "uncovered",
+    "unsupported"
+  ],
+  "parts": [
+    "grammar",
+    "state",
+    "fragment",
+    "locator",
+    "<qualifier key>",
+    "<refinement key>"
+  ],
   "unknownType": "uncovered",
   "roles": {
     "identity": [
@@ -224,7 +236,7 @@
     "parse": [
       {
         "name": "pkg with declared name",
-        "input": "ref:pkg:npm/@entelekheia/eita-core@0.1.0#Observation",
+        "input": "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -234,12 +246,13 @@
             "refinements": []
           },
           "type": "pkg",
-          "locator": "pkg:npm/@entelekheia/eita-core@0.1.0"
+          "locator": "npm/@acme/scanner-core@0.1.0",
+          "delegated": "pkg:npm/@acme/scanner-core@0.1.0"
         }
       },
       {
         "name": "pkg with versioned declared-name path",
-        "input": "ref:pkg:npm/@entelekheia/eita-trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented",
+        "input": "ref:pkg:npm/@acme/trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -249,12 +262,12 @@
             "refinements": []
           },
           "type": "pkg",
-          "locator": "pkg:npm/@entelekheia/eita-trait-citation-fidelity@0.0.1"
+          "locator": "npm/@acme/trait-citation-fidelity@0.0.1"
         }
       },
       {
         "name": "folder corpus with declared name",
-        "input": "ref:folder:entelekheia-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health",
+        "input": "ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -264,12 +277,12 @@
             "refinements": []
           },
           "type": "folder",
-          "locator": "entelekheia-governance"
+          "locator": "acme-governance"
         }
       },
       {
         "name": "folder with at and by digest",
-        "input": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -285,7 +298,7 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
@@ -297,7 +310,8 @@
           "qualifiers": [],
           "fragment": null,
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0",
+          "locator": "npm/x@1.0.0",
+          "delegated": "pkg:npm/x@1.0.0",
           "explicitVersion": true
         }
       },
@@ -308,7 +322,7 @@
           "status": "unsupported",
           "version": 2,
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0"
+          "locator": "npm/x@1.0.0"
         }
       },
       {
@@ -333,7 +347,7 @@
       },
       {
         "name": "unknown qualifier key is carried through",
-        "input": "ref:folder:vibe-ops;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -349,32 +363,32 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
         "name": "nested by carrying a fragment",
-        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [
             [
               "by",
-              "ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1"
+              "ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1"
             ]
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops",
+          "locator": "acme-tools",
           "nested": {
-            "by": "ref:pkg:npm/@entelekheia/eita-profiles@0.1.0#profile/conformance@1"
+            "by": "ref:pkg:npm/@acme/profiles@0.1.0#profile/conformance@1"
           }
         }
       },
       {
         "name": "nested by carrying its own qualifier",
-        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -386,7 +400,7 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops",
+          "locator": "acme-tools",
           "nested": {
             "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
           }
@@ -394,7 +408,7 @@
       },
       {
         "name": "two different nested values are two different identifiers",
-        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -406,7 +420,7 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops",
+          "locator": "acme-tools",
           "nested": {
             "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000"
           }
@@ -424,13 +438,13 @@
             "refinements": []
           },
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0%23src/y",
-          "decodedLocator": "pkg:npm/x@1.0.0#src/y"
+          "locator": "npm/x@1.0.0%23src/y",
+          "delegated": "pkg:npm/x@1.0.0#src/y"
         }
       },
       {
         "name": "refinement after the declared-name path",
-        "input": "ref:folder:vibe-ops#AGENTS.md;lines=10,20",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=10,20",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -445,12 +459,12 @@
             ]
           },
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
         "name": "qualifier before the hash, refinement after it",
-        "input": "ref:folder:vibe-ops;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+        "input": "ref:folder:acme-tools;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -470,12 +484,12 @@
             ]
           },
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
         "name": "unknown refinement key is carried through",
-        "input": "ref:folder:vibe-ops#AGENTS.md;zz=q",
+        "input": "ref:folder:acme-tools#AGENTS.md;zz=q",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -490,12 +504,12 @@
             ]
           },
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
         "name": "over as a digest",
-        "input": "ref:folder:vibe-ops;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input": "ref:folder:acme-tools;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -507,7 +521,7 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops"
+          "locator": "acme-tools"
         }
       },
       {
@@ -525,7 +539,7 @@
           "status": "unsupported",
           "version": 2,
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0",
+          "locator": "npm/x@1.0.0",
           "qualifiers": [
             [
               "at",
@@ -556,7 +570,7 @@
       },
       {
         "name": "percent in a nested value is itself encoded",
-        "input": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%2523src/y",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -568,7 +582,7 @@
           ],
           "fragment": null,
           "type": "folder",
-          "locator": "vibe-ops",
+          "locator": "acme-tools",
           "nested": {
             "by": "ref:pkg:npm/x@1.0.0%23src/y"
           }
@@ -576,7 +590,7 @@
       },
       {
         "name": "empty fragment is malformed",
-        "input": "ref:folder:vibe-ops#",
+        "input": "ref:folder:acme-tools#",
         "expect": {
           "status": "malformed",
           "part": "fragment"
@@ -584,7 +598,7 @@
       },
       {
         "name": "empty qualifier is malformed",
-        "input": "ref:folder:vibe-ops;",
+        "input": "ref:folder:acme-tools;",
         "expect": {
           "status": "malformed",
           "part": "state"
@@ -592,7 +606,7 @@
       },
       {
         "name": "qualifier without a value separator is malformed",
-        "input": "ref:folder:vibe-ops;at",
+        "input": "ref:folder:acme-tools;at",
         "expect": {
           "status": "malformed",
           "part": "state"
@@ -600,7 +614,7 @@
       },
       {
         "name": "a nested value that is not a ref and not a digest fails the by validator",
-        "input": "ref:folder:vibe-ops;by=rumdl",
+        "input": "ref:folder:acme-tools;by=rumdl",
         "expect": {
           "status": "malformed",
           "part": "by"
@@ -632,7 +646,7 @@
       },
       {
         "name": "abbreviated SWHID fails the at validator",
-        "input": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6",
+        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6",
         "expect": {
           "status": "malformed",
           "part": "at"
@@ -648,7 +662,7 @@
       },
       {
         "name": "malformed refinement value",
-        "input": "ref:folder:vibe-ops#AGENTS.md;lines=ten",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=ten",
         "expect": {
           "status": "malformed",
           "part": "lines"
@@ -656,7 +670,7 @@
       },
       {
         "name": "corpus name with a path separator is malformed",
-        "input": "ref:folder:vibe-ops/docs#AGENTS.md",
+        "input": "ref:folder:acme-tools/docs#AGENTS.md",
         "expect": {
           "status": "malformed",
           "part": "locator"
@@ -664,25 +678,25 @@
       }
     ],
     "roundtrip": [
-      "ref:pkg:npm/@entelekheia/eita-core@0.1.0#Observation",
+      "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
       "ref:1:pkg:npm/x@1.0.0",
-      "ref:folder:vibe-ops;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
-      "ref:folder:vibe-ops;by=ref:pkg:npm/@entelekheia/eita-profiles@0.1.0%23profile/conformance@1",
-      "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+      "ref:folder:acme-tools;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
+      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
       "ref:pkg:npm/x@1.0.0%23src/y#S",
-      "ref:folder:vibe-ops;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
-      "ref:folder:vibe-ops#AGENTS.md;zz=q",
+      "ref:folder:acme-tools;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+      "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
       "ref:2:pkg:npm/x@1.0.0",
       "ref:doi:10.1000/182;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
-      "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%2523src/y"
+      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y"
     ],
     "build": [
       {
         "name": "same declared name through two paths is one identifier",
         "parts": {
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0",
+          "locator": "npm/x@1.0.0",
           "fragment": "Observation",
           "location": {
             "path": "src/a.ts"
@@ -694,7 +708,7 @@
         "name": "same declared name through two paths is one identifier (other path)",
         "parts": {
           "type": "pkg",
-          "locator": "pkg:npm/x@1.0.0",
+          "locator": "npm/x@1.0.0",
           "fragment": "Observation",
           "location": {
             "path": "lib/b.ts",
@@ -707,7 +721,7 @@
         "name": "nested qualifier value is encoded by the builder",
         "parts": {
           "type": "folder",
-          "locator": "vibe-ops",
+          "locator": "acme-tools",
           "qualifiers": [
             [
               "by",
@@ -717,10 +731,19 @@
             ]
           ]
         },
-        "expect": "ref:folder:vibe-ops;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+        "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
       },
       {
-        "name": "purl subpath is encoded by the builder",
+        "name": "a pkg locator given as the bare group builds as is",
+        "parts": {
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "fragment": "Observation"
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "an intact purl given as locator has its scheme folded into the type and its subpath encoded",
         "parts": {
           "type": "pkg",
           "locator": "pkg:npm/x@1.0.0#src/y",
@@ -733,41 +756,41 @@
       {
         "name": "two members in declared order",
         "members": [
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
         ],
-        "expect": "sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde"
+        "expect": "sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8"
       },
       {
         "name": "same members, other order, different digest",
         "members": [
-          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:f5878187b9619efdd372fef9d6739fb1e0bd350d47e277ae6d2f05d3167aca46"
+        "expect": "sha256:eea8e9239a38d79d892ca4befe36ca9b4f8011a95ddad077c8b38d99f4126640"
       },
       {
         "name": "a repeated member is not deduplicated",
         "members": [
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:9f10bc1041ebdc0be86cc69f22872415daae7e3a0936300098664ecec9dbeea4"
+        "expect": "sha256:a743dc921954ceda107cca9e47ab74b701e9db15b41d0493331f1913f3742887"
       },
       {
         "name": "a single member",
         "members": [
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c"
+        "expect": "sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40"
       },
       {
         "name": "a member whose content changed changes the digest",
         "members": [
-          "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
-          "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
         ],
-        "expect": "sha256:22f20c82d72703bf61d3ceab1fffff98a47c1004b605e05448ffe9ee5522a17e"
+        "expect": "sha256:ae6cfd9638d02909890e85b65c6c1852d03099a3a9697d793e491422579612f5"
       },
       {
         "name": "empty sequence",
@@ -778,13 +801,13 @@
     "envelope": [
       {
         "name": "members recompute to the digest",
-        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
         "envelope": {
-          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
           "sets": {
             "over": [
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
             ]
           }
         },
@@ -792,13 +815,13 @@
       },
       {
         "name": "a member changed and the digest did not",
-        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
         "envelope": {
-          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
           "sets": {
             "over": [
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
-              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
             ]
           }
         },
@@ -806,13 +829,13 @@
       },
       {
         "name": "members reordered",
-        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
         "envelope": {
-          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
           "sets": {
             "over": [
-              "ref:folder:vibe-ops#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           }
         },
@@ -820,25 +843,25 @@
       },
       {
         "name": "sets missing for a digest-carrying qualifier",
-        "requestedId": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde",
+        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
         "envelope": {
-          "id": "ref:folder:vibe-ops;over=sha256:fbea28fb8b7eb101d89e84f023546436b7f4f88dd2cfcc7327d3dd7786d2fcde"
+          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8"
         },
         "expect": "refused"
       },
       {
         "name": "served under an identifier that is not its own",
-        "requestedId": "ref:folder:vibe-ops#AGENTS.md",
+        "requestedId": "ref:folder:acme-tools#AGENTS.md",
         "envelope": {
-          "id": "ref:folder:vibe-ops#GOVERNANCE.md"
+          "id": "ref:folder:acme-tools#GOVERNANCE.md"
         },
         "expect": "refused"
       },
       {
         "name": "no digest, no sets required",
-        "requestedId": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "requestedId": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "envelope": {
-          "id": "ref:folder:vibe-ops;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+          "id": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
           "data": {
             "anything": true
           }
@@ -847,15 +870,15 @@
       },
       {
         "name": "two digest qualifiers, both must recompute",
-        "requestedId": "ref:folder:vibe-ops;by=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c;over=sha256:8ee7de5372cb0a998b7b2459032a3e54c42c490f031f86662c1f221cdd42bedc",
+        "requestedId": "ref:folder:acme-tools;by=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40;over=sha256:8aedd76b3e4561ce108514dafb95bb0acf3d6425aa26a6a1aea05d4f6f71a08d",
         "envelope": {
-          "id": "ref:folder:vibe-ops;by=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c;over=sha256:8ee7de5372cb0a998b7b2459032a3e54c42c490f031f86662c1f221cdd42bedc",
+          "id": "ref:folder:acme-tools;by=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40;over=sha256:8aedd76b3e4561ce108514dafb95bb0acf3d6425aa26a6a1aea05d4f6f71a08d",
           "sets": {
             "by": [
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ],
             "over": [
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           }
         },
@@ -863,16 +886,16 @@
       },
       {
         "name": "alsoKnownAs is opaque to the invariant",
-        "requestedId": "ref:folder:vibe-ops;over=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c",
+        "requestedId": "ref:folder:acme-tools;over=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40",
         "envelope": {
-          "id": "ref:folder:vibe-ops;over=sha256:5661cc3750b2d21238c186f092bd6bd38a6f455b352e7284ca19e63633bfc61c",
+          "id": "ref:folder:acme-tools;over=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40",
           "sets": {
             "over": [
-              "ref:folder:vibe-ops#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           },
           "alsoKnownAs": [
-            "ref:pkg:npm/vibe-ops@0.6.0"
+            "ref:pkg:npm/acme-tools@0.6.0"
           ]
         },
         "expect": "admissible"
