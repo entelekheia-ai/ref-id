@@ -122,7 +122,7 @@ own.
 
 ## Tracks
 
-- [ ] **Track 1 — The specification file and the package that consumes it.** Two artefacts, not one. The
+- [x] **Track 1 — The specification file and the package that consumes it.** Two artefacts, not one. The
       file carries the grammar with its dialect, the tables, the digest canonicalisation, a `specVersion`,
       and vectors in five classes: `parse`, fixing what each input decomposes to; `roundtrip`, fixing that
       re-serialising returns the original bytes; `build`, fixing that a producer never lets a location into
@@ -130,7 +130,7 @@ own.
       restating it, and returns an uncovered result for an unknown type rather than throwing. Acceptance:
       every vector class passes; the grammar and the parse vectors agree in at least one other
       regular-expression engine through the declared adaptation.
-- [ ] **Track 2 — The envelope and its invariant.** The type an identifier resolves to, and the check that
+- [x] **Track 2 — The envelope and its invariant.** The type an identifier resolves to, and the check that
       makes a digest a claim rather than a promise. Acceptance: a vector where a member's content changed
       and the set digest did not is refused; reordered members produce a different digest; a repeated
       member is not deduplicated.
@@ -148,6 +148,11 @@ own.
       embedded rather than fetched, carrying the digest of its canonical serialisation and refusing a file
       whose `specVersion` falls outside the range it declares. The registry is the one ADR-0003 names until
       the public release.
+- [ ] **Track 6 — Ports in Swift and Rust.** A Swift package at the repository root and a Rust crate under
+      `crates/ref-id`, each embedding the specification, held to every vector class, and checked
+      differentially against the TypeScript reference on the vectors and on generated hostile inputs.
+      Acceptance: both gates green (`swift test`, `cargo test`), zero disagreements with the reference on
+      the vectors, and the dialect each engine needed recorded in the specification's adaptations table.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
 
@@ -242,7 +247,16 @@ own.
 
 ## Outcomes & Retrospective
 
-*Nothing shipped yet.*
+**2026-09-07 — Tracks 1 and 2 landed.** `spec/ref-id.json` 1.0.0 carries 83 vectors (parse 41, roundtrip
+15, build 9, digest 7, envelope 11) and a digest sidecar; `packages/ref-id` passes all of them plus the
+three integrity tests (86 green), typechecks clean, and restates none of the tables. The grammar decomposes
+every parse vector identically in three engines (ECMAScript, python-re with the one declared adaptation,
+pcre2 via perl), which is the port-neutrality claim measured rather than asserted. Three things changed
+against the original design while landing: the locator is the captured group with the delegated string
+formed per type; there is no locator encoding layer; identifiers are one line and the producer-side API
+refuses what the grammar cannot carry. Open at this point: a second adversarial review of the committed
+package is in flight, and the ports (Track 6) have started.
+
 
 ---
 
