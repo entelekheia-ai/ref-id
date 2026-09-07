@@ -149,7 +149,7 @@ because an unsupported version stops validation before any validator can fail. S
 value on a supported version is `malformed`.
 
 Below `unsupported`, a validator failure does outrank an unknown type: `ref:doi:10.1000/182` carrying an
-`state=` whose SWHID hash is abbreviated to seven characters is `malformed` at `at`, not `uncovered`. And an
+`state=` whose SWHID hash is abbreviated to seven characters is `malformed` at `state`, not `uncovered`. And an
 uncovered type still carries its qualifiers and its fragment through, decomposed and comparable.
 
 **An unknown type MUST NOT raise.** The identifier stays readable, storable and comparable, and the

@@ -245,6 +245,33 @@ own.
   and are kept rather than rewritten.
   Date / Author: 2026-09-07 / Danilo Borges
 
+- Decision: the freeze qualifier is `state` (was `at`) and a moment is its own qualifier, `when`, in
+  RFC 3339 UTC; a reading without `state`, `by` or `over` is admitted and identified by its moment.
+  Rationale: `at` reads temporal, and the identifier specifications that carry both axes keep them apart
+  (DID Core `versionId`/`versionTime`, git `@{sha}`/`@{time}`). Measured: without a moment 800 of 801
+  reconstructed readings collapse onto 43 observation specs, and a producer had already invented a
+  reference format carrying a timestamp and a budget (481 readings). Renamed before any consumer
+  exists, so the scheme stays at version 1.
+  Date / Author: 2026-09-07 / Danilo Borges
+
+- Decision: the corpus of a file is the nearest manifest that declares a name, written as an unversioned
+  Package URL (`ref:pkg:npm/<name>#…`); `folder` is only for subtrees no manifest reaches. A governed
+  record's fragment is typed, `<provider>/<type>@<template version>/<name>`, every part from the record's
+  own front-matter stamp, and the provider of the type declares the form of `<name>` (a number for
+  adr/rfc/plan/task, the front-matter `name` for log).
+  Rationale: a manifest is a declaration, so finding it is not deriving from a path; unversioned, the
+  Package URL names the living package and `state=` the frozen one, so a record's identifier survives
+  releases. `adr@2` alone does not say whose ADR rule applies; the provider does. Measured: 90 of 226
+  declarations lacked a corpus under the folder-only rule; under this rule only the workspace root's own
+  `project/` still needs a declared `folder`.
+  Date / Author: 2026-09-07 / Danilo Borges
+
+- Decision: a gate reading is the composed entry plus its moment — `ref:pkg:npm/<ops package>;when=…#<ops>@<v>/<entry>` — never with the gate repeated in `by=`; a `finding` row is an attribute in the reading's `data`, never a node.
+  Rationale: the composed entry already declares which gate it composes, so a `by=` naming the gate is the
+  member repeated in the composition's name, which the scheme forbids and which made the identifier 150
+  characters long. A finding is a count per rule for one run; it hangs off the run.
+  Date / Author: 2026-09-07 / Danilo Borges
+
 ## Outcomes & Retrospective
 
 **2026-09-07 — Tracks 1 and 2 landed.** `spec/ref-id.json` 1.0.0 carries 83 vectors (parse 41, roundtrip
