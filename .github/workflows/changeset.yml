@@ -4,6 +4,8 @@ on:
     branches: [main]
 jobs:
   status:
+    # The "Version Packages" pull request is the one that consumes the changesets, so it is exempt.
+    if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
