@@ -17,3 +17,9 @@ vibeops.config.local.ts
 vibeops.config.local.mjs
 vibeops.config.local.js
 vibeops.config.local.json
+
+# Swift Package Manager
+.build/
+.swiftpm/
+# Cargo
+target/

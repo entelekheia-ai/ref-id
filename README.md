@@ -33,7 +33,8 @@ against vectors, never a re-derivation from this one's source.
 
 | Package | Purpose | README |
 |---|---|---|
-| `@entelekheia/ref-id` | Parse, serialise, digest and validate `ref:` identifiers and envelopes against `spec/ref-id.json`. | [`packages/ref-id/`](packages/ref-id/README.md) |
+| `@entelekheia/ref-id` | TypeScript reference: parse, serialise, build, digest and validate `ref:` identifiers and envelopes against `spec/ref-id.json`. | [`packages/ref-id/`](packages/ref-id/README.md) |
+| `RefId` (Swift) | The same API as a Swift package at the repository root, held to the same vectors; `swift run ref-id-conformance` is its gate. | [`Sources/RefId/`](Sources/RefId/) |
 
 ## Install
 
