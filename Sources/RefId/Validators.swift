@@ -114,14 +114,17 @@ enum PackageURL {
         let type = rest[..<slash]
         guard let first = type.first, first.isASCII, first.isLetter,
               type.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "+" || $0 == "-") }) else { return false }
-        var remainder = String(rest[rest.index(after: slash)...])
-        if let at = remainder.lastIndex(of: "@") {
-            let version = remainder[remainder.index(after: at)...]
+        let remainder = String(rest[rest.index(after: slash)...])
+        // The version is the `@` inside the LAST segment (the name); an `@` in a namespace segment — an npm
+        // scope written unencoded, which the reference validators accept — is not a version separator.
+        var segments = remainder.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        guard var name = segments.popLast() else { return false }
+        if let at = name.firstIndex(of: "@") {
+            let version = name[name.index(after: at)...]
             guard !version.isEmpty else { return false }
-            remainder = String(remainder[..<at])
+            name = String(name[..<at])
         }
-        let segments = remainder.split(separator: "/", omittingEmptySubsequences: false)
-        guard let name = segments.last, !name.isEmpty else { return false }
+        guard !name.isEmpty else { return false }
         return true
     }
 }

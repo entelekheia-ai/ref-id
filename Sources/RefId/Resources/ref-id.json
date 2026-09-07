@@ -92,6 +92,7 @@
       "locator": "package-url",
       "validator": "package-url",
       "delegate": "type-prefixed",
+      "corpus": "the nearest manifest declaring a name; unversioned, the Package URL names the living package and state= carries the frozen one",
       "reference": "https://github.com/package-url/purl-spec"
     },
     "folder": {
@@ -99,7 +100,8 @@
       "validator": "declared-name",
       "delegate": "verbatim",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
-      "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins"
+      "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
+      "corpus": "only where no manifest declares a name"
     }
   },
   "delegation": {
@@ -134,11 +136,14 @@
       "byte range"
     ],
     "freeze": [
-      "at"
+      "state"
+    ],
+    "moment": [
+      "when"
     ]
   },
   "qualifiers": {
-    "at": {
+    "state": {
       "role": "freeze",
       "forms": [
         "swhid"
@@ -157,6 +162,12 @@
         "ref",
         "sha256"
       ]
+    },
+    "when": {
+      "role": "moment",
+      "forms": [
+        "rfc3339"
+      ]
     }
   },
   "forms": {
@@ -167,6 +178,10 @@
     "sha256": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "digest": true
+    },
+    "rfc3339": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
+      "reference": "RFC 3339, UTC only — a moment, never a state"
     },
     "ref": {
       "nested": true,
@@ -202,7 +217,7 @@
   ],
   "fragmentGrammars": {
     "governed-record": {
-      "declaredName": "the name field of its front matter",
+      "declaredName": "<provider>/<type>@<template version>/<name>, every part from the record's own front matter stamp; the provider of the type declares the form of <name>",
       "tieBreak": "none"
     },
     "markdown": {
@@ -300,14 +315,14 @@
         }
       },
       {
-        "name": "folder with at and by digest",
-        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "folder with state and by digest",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [
             [
-              "at",
+              "state",
               "swh:1:rev:7e29bb6000000000000000000000000000000000"
             ],
             [
@@ -366,7 +381,7 @@
       },
       {
         "name": "unknown qualifier key is carried through",
-        "input": "ref:folder:acme-tools;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;zz=1;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -376,7 +391,7 @@
               "1"
             ],
             [
-              "at",
+              "state",
               "swh:1:rev:7e29bb6000000000000000000000000000000000"
             ]
           ],
@@ -407,41 +422,41 @@
       },
       {
         "name": "nested by carrying its own qualifier",
-        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [
             [
               "by",
-              "ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+              "ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
             ]
           ],
           "fragment": null,
           "type": "folder",
           "locator": "acme-tools",
           "nested": {
-            "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+            "by": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
           }
         }
       },
       {
         "name": "two different nested values are two different identifiers",
-        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [
             [
               "by",
-              "ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000"
+              "ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000"
             ]
           ],
           "fragment": null,
           "type": "folder",
           "locator": "acme-tools",
           "nested": {
-            "by": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000"
+            "by": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000"
           }
         }
       },
@@ -487,7 +502,7 @@
       },
       {
         "name": "an unknown key keeps an encoded separator in its value",
-        "input": "ref:folder:acme-tools;zz=a%3Bb;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;zz=a%3Bb;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -497,7 +512,7 @@
               "a%3Bb"
             ],
             [
-              "at",
+              "state",
               "swh:1:rev:7e29bb6000000000000000000000000000000000"
             ]
           ],
@@ -528,13 +543,13 @@
       },
       {
         "name": "qualifier before the hash, refinement after it",
-        "input": "ref:folder:acme-tools;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+        "input": "ref:folder:acme-tools;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [
             [
-              "at",
+              "state",
               "swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           ],
@@ -590,15 +605,15 @@
       },
       {
         "name": "a validator failure outranks an unknown type",
-        "input": "ref:doi:10.1000/182;at=swh:1:rev:7e29bb6",
+        "input": "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6",
         "expect": {
           "status": "malformed",
-          "part": "at"
+          "part": "state"
         }
       },
       {
         "name": "an unsupported version is not validated further",
-        "input": "ref:2:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6",
+        "input": "ref:2:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6",
         "expect": {
           "status": "unsupported",
           "version": 2,
@@ -606,7 +621,7 @@
           "locator": "npm/x@1.0.0",
           "qualifiers": [
             [
-              "at",
+              "state",
               "swh:1:rev:7e29bb6"
             ]
           ]
@@ -614,7 +629,7 @@
       },
       {
         "name": "an uncovered type still carries its qualifiers and fragment",
-        "input": "ref:doi:10.1000/182;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
+        "input": "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
         "expect": {
           "status": "uncovered",
           "version": 1,
@@ -622,7 +637,7 @@
           "locator": "10.1000/182",
           "qualifiers": [
             [
-              "at",
+              "state",
               "swh:1:rev:7e29bb6000000000000000000000000000000000"
             ]
           ],
@@ -694,10 +709,10 @@
       },
       {
         "name": "a qualifier key on the fragment side is malformed",
-        "input": "ref:folder:acme-tools#AGENTS.md;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools#AGENTS.md;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "malformed",
-          "part": "at"
+          "part": "state"
         }
       },
       {
@@ -752,10 +767,10 @@
       },
       {
         "name": "a repeated qualifier key is malformed at that key",
-        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "expect": {
           "status": "malformed",
-          "part": "at"
+          "part": "state"
         }
       },
       {
@@ -795,6 +810,51 @@
         }
       },
       {
+        "name": "when carries a moment in UTC",
+        "input": "ref:pkg:npm/@acme/scanner-core;when=2026-08-12T18:55:27.811Z#governance@0.0.1/markdown-link",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "when",
+              "2026-08-12T18:55:27.811Z"
+            ]
+          ],
+          "fragment": {
+            "path": "governance@0.0.1/markdown-link",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/@acme/scanner-core",
+          "delegated": "pkg:npm/@acme/scanner-core"
+        }
+      },
+      {
+        "name": "a moment with an offset is malformed at when",
+        "input": "ref:folder:acme-tools;when=2026-08-12T15:55:27-03:00",
+        "expect": {
+          "status": "malformed",
+          "part": "when"
+        }
+      },
+      {
+        "name": "a typed governed-record fragment on an unversioned package corpus",
+        "input": "ref:pkg:npm/acme-tools#acme/adr@2/0019",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "acme/adr@2/0019",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/acme-tools",
+          "delegated": "pkg:npm/acme-tools"
+        }
+      },
+      {
         "name": "uppercase type is malformed",
         "input": "ref:Pkg:npm/x@1.0.0",
         "expect": {
@@ -819,11 +879,11 @@
         }
       },
       {
-        "name": "abbreviated SWHID fails the at validator",
-        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6",
+        "name": "abbreviated SWHID fails the state validator",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6",
         "expect": {
           "status": "malformed",
-          "part": "at"
+          "part": "state"
         }
       },
       {
@@ -854,18 +914,20 @@
     "roundtrip": [
       "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
       "ref:1:pkg:npm/x@1.0.0",
-      "ref:folder:acme-tools;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:acme-tools;zz=1;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
       "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
-      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
       "ref:pkg:npm/%40acme/x@1.0.0#S",
-      "ref:folder:acme-tools;zz=a%3Bb;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
-      "ref:folder:acme-tools;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+      "ref:folder:acme-tools;zz=a%3Bb;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:acme-tools;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
       "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
       "ref:2:pkg:npm/x@1.0.0",
       "ref:01:pkg:npm/x@1.0.0",
+      "ref:pkg:npm/@acme/scanner-core;when=2026-08-12T18:55:27.811Z#governance@0.0.1/markdown-link",
+      "ref:pkg:npm/acme-tools#acme/adr@2/0019",
       "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
-      "ref:doi:10.1000/182;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
+      "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
       "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y"
     ],
     "build": [
@@ -903,12 +965,12 @@
             [
               "by",
               {
-                "nested": "ref:pkg:npm/x@1.0.0;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+                "nested": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
               }
             ]
           ]
         },
-        "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+        "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
       },
       {
         "name": "a pkg locator given as the bare group builds as is",
@@ -995,41 +1057,41 @@
       {
         "name": "two members in declared order",
         "members": [
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
         ],
-        "expect": "sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8"
+        "expect": "sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e"
       },
       {
         "name": "same members, other order, different digest",
         "members": [
-          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:eea8e9239a38d79d892ca4befe36ca9b4f8011a95ddad077c8b38d99f4126640"
+        "expect": "sha256:83eee8e9bcff34577a3d305bddebef2685a2e6bb20644e5a2ff29c9a8602a25b"
       },
       {
         "name": "a repeated member is not deduplicated",
         "members": [
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:a743dc921954ceda107cca9e47ab74b701e9db15b41d0493331f1913f3742887"
+        "expect": "sha256:32e30e39f2ea3cf01cc2602487229fb097846ba1a9f1037e738f61757eb3e8b6"
       },
       {
         "name": "a single member",
         "members": [
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
         ],
-        "expect": "sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40"
+        "expect": "sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f"
       },
       {
         "name": "a member whose content changed changes the digest",
         "members": [
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
-          "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a01000000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
         ],
-        "expect": "sha256:ae6cfd9638d02909890e85b65c6c1852d03099a3a9697d793e491422579612f5"
+        "expect": "sha256:59ecd4cdaa3ffcaf60103a20f555c4b9fa5755a0705c83a3748f60557c2c3518"
       },
       {
         "name": "empty sequence",
@@ -1039,7 +1101,7 @@
       {
         "name": "a member carrying the join character is refused",
         "members": [
-          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000\nref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000\nref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
         ],
         "expect": {
           "error": "member"
@@ -1049,13 +1111,13 @@
     "envelope": [
       {
         "name": "members recompute to the digest",
-        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
         "envelope": {
-          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
           "sets": {
             "over": [
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000",
-              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
             ]
           }
         },
@@ -1063,13 +1125,13 @@
       },
       {
         "name": "a member changed and the digest did not",
-        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
         "envelope": {
-          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
           "sets": {
             "over": [
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a01000000000000000000000000000000000",
-              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a01000000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
             ]
           }
         },
@@ -1077,13 +1139,13 @@
       },
       {
         "name": "members reordered",
-        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
         "envelope": {
-          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
           "sets": {
             "over": [
-              "ref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000",
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000",
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           }
         },
@@ -1091,9 +1153,9 @@
       },
       {
         "name": "sets missing for a digest-carrying qualifier",
-        "requestedId": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
         "envelope": {
-          "id": "ref:folder:acme-tools;over=sha256:97dbd730b42e5c3127486aff574dd40672eba5c411ac3ef680125ea452b6aaf8"
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e"
         },
         "expect": "refused"
       },
@@ -1107,9 +1169,9 @@
       },
       {
         "name": "no digest, no sets required",
-        "requestedId": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "requestedId": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
         "envelope": {
-          "id": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+          "id": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
           "data": {
             "anything": true
           }
@@ -1118,15 +1180,15 @@
       },
       {
         "name": "two digest qualifiers, both must recompute",
-        "requestedId": "ref:folder:acme-tools;by=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40;over=sha256:8aedd76b3e4561ce108514dafb95bb0acf3d6425aa26a6a1aea05d4f6f71a08d",
+        "requestedId": "ref:folder:acme-tools;by=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f;over=sha256:27c2b1674a091639b11e51152103ce945bcd1edbb34ef36e549befcd8c0ce0a3",
         "envelope": {
-          "id": "ref:folder:acme-tools;by=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40;over=sha256:8aedd76b3e4561ce108514dafb95bb0acf3d6425aa26a6a1aea05d4f6f71a08d",
+          "id": "ref:folder:acme-tools;by=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f;over=sha256:27c2b1674a091639b11e51152103ce945bcd1edbb34ef36e549befcd8c0ce0a3",
           "sets": {
             "by": [
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ],
             "over": [
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           }
         },
@@ -1142,9 +1204,9 @@
       },
       {
         "name": "a requested identifier that is malformed is refused",
-        "requestedId": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6",
+        "requestedId": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6",
         "envelope": {
-          "id": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6"
+          "id": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6"
         },
         "expect": "refused"
       },
@@ -1158,12 +1220,12 @@
       },
       {
         "name": "alsoKnownAs is opaque to the invariant",
-        "requestedId": "ref:folder:acme-tools;over=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40",
+        "requestedId": "ref:folder:acme-tools;over=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f",
         "envelope": {
-          "id": "ref:folder:acme-tools;over=sha256:3886bee1f29d222dd47eb4fc095bb086f0e76367bb85582b09dffc18ff08fb40",
+          "id": "ref:folder:acme-tools;over=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f",
           "sets": {
             "over": [
-              "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000"
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
             ]
           },
           "alsoKnownAs": [
