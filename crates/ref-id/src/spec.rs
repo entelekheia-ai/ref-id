@@ -14,8 +14,8 @@ use std::sync::OnceLock;
 // The path form binds this crate to the repository it lives in: a git dependency resolves it, a
 // crates.io package would not (files outside the crate root are not packaged) and will need a
 // build.rs copy when publication comes.
-const EMBEDDED_JSON: &str = include_str!("../../../spec/ref-id.json");
-const EMBEDDED_SIDECAR: &str = include_str!("../../../spec/ref-id.json.sha256");
+const EMBEDDED_JSON: &str = include_str!("../spec/ref-id.json");
+const EMBEDDED_SIDECAR: &str = include_str!("../spec/ref-id.json.sha256");
 
 /// The major version this crate was built against. Not spec data — the crate's own contract.
 const SUPPORTED_SPEC_MAJOR: &str = "1";

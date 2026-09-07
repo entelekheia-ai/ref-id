@@ -23,12 +23,8 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          # No registry-url here on purpose: setup-node would write an .npmrc with a placeholder
-          # _authToken, and npm then sends that instead of its OIDC identity — a 403 that reads like a
-          # permission problem. Trusted publishing needs only `id-token: write` and npm 11.5 or later.
-      - name: npm with trusted publishing support (11.5 or later)
-        run: npm install -g npm@latest && npm --version
+          node-version: '24.x'
+          registry-url: https://registry.npmjs.org
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - name: gates — build, tests, grammar in three engines, Rust port
@@ -38,9 +34,34 @@ jobs:
           npm run test:grammar
           cargo test --quiet
       - uses: changesets/action@v1
+        id: changesets
         with:
+          version: npm run version
           publish: npm run release
           title: 'Version Packages'
           commit: 'release: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The Rust crate follows the same version, synced into Cargo.toml by `npm run version`, and publishes
+      # through crates.io trusted publishing — declared once on crates.io, no token. The first version is
+      # published from a maintainer's terminal, as with npm, because the crate must exist to be trusted.
+      - uses: rust-lang/crates-io-auth-action@v1
+        if: steps.changesets.outputs.published == 'true'
+        id: crates
+      - name: publish the crate, when the crate already exists on crates.io
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates.outputs.token }}
+        run: |
+          if curl -sf -A 'entelekheia-ref-id release workflow' https://crates.io/api/v1/crates/ref-id >/dev/null; then
+            cargo publish -p ref-id
+          else
+            echo '::warning::crate ref-id is not on crates.io yet — publish the first version from a terminal, then declare this workflow as its trusted publisher'
+          fi
+      # Swift Package Manager has no registry here: it resolves the package from this repository by a
+      # semver tag, so every release also carries a plain `v<version>` tag beside the changesets one.
+      - name: tag the release for Swift Package Manager
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          VERSION=$(node -p "require('./packages/ref-id/package.json').version")
+          git tag "v$VERSION" && git push origin "v$VERSION"

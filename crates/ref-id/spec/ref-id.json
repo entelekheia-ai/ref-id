@@ -1,0 +1,1488 @@
+{
+  "specVersion": "1.1.0",
+  "scheme": "ref",
+  "grammar": {
+    "dialect": "ecmascript-2018",
+    "expression": "^ref:(?:(?<version>[0-9]+):)?(?<type>[a-z][a-z0-9+.-]*):(?<locator>[^;#\\r\\n]+)(?:;(?<state>[^#\\r\\n]*))?(?:#(?<fragment>[^\\r\\n]*))?$",
+    "groups": [
+      "version",
+      "type",
+      "locator",
+      "state",
+      "fragment"
+    ],
+    "adaptationsApplyTo": "every pattern in this file — the expression, the pair grammars, the forms, the dispatch and refinement patterns",
+    "anchors": "the canonical dialect ends a pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares the replacement above",
+    "adaptations": {
+      "ecmascript-2018": {
+        "replace": []
+      },
+      "pcre2": {
+        "replace": [
+          [
+            "$",
+            "\\z"
+          ]
+        ]
+      },
+      "rust-regex": {
+        "replace": []
+      },
+      "python-re": {
+        "replace": [
+          [
+            "(?<",
+            "(?P<"
+          ],
+          [
+            "$",
+            "\\Z"
+          ]
+        ]
+      },
+      "swift-regex": {
+        "replace": []
+      }
+    },
+    "state": {
+      "separator": ";",
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>[^\\r\\n]*)$",
+      "unknownKey": "carry-through",
+      "repeatedKey": "malformed"
+    },
+    "fragment": {
+      "separator": ";",
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>[^\\r\\n]*)$",
+      "path": "the text before the first separator, verbatim",
+      "repeatedKey": "malformed"
+    }
+  },
+  "version": {
+    "default": 1,
+    "supported": [
+      1
+    ],
+    "mints": [
+      "normalisation or percent-encoding",
+      "separators or shape"
+    ],
+    "note": "A leading digit can only be a version because a type starts with a letter; ref:v2:... is type v2."
+  },
+  "encoding": {
+    "locator": {
+      "reserved": [],
+      "note": "a locator is handed to its validator verbatim — a format's own percent-encoding is the format's, and a value that needs a reserved character cannot be a locator"
+    },
+    "nested": {
+      "reserved": [
+        ";",
+        "#",
+        "%"
+      ],
+      "table": {
+        ";": "%3B",
+        "#": "%23",
+        "%": "%25"
+      },
+      "strict": "every % in a nested value begins one of the forms in the table; any other % is malformed at the key"
+    }
+  },
+  "dispatch": {
+    "pkg": {
+      "locator": "package-url",
+      "validator": "package-url",
+      "delegate": "type-prefixed",
+      "corpus": "the nearest manifest declaring a name, skipping any ancestor manifest whose own workspace or package configuration excludes the file; unversioned, the Package URL names the living package and state= carries the frozen one",
+      "reference": "https://github.com/package-url/purl-spec"
+    },
+    "folder": {
+      "locator": "declared-corpus-name",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
+      "corpus": "only where no manifest declares a name"
+    },
+    "domain": {
+      "locator": "hostname-path",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[a-z0-9][a-z0-9._~-]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment",
+      "corpus": "a manifest that declares a domain names the corpus by that domain; the package name stays the identifier of the software",
+      "reference": "RFC 1123 host labels, lowercase, internationalised labels in their punycode form"
+    },
+    "email": {
+      "locator": "addr-spec",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$",
+      "declaredBy": "a mailbox identifies a person or a role; nothing lives under it — what a mailbox publishes belongs to the ecosystem that publishes it",
+      "reference": "RFC 5322 addr-spec, dot-atom local part"
+    },
+    "dot-agent": {
+      "locator": "agent-id",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?|[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}|unknown)/[A-Za-z0-9][A-Za-z0-9._-]*(?::[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "the agent identifier grammar namespace/name[:version]: the namespace is a domain, a platform/user under a domain, a mailbox, or the literal unknown; the ~digest of the full form is carried by state= instead",
+      "corpus": "the agent bundle",
+      "reference": "dot-agent agent-id reference"
+    }
+  },
+  "typeRegistry": "a type names the naming system that owns the locator grammar; an unregistered type parses to uncovered, never to malformed, and registering its validator here is what promotes it — the registry is this table",
+  "delegation": {
+    "type-prefixed": "the validator receives <type>:<locator> verbatim — the type token is also the delegated format's own scheme",
+    "verbatim": "the validator receives the locator alone"
+  },
+  "statuses": [
+    "ok",
+    "malformed",
+    "uncovered",
+    "unsupported"
+  ],
+  "parts": [
+    "grammar",
+    "type",
+    "state",
+    "fragment",
+    "locator",
+    "member",
+    "<qualifier key>",
+    "<refinement key>"
+  ],
+  "unknownType": "uncovered",
+  "roles": {
+    "identity": [
+      "type",
+      "locator",
+      "fragment.path"
+    ],
+    "location": [
+      "path",
+      "byte range"
+    ],
+    "freeze": [
+      "state"
+    ],
+    "moment": [
+      "when"
+    ]
+  },
+  "qualifiers": {
+    "state": {
+      "role": "freeze",
+      "forms": [
+        "swhid",
+        "git",
+        "content-hash",
+        "none"
+      ]
+    },
+    "by": {
+      "role": "instrument",
+      "forms": [
+        "ref",
+        "sha256"
+      ]
+    },
+    "over": {
+      "role": "population",
+      "forms": [
+        "ref",
+        "sha256"
+      ]
+    },
+    "when": {
+      "role": "moment",
+      "forms": [
+        "rfc3339"
+      ]
+    }
+  },
+  "forms": {
+    "swhid": {
+      "pattern": "^swh:1:(cnt|dir|rev|rel|snp):[0-9a-f]{40}$",
+      "reference": "ISO/IEC 18670 core identifier, no SWHID qualifiers"
+    },
+    "sha256": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "digest": true
+    },
+    "git": {
+      "pattern": "^git:[0-9a-f]{7,40}$",
+      "reference": "a commit object name, abbreviated or full — a freeze the repository can resolve, weaker than a SWHID only in that it names no archive"
+    },
+    "content-hash": {
+      "pattern": "^(sha256|blake3):[0-9a-f]{64}$",
+      "reference": "a hash of the content itself, for what no version control holds; never a digest of members, so it declares no digest: true"
+    },
+    "none": {
+      "pattern": "^none$",
+      "reference": "the declared level for a state nobody captured — an unknown state recorded honestly, worth more than a properties hash presented as proof of content"
+    },
+    "rfc3339": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
+      "reference": "RFC 3339, UTC only — a moment, never a state"
+    },
+    "ref": {
+      "nested": true,
+      "depth": 1,
+      "encoding": "nested"
+    }
+  },
+  "refinements": {
+    "lines": {
+      "pattern": "^[0-9]+(,[0-9]+)?$",
+      "range": "ascending",
+      "boundSeparator": ",",
+      "reference": "RFC 5147 placement"
+    },
+    "item": {
+      "pattern": "^[0-9]+$"
+    },
+    "para": {
+      "pattern": "^[0-9]+$"
+    }
+  },
+  "unknownRefinement": "carry-through",
+  "resolutionStates": [
+    "resolved",
+    "unresolved",
+    "uncovered",
+    "archival"
+  ],
+  "stateLevels": [
+    "properties",
+    "content-hash",
+    "none"
+  ],
+  "fragmentGrammars": {
+    "governed-record": {
+      "declaredName": "<provider>/<type>@<template version>/<name>, every part from the record's own front matter stamp; the provider of the type declares the form of <name>",
+      "tieBreak": "none"
+    },
+    "markdown": {
+      "declaredName": "the heading text",
+      "tieBreak": "ordinal on collision within one document"
+    },
+    "code-symbol": {
+      "declaredName": "the fully-qualified name, no path",
+      "tieBreak": "per the language"
+    },
+    "behavior-state": {
+      "declaredName": "the state name within its agent, never within its file",
+      "tieBreak": "none"
+    },
+    "data-declared-id": {
+      "declaredName": "an id field the record declares in its own data — a case slug, a capability name — not its front matter",
+      "tieBreak": "none"
+    }
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "over": "identifier-strings",
+    "order": "declared",
+    "join": "\n",
+    "encoding": "utf-8",
+    "dedupe": false,
+    "output": "sha256:<64 lowercase hex>"
+  },
+  "canonicalisation": {
+    "form": "json-sorted-keys-compact",
+    "rules": [
+      "object keys sorted by UTF-16 code unit order",
+      "no whitespace outside strings",
+      "strings escaped as JSON.stringify does",
+      "numbers are integers only",
+      "UTF-8 bytes of the result are what the digest covers"
+    ],
+    "sidecar": "ref-id.json.sha256 holds the digest of this file; the file never contains its own digest"
+  },
+  "envelope": {
+    "fields": {
+      "id": "required",
+      "sets": "required when the identifier carries a digest",
+      "alsoKnownAs": "optional, a declaration never a similarity match",
+      "data": "opaque"
+    },
+    "selfReference": "id",
+    "setsField": "sets",
+    "digestForms": "every form declaring digest: true",
+    "invariant": "for every qualifier whose value is a digest, sets[qualifier] exists and digest(sets[qualifier]) equals it; and id equals the identifier the envelope was requested under",
+    "onFailure": "refuse at ingestion"
+  },
+  "vectors": {
+    "parse": [
+      {
+        "name": "pkg with declared name",
+        "input": "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "Observation",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/@acme/scanner-core@0.1.0",
+          "delegated": "pkg:npm/@acme/scanner-core@0.1.0"
+        }
+      },
+      {
+        "name": "pkg with versioned declared-name path",
+        "input": "ref:pkg:npm/@acme/trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "citation-fidelity@1/not-invented",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/@acme/trait-citation-fidelity@0.0.1"
+        }
+      },
+      {
+        "name": "folder corpus with declared name",
+        "input": "ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "learnings/a-chunk-carrying-no-answer-means-death-or-health",
+            "refinements": []
+          },
+          "type": "folder",
+          "locator": "acme-governance"
+        }
+      },
+      {
+        "name": "folder with state and by digest",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ],
+            [
+              "by",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "explicit version 1 is version 1",
+        "input": "ref:1:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "delegated": "pkg:npm/x@1.0.0",
+          "explicitVersion": true
+        }
+      },
+      {
+        "name": "version outside the supported range is unsupported, not malformed",
+        "input": "ref:2:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "unsupported",
+          "version": 2,
+          "type": "pkg",
+          "locator": "npm/x@1.0.0"
+        }
+      },
+      {
+        "name": "letter-led token is a type, not a version",
+        "input": "ref:v2:pkg:npm/x",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "v2",
+          "locator": "pkg:npm/x"
+        }
+      },
+      {
+        "name": "unknown type is uncovered, never an exception",
+        "input": "ref:doi:10.1000/182",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "doi",
+          "locator": "10.1000/182"
+        }
+      },
+      {
+        "name": "unknown qualifier key is carried through",
+        "input": "ref:folder:acme-tools;zz=1;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "zz",
+              "1"
+            ],
+            [
+              "state",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "nested by carrying a fragment",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/@acme/profiles@0.1.0#profile/conformance@1"
+          }
+        }
+      },
+      {
+        "name": "nested by carrying its own qualifier",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+          }
+        }
+      },
+      {
+        "name": "two different nested values are two different identifiers",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000"
+          }
+        }
+      },
+      {
+        "name": "a purl keeps its own percent-encoding intact",
+        "input": "ref:pkg:npm/%40acme/x@1.0.0#S",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "S",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/%40acme/x@1.0.0",
+          "delegated": "pkg:npm/%40acme/x@1.0.0"
+        }
+      },
+      {
+        "name": "an identifier is one line",
+        "input": "ref:folder:acme-tools\nx",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "nesting deeper than one level is malformed",
+        "input": "ref:folder:b;by=ref:folder:a%3Bby=ref:pkg:npm/x@1.0.0%2523S",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "a reversed line range is malformed",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=20,10",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "an unknown key keeps an encoded separator in its value",
+        "input": "ref:folder:acme-tools;zz=a%3Bb;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "zz",
+              "a%3Bb"
+            ],
+            [
+              "state",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "refinement after the declared-name path",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=10,20",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "lines",
+                "10,20"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "qualifier before the hash, refinement after it",
+        "input": "ref:folder:acme-tools;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          ],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "lines",
+                "1"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "unknown refinement key is carried through",
+        "input": "ref:folder:acme-tools#AGENTS.md;zz=q",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "AGENTS.md",
+            "refinements": [
+              [
+                "zz",
+                "q"
+              ]
+            ]
+          },
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "over as a digest",
+        "input": "ref:folder:acme-tools;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "over",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "a validator failure outranks an unknown type",
+        "input": "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "an unsupported version is not validated further",
+        "input": "ref:2:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6",
+        "expect": {
+          "status": "unsupported",
+          "version": 2,
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "qualifiers": [
+            [
+              "state",
+              "swh:1:rev:7e29bb6"
+            ]
+          ]
+        }
+      },
+      {
+        "name": "an uncovered type still carries its qualifiers and fragment",
+        "input": "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "doi",
+          "locator": "10.1000/182",
+          "qualifiers": [
+            [
+              "state",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": {
+            "path": "S",
+            "refinements": []
+          }
+        }
+      },
+      {
+        "name": "percent in a nested value is itself encoded",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0%2523src/y"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/x@1.0.0%23src/y"
+          }
+        }
+      },
+      {
+        "name": "empty fragment is malformed",
+        "input": "ref:folder:acme-tools#",
+        "expect": {
+          "status": "malformed",
+          "part": "fragment"
+        }
+      },
+      {
+        "name": "empty qualifier is malformed",
+        "input": "ref:folder:acme-tools;",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "qualifier without a value separator is malformed",
+        "input": "ref:folder:acme-tools;at",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "a nested value that is not a ref and not a digest fails the by validator",
+        "input": "ref:folder:acme-tools;by=rumdl",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "a refinement key on the qualifier side is malformed",
+        "input": "ref:folder:acme-tools;lines=1#AGENTS.md",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "a qualifier key on the fragment side is malformed",
+        "input": "ref:folder:acme-tools#AGENTS.md;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "an empty path before a refinement is malformed",
+        "input": "ref:folder:acme-tools#;lines=1",
+        "expect": {
+          "status": "malformed",
+          "part": "fragment"
+        }
+      },
+      {
+        "name": "a nested identifier of an unsupported version is carried, not rejected",
+        "input": "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:2:pkg:npm/x@1.0.0"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:2:pkg:npm/x@1.0.0"
+          }
+        }
+      },
+      {
+        "name": "a version token round-trips as written",
+        "input": "ref:01:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "explicitVersion": true,
+          "versionText": "01"
+        }
+      },
+      {
+        "name": "a trailing line break is malformed in every engine",
+        "input": "ref:folder:acme-tools\n",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "a repeated qualifier key is malformed at that key",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "a repeated refinement key is malformed at that key",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=1;lines=2",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "a raw percent in a nested value is malformed at the key",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/%40acme/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "a nested value carries the inner percent-encoding doubled",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/%2540acme/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/%2540acme/x@1.0.0"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/%40acme/x@1.0.0"
+          }
+        }
+      },
+      {
+        "name": "when carries a moment in UTC",
+        "input": "ref:pkg:npm/@acme/scanner-core;when=2026-08-12T18:55:27.811Z#governance@0.0.1/markdown-link",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "when",
+              "2026-08-12T18:55:27.811Z"
+            ]
+          ],
+          "fragment": {
+            "path": "governance@0.0.1/markdown-link",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/@acme/scanner-core",
+          "delegated": "pkg:npm/@acme/scanner-core"
+        }
+      },
+      {
+        "name": "a moment with an offset is malformed at when",
+        "input": "ref:folder:acme-tools;when=2026-08-12T15:55:27-03:00",
+        "expect": {
+          "status": "malformed",
+          "part": "when"
+        }
+      },
+      {
+        "name": "a typed governed-record fragment on an unversioned package corpus",
+        "input": "ref:pkg:npm/acme-tools#acme/adr@2/0019",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "acme/adr@2/0019",
+            "refinements": []
+          },
+          "type": "pkg",
+          "locator": "npm/acme-tools",
+          "delegated": "pkg:npm/acme-tools"
+        }
+      },
+      {
+        "name": "dot-agent id in the unknown namespace tier",
+        "input": "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "unknown/MentorUniversitario:1.4.1"
+        }
+      },
+      {
+        "name": "dot-agent id under a domain, its digest carried by state",
+        "input": "ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "git:a1b2c3d4"
+            ]
+          ],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "acme.example/doctor:v1.0"
+        }
+      },
+      {
+        "name": "dot-agent id under a platform user and under a mailbox",
+        "input": "ref:dot-agent:github.example/someone/doctor",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "github.example/someone/doctor"
+        }
+      },
+      {
+        "name": "dot-agent id with a mailbox namespace",
+        "input": "ref:dot-agent:someone@mail.example/doctor:v2",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "someone@mail.example/doctor:v2"
+        }
+      },
+      {
+        "name": "a dotted namespace reads as the domain tier — whether the domain exists is the ecosystem's check, never the grammar's",
+        "input": "ref:dot-agent:mentor.pessoal.agent/MentorUniversitario:1.4.1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "mentor.pessoal.agent/MentorUniversitario:1.4.1"
+        }
+      },
+      {
+        "name": "a domain names a corpus",
+        "input": "ref:domain:portfolio.example",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "domain",
+          "locator": "portfolio.example"
+        }
+      },
+      {
+        "name": "a declared name under a domain, versioned, with a section fragment",
+        "input": "ref:domain:portfolio.example/case-xpto@2#results",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "results",
+            "refinements": []
+          },
+          "type": "domain",
+          "locator": "portfolio.example/case-xpto@2"
+        }
+      },
+      {
+        "name": "an uppercase host is malformed at the locator",
+        "input": "ref:domain:Portfolio.example/case",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a mailbox identifies a person",
+        "input": "ref:email:someone@mail.example",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "email",
+          "locator": "someone@mail.example"
+        }
+      },
+      {
+        "name": "nothing lives under a mailbox",
+        "input": "ref:email:someone@mail.example/doctor",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "an unregistered naming system is uncovered",
+        "input": "ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "spotify",
+          "locator": "track/4uLU6hMCjMI75M1A2tKUQC"
+        }
+      },
+      {
+        "name": "a content hash freezes what no version control holds",
+        "input": "ref:domain:models.example/quant-q4;state=blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+            ]
+          ],
+          "fragment": null,
+          "type": "domain",
+          "locator": "models.example/quant-q4"
+        }
+      },
+      {
+        "name": "none is a declared state level",
+        "input": "ref:domain:models.example/quant-q4;state=none",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "none"
+            ]
+          ],
+          "fragment": null,
+          "type": "domain",
+          "locator": "models.example/quant-q4"
+        }
+      },
+      {
+        "name": "a state in an undeclared form is malformed at state",
+        "input": "ref:domain:models.example/quant-q4;state=sha1:0f0f0f0f",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "uppercase type is malformed",
+        "input": "ref:Pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "missing scheme is malformed",
+        "input": "pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "empty locator is malformed",
+        "input": "ref:pkg:",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "abbreviated SWHID fails the state validator",
+        "input": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "invalid purl fails the locator validator",
+        "input": "ref:pkg:not-a-purl",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "malformed refinement value",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=ten",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "corpus name with a path separator is malformed",
+        "input": "ref:folder:acme-tools/docs#AGENTS.md",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      }
+    ],
+    "roundtrip": [
+      "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
+      "ref:1:pkg:npm/x@1.0.0",
+      "ref:folder:acme-tools;zz=1;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
+      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+      "ref:pkg:npm/%40acme/x@1.0.0#S",
+      "ref:folder:acme-tools;zz=a%3Bb;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+      "ref:folder:acme-tools;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
+      "ref:folder:acme-tools#AGENTS.md;zz=q",
+      "ref:doi:10.1000/182",
+      "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
+      "ref:domain:portfolio.example/case-xpto@2;state=none#results",
+      "ref:email:someone@mail.example",
+      "ref:2:pkg:npm/x@1.0.0",
+      "ref:01:pkg:npm/x@1.0.0",
+      "ref:pkg:npm/@acme/scanner-core;when=2026-08-12T18:55:27.811Z#governance@0.0.1/markdown-link",
+      "ref:pkg:npm/acme-tools#acme/adr@2/0019",
+      "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
+      "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
+      "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y"
+    ],
+    "build": [
+      {
+        "name": "same declared name through two paths is one identifier",
+        "parts": {
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "fragment": "Observation",
+          "location": {
+            "path": "src/a.ts"
+          }
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "same declared name through two paths is one identifier (other path)",
+        "parts": {
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "fragment": "Observation",
+          "location": {
+            "path": "lib/b.ts",
+            "lines": "4,9"
+          }
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "nested qualifier value is encoded by the builder",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "qualifiers": [
+            [
+              "by",
+              {
+                "nested": "ref:pkg:npm/x@1.0.0;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S"
+              }
+            ]
+          ]
+        },
+        "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S"
+      },
+      {
+        "name": "a pkg locator given as the bare group builds as is",
+        "parts": {
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "fragment": "Observation"
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#Observation"
+      },
+      {
+        "name": "an intact purl given as locator has its scheme folded into the type",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0",
+          "fragment": "S"
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#S"
+      },
+      {
+        "name": "a locator carrying a reserved character is refused",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0#src/y",
+          "fragment": "S"
+        },
+        "expect": {
+          "error": "locator"
+        }
+      },
+      {
+        "name": "a fragment path carrying the separator is refused",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "fragment": "a;b"
+        },
+        "expect": {
+          "error": "fragment"
+        }
+      },
+      {
+        "name": "a nested identifier passed as a plain string is refused",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0#S"
+            ]
+          ]
+        },
+        "expect": {
+          "error": "by"
+        }
+      },
+      {
+        "name": "a type carrying the field separator is refused",
+        "parts": {
+          "type": "1:folder",
+          "locator": "a"
+        },
+        "expect": {
+          "error": "type"
+        }
+      },
+      {
+        "name": "a dot-agent identifier builds with its digest in state",
+        "parts": {
+          "type": "dot-agent",
+          "locator": "acme.example/doctor:v1.0",
+          "qualifiers": [
+            [
+              "state",
+              "git:a1b2c3d4"
+            ]
+          ]
+        },
+        "expect": "ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4"
+      },
+      {
+        "name": "a content hash is accepted as a state",
+        "parts": {
+          "type": "domain",
+          "locator": "models.example/quant-q4",
+          "qualifiers": [
+            [
+              "state",
+              "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+            ]
+          ]
+        },
+        "expect": "ref:domain:models.example/quant-q4;state=sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+      },
+      {
+        "name": "a digest value passes through the builder",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "qualifiers": [
+            [
+              "over",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ]
+        },
+        "expect": "ref:folder:acme-tools;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "digest": [
+      {
+        "name": "two members in declared order",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": "sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e"
+      },
+      {
+        "name": "same members, other order, different digest",
+        "members": [
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:83eee8e9bcff34577a3d305bddebef2685a2e6bb20644e5a2ff29c9a8602a25b"
+      },
+      {
+        "name": "a repeated member is not deduplicated",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:32e30e39f2ea3cf01cc2602487229fb097846ba1a9f1037e738f61757eb3e8b6"
+      },
+      {
+        "name": "a single member",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+        ],
+        "expect": "sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f"
+      },
+      {
+        "name": "a member whose content changed changes the digest",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a01000000000000000000000000000000000",
+          "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": "sha256:59ecd4cdaa3ffcaf60103a20f555c4b9fa5755a0705c83a3748f60557c2c3518"
+      },
+      {
+        "name": "empty sequence",
+        "members": [],
+        "expect": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "a member carrying the join character is refused",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000\nref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": {
+          "error": "member"
+        }
+      }
+    ],
+    "envelope": [
+      {
+        "name": "members recompute to the digest",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+        "envelope": {
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+          "sets": {
+            "over": [
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "admissible"
+      },
+      {
+        "name": "a member changed and the digest did not",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+        "envelope": {
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+          "sets": {
+            "over": [
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a01000000000000000000000000000000000",
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "members reordered",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+        "envelope": {
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+          "sets": {
+            "over": [
+              "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000",
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "sets missing for a digest-carrying qualifier",
+        "requestedId": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e",
+        "envelope": {
+          "id": "ref:folder:acme-tools;over=sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "served under an identifier that is not its own",
+        "requestedId": "ref:folder:acme-tools#AGENTS.md",
+        "envelope": {
+          "id": "ref:folder:acme-tools#GOVERNANCE.md"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "no digest, no sets required",
+        "requestedId": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "envelope": {
+          "id": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6000000000000000000000000000000000",
+          "data": {
+            "anything": true
+          }
+        },
+        "expect": "admissible"
+      },
+      {
+        "name": "two digest qualifiers, both must recompute",
+        "requestedId": "ref:folder:acme-tools;by=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f;over=sha256:27c2b1674a091639b11e51152103ce945bcd1edbb34ef36e549befcd8c0ce0a3",
+        "envelope": {
+          "id": "ref:folder:acme-tools;by=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f;over=sha256:27c2b1674a091639b11e51152103ce945bcd1edbb34ef36e549befcd8c0ce0a3",
+          "sets": {
+            "by": [
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ],
+            "over": [
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          }
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "a requested identifier that does not parse is refused",
+        "requestedId": "not-a-ref",
+        "envelope": {
+          "id": "not-a-ref"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "a requested identifier that is malformed is refused",
+        "requestedId": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6",
+        "envelope": {
+          "id": "ref:folder:acme-tools;state=swh:1:rev:7e29bb6"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "an uncovered requested identifier is admissible",
+        "requestedId": "ref:doi:10.1000/182",
+        "envelope": {
+          "id": "ref:doi:10.1000/182"
+        },
+        "expect": "admissible"
+      },
+      {
+        "name": "alsoKnownAs is opaque to the invariant",
+        "requestedId": "ref:folder:acme-tools;over=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f",
+        "envelope": {
+          "id": "ref:folder:acme-tools;over=sha256:b89a7d58a6ed779ac53f03eafd0b9cddfac76aad11bfe510688680bfeff45a5f",
+          "sets": {
+            "over": [
+              "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000"
+            ]
+          },
+          "alsoKnownAs": [
+            "ref:pkg:npm/acme-tools@0.6.0"
+          ]
+        },
+        "expect": "admissible"
+      }
+    ]
+  }
+}

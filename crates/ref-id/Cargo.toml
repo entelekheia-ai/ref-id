@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 [package]
 name = "ref-id"
-version = "0.0.1"
+version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0"
 description = "The ref: identifier scheme — a Rust port held to the specification's conformance vectors"
-publish = false
+repository = "https://github.com/entelekheia-ai/ref-id"
 
 [dependencies]
 regex = "1"
