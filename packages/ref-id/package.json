@@ -1,7 +1,7 @@
 {
   "name": "@entelekheia/ref-id",
-  "version": "0.1.1",
-  "description": "The ref: identifier scheme \u2014 a specification published as data with conformance vectors, and the package that consumes it.",
+  "version": "0.1.2",
+  "description": "The ref: identifier scheme — a specification published as data with conformance vectors, and the package that consumes it.",
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
