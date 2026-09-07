@@ -55,33 +55,32 @@ jobs:
         run: |
           VERSION=$(node -p "require('./packages/ref-id/package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ]; then
-            echo "released=false" >> "$GITHUB_OUTPUT"; echo "v$VERSION already tagged"
-          elif [ "$(npm view "@entelekheia/ref-id@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
-            echo "released=true" >> "$GITHUB_OUTPUT"; echo "npm carries $VERSION and v$VERSION is untagged: finishing the release"
+          on_npm=$([ "$(npm view "@entelekheia/ref-id@$VERSION" version 2>/dev/null)" = "$VERSION" ] && echo yes || echo no)
+          tagged=$([ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ] && echo yes || echo no)
+          crated=$(curl -s -o /dev/null -w '%{http_code}' -A 'entelekheia-ref-id release workflow (github actions)' "https://crates.io/api/v1/crates/ref-id/$VERSION")
+          echo "npm=$on_npm tag=$tagged crates.io=$crated"
+          if [ "$on_npm" = yes ] && { [ "$tagged" = no ] || [ "$crated" != 200 ]; }; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
           else
-            echo "released=false" >> "$GITHUB_OUTPUT"; echo "$VERSION not on npm: nothing released this run"
+            echo "released=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "crated=$crated" >> "$GITHUB_OUTPUT"
+          echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
       # The Rust crate follows the same version, synced into Cargo.toml by `npm run version`, and publishes
       # through crates.io trusted publishing — declared once on crates.io, no token. The first version is
       # published from a maintainer's terminal, as with npm, because the crate must exist to be trusted.
       - uses: rust-lang/crates-io-auth-action@v1
         if: steps.released.outputs.released == 'true'
         id: crates
-      - name: publish the crate, when the crate already exists on crates.io
-        if: steps.released.outputs.released == 'true'
+      - name: publish the crate, unless crates.io already has this version
+        if: steps.released.outputs.released == 'true' && steps.released.outputs.crated != '200'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates.outputs.token }}
-        run: |
-          if curl -sf -A 'entelekheia-ref-id release workflow' https://crates.io/api/v1/crates/ref-id >/dev/null; then
-            cargo publish -p ref-id
-          else
-            echo '::warning::crate ref-id is not on crates.io yet — publish the first version from a terminal, then declare this workflow as its trusted publisher'
-          fi
+        run: cargo publish -p ref-id
       # Swift Package Manager has no registry here: it resolves the package from this repository by a
       # semver tag, so every release also carries a plain `v<version>` tag beside the changesets one.
       - name: GitHub release on the v<version> tag — the one tag SwiftPM resolves and humans read
-        if: steps.released.outputs.released == 'true'
+        if: steps.released.outputs.released == 'true' && steps.released.outputs.tagged == 'no'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
