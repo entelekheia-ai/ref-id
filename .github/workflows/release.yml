@@ -1,0 +1,42 @@
+# Publishes @entelekheia/ref-id to GitHub Packages from CI, with the repository's own GITHUB_TOKEN —
+# no personal token anywhere. Every push to main runs the gates; while .changeset/*.md files are pending,
+# changesets/action opens or refreshes the "Version Packages" pull request instead of publishing.
+# Merging that pull request is the release: this same workflow then runs `changeset publish`.
+# Moving to the public npm registry later means changing registry-url, scope and access — nothing else.
+name: release
+on:
+  push:
+    branches: [main]
+concurrency: release-${{ github.ref }}
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+  id-token: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@entelekheia'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: gates — build, tests, grammar in three engines, Rust port
+        run: |
+          npm run build
+          npm test
+          npm run test:grammar
+          cargo test --quiet
+      - uses: changesets/action@v1
+        with:
+          publish: npm run release
+          title: 'Version Packages'
+          commit: 'release: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
