@@ -33,15 +33,15 @@ jobs:
           npm test
           npm run test:grammar
           cargo test --quiet
-      - name: OIDC claims npm will see (diagnostic, no secret printed)
-        run: |
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).value")
-          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | node -p "const c=JSON.parse(require('fs').readFileSync(0,'utf8'));JSON.stringify({repository:c.repository,repository_owner:c.repository_owner,repository_visibility:c.repository_visibility,workflow_ref:c.workflow_ref,job_workflow_ref:c.job_workflow_ref,environment:c.environment,ref:c.ref,aud:c.aud},null,1)"
       - uses: changesets/action@v1
         id: changesets
         with:
           version: npm run version
-          publish: npm run release
+          # --no-git-tag: the action would otherwise `git push` the tag, and the repository token may not
+          # push a ref whose commit touches a workflow file. The tag and the release are created below
+          # through the releases API instead, which carries no such restriction.
+          publish: npm run release -- --no-git-tag
+          createGithubReleases: false
           title: 'Version Packages'
           commit: 'release: version packages'
         env:
@@ -64,8 +64,11 @@ jobs:
           fi
       # Swift Package Manager has no registry here: it resolves the package from this repository by a
       # semver tag, so every release also carries a plain `v<version>` tag beside the changesets one.
-      - name: tag the release for Swift Package Manager
+      - name: GitHub release and the two tags — the changesets one and the v<version> one SwiftPM resolves
         if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./packages/ref-id/package.json').version")
-          git tag "v$VERSION" && git push origin "v$VERSION"
+          gh release create "@entelekheia/ref-id@$VERSION" --target "$GITHUB_SHA" --title "@entelekheia/ref-id@$VERSION" --notes-file <(node -e "const c=require('fs').readFileSync('packages/ref-id/CHANGELOG.md','utf8');const m=c.split(/^## /m).find(s=>s.startsWith('$VERSION'));process.stdout.write(m?m.slice(m.indexOf('\n')+1).trim():'')")
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$GITHUB_SHA" >/dev/null
