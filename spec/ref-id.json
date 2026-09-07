@@ -3,7 +3,7 @@
   "scheme": "ref",
   "grammar": {
     "dialect": "ecmascript-2018",
-    "expression": "^ref:(?:(?<version>[0-9]+):)?(?<type>[a-z][a-z0-9+.-]*):(?<locator>[^;#]+)(?:;(?<state>[^#]*))?(?:#(?<fragment>.*))?$",
+    "expression": "^ref:(?:(?<version>[0-9]+):)?(?<type>[a-z][a-z0-9+.-]*):(?<locator>[^;#\\r\\n]+)(?:;(?<state>[^#\\r\\n]*))?(?:#(?<fragment>[^\\r\\n]*))?$",
     "groups": [
       "version",
       "type",
@@ -54,13 +54,8 @@
   },
   "encoding": {
     "locator": {
-      "reserved": [
-        "#"
-      ],
-      "table": {
-        "#": "%23"
-      },
-      "decodeBeforeDelegation": true
+      "reserved": [],
+      "note": "a locator is handed to its validator verbatim — a format's own percent-encoding is the format's, and a value that needs a reserved character cannot be a locator"
     },
     "nested": {
       "reserved": [
@@ -92,8 +87,8 @@
     }
   },
   "delegation": {
-    "type-prefixed": "the validator receives <type>:<decoded locator> — the type token is also the delegated format's own scheme",
-    "verbatim": "the validator receives the decoded locator alone"
+    "type-prefixed": "the validator receives <type>:<locator> verbatim — the type token is also the delegated format's own scheme",
+    "verbatim": "the validator receives the locator alone"
   },
   "statuses": [
     "ok",
@@ -427,8 +422,8 @@
         }
       },
       {
-        "name": "purl subpath is percent-encoded inside the locator",
-        "input": "ref:pkg:npm/x@1.0.0%23src/y#S",
+        "name": "a purl keeps its own percent-encoding intact",
+        "input": "ref:pkg:npm/%40acme/x@1.0.0#S",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -438,8 +433,53 @@
             "refinements": []
           },
           "type": "pkg",
-          "locator": "npm/x@1.0.0%23src/y",
-          "delegated": "pkg:npm/x@1.0.0#src/y"
+          "locator": "npm/%40acme/x@1.0.0",
+          "delegated": "pkg:npm/%40acme/x@1.0.0"
+        }
+      },
+      {
+        "name": "an identifier is one line",
+        "input": "ref:folder:acme-tools\nx",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "nesting deeper than one level is malformed",
+        "input": "ref:folder:b;by=ref:folder:a%3Bby=ref:pkg:npm/x@1.0.0%2523S",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "a reversed line range is malformed",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=20,10",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "an unknown key keeps an encoded separator in its value",
+        "input": "ref:folder:acme-tools;zz=a%3Bb;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "zz",
+              "a%3Bb"
+            ],
+            [
+              "at",
+              "swh:1:rev:7e29bb6000000000000000000000000000000000"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools"
         }
       },
       {
@@ -683,7 +723,8 @@
       "ref:folder:acme-tools;zz=1;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
       "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
       "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S",
-      "ref:pkg:npm/x@1.0.0%23src/y#S",
+      "ref:pkg:npm/%40acme/x@1.0.0#S",
+      "ref:folder:acme-tools;zz=a%3Bb;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
       "ref:folder:acme-tools;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
       "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
@@ -743,13 +784,65 @@
         "expect": "ref:pkg:npm/x@1.0.0#Observation"
       },
       {
-        "name": "an intact purl given as locator has its scheme folded into the type and its subpath encoded",
+        "name": "an intact purl given as locator has its scheme folded into the type",
+        "parts": {
+          "type": "pkg",
+          "locator": "pkg:npm/x@1.0.0",
+          "fragment": "S"
+        },
+        "expect": "ref:pkg:npm/x@1.0.0#S"
+      },
+      {
+        "name": "a locator carrying a reserved character is refused",
         "parts": {
           "type": "pkg",
           "locator": "pkg:npm/x@1.0.0#src/y",
           "fragment": "S"
         },
-        "expect": "ref:pkg:npm/x@1.0.0%23src/y#S"
+        "expect": {
+          "error": "locator"
+        }
+      },
+      {
+        "name": "a fragment path carrying the separator is refused",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "fragment": "a;b"
+        },
+        "expect": {
+          "error": "fragment"
+        }
+      },
+      {
+        "name": "a nested identifier passed as a plain string is refused",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/x@1.0.0#S"
+            ]
+          ]
+        },
+        "expect": {
+          "error": "by"
+        }
+      },
+      {
+        "name": "a digest value passes through the builder",
+        "parts": {
+          "type": "folder",
+          "locator": "acme-tools",
+          "qualifiers": [
+            [
+              "over",
+              "sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          ]
+        },
+        "expect": "ref:folder:acme-tools;over=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       }
     ],
     "digest": [
@@ -796,6 +889,15 @@
         "name": "empty sequence",
         "members": [],
         "expect": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "a member carrying the join character is refused",
+        "members": [
+          "ref:folder:acme-tools#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000\nref:folder:acme-tools#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000"
+        ],
+        "expect": {
+          "error": "member"
+        }
       }
     ],
     "envelope": [
@@ -883,6 +985,30 @@
           }
         },
         "expect": "refused"
+      },
+      {
+        "name": "a requested identifier that does not parse is refused",
+        "requestedId": "not-a-ref",
+        "envelope": {
+          "id": "not-a-ref"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "a requested identifier that is malformed is refused",
+        "requestedId": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6",
+        "envelope": {
+          "id": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6"
+        },
+        "expect": "refused"
+      },
+      {
+        "name": "an uncovered requested identifier is admissible",
+        "requestedId": "ref:doi:10.1000/182",
+        "envelope": {
+          "id": "ref:doi:10.1000/182"
+        },
+        "expect": "admissible"
       },
       {
         "name": "alsoKnownAs is opaque to the invariant",
