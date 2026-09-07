@@ -13,6 +13,7 @@ is expected and is checked against the same vectors, never against this code.
 | `spec/` | **The specification, as data.** `ref-id.json` is the only place the grammar, the dispatch and qualifier tables, the digest canonicalisation and the conformance vectors live. Prose in `docs/` explains it; nothing in `packages/` restates it. |
 | `packages/ref-id/` | `@entelekheia/ref-id` — the TypeScript reference: parse, serialise, build, digest, envelope validation. Reads `spec/ref-id.json`; its tests are the vectors. |
 | `Package.swift`, `Sources/RefId/` | The Swift port (`RefId`), at the root because SwiftPM resolves a git dependency's manifest only there. `Sources/RefId/Resources/` holds a byte-identical copy of `spec/` (the runner proves it). Gate: `swift run ref-id-conformance` — an executable, because Command Line Tools ship neither XCTest nor the Swift Testing macros. |
+| `Cargo.toml`, `crates/ref-id/` | The Rust port (`ref-id` crate, `ref_id` library) under a root Cargo workspace. Embeds the spec with `include_str!` — a path that binds the crate to this repository; publishing to crates.io will need a `build.rs` copy. Gate: `cargo test --workspace`. Delegates the purl to the `packageurl` crate. |
 | `spec/conformance/` | Grammar-level runners in Python and Perl: the declared dialects, proven on every parse vector (`npm run test:grammar`). |
 | `docs/` | Diátaxis: `explanation/` carries the scheme's rationale and the rejected alternatives; `reference/` the API. |
 | `project/` | Governance records (ADR / RFC / plan / task / log / research) — lifecycles in `.agents/rules/governance.md`. |
@@ -36,9 +37,10 @@ is expected and is checked against the same vectors, never against this code.
   expected, not broken. The package publishes to GitHub Packages until its npm release — `project/adr/0003`.
 - Every delegated validation goes to the library that owns the format. Two exceptions are declared: the
   SWHID core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL
-  core grammar (no maintained Swift library). The two purl validators differ at the edge — `packageurl-js`
-  accepts an empty name after a namespace, the Swift validator refuses it — and a locator's validity is the
-  format's, so a differential test compares every field except that verdict.
+  core grammar (no maintained Swift library). The three purl validators differ at the edge — `packageurl-js`
+  accepts an empty name after a namespace and a version ending in `/`; the `packageurl` crate and the Swift
+  validator refuse them — and a locator's validity is the format's, so a differential test compares every
+  field except that verdict.
 
 ## Source of truth
 

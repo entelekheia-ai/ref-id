@@ -34,6 +34,7 @@ against vectors, never a re-derivation from this one's source.
 | Package | Purpose | README |
 |---|---|---|
 | `@entelekheia/ref-id` | TypeScript reference: parse, serialise, build, digest and validate `ref:` identifiers and envelopes against `spec/ref-id.json`. | [`packages/ref-id/`](packages/ref-id/README.md) |
+| `ref-id` (Rust) | The same API as a crate under `crates/ref-id`, held to the same vectors; `cargo test --workspace` is its gate. | [`crates/ref-id/`](crates/ref-id/) |
 | `RefId` (Swift) | The same API as a Swift package at the repository root, held to the same vectors; `swift run ref-id-conformance` is its gate. | [`Sources/RefId/`](Sources/RefId/) |
 
 ## Install
