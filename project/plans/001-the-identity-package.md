@@ -82,25 +82,23 @@ space and is why a list never appears inside a name.
 And it **degrades rather than refuses**: an unknown type yields `uncovered`, so extending the scheme later
 is not a data-loss event for whoever already stored identifiers.
 
-```mermaid
-flowchart TD
-    S["identifier string"] --> R{"one regular expression"}
-    R -->|"no match"| E["malformed"]
-    R -->|"match"| V{"version in the<br/>supported range?"}
-    V -->|"no"| U0["unsupported —<br/>decomposed, not validated"]
-    V -->|"yes"| Q["validate qualifiers and refinements<br/>with the form that owns each"]
-    Q -->|"a validator fails"| E
-    Q --> T{"type in the<br/>dispatch table?"}
-    T -->|"no"| U["uncovered —<br/>identifier stays readable"]
-    T -->|"yes"| L["delegate the locator to<br/>the validator that owns it"]
-    L -->|"fails"| E
-    L --> P["parsed identifier"]
-    P --> D{"carries a digest?"}
-    D -->|"no"| OK["admissible"]
-    D -->|"yes"| M["require the envelope;<br/>recompute the digest<br/>from its members"]
-    M -->|"agrees"| OK
-    M -->|"disagrees"| X["refuse at ingestion"]
-```
+    flowchart TD
+        S["identifier string"] --> R{"one regular expression"}
+        R -->|"no match"| E["malformed"]
+        R -->|"match"| V{"version in the<br/>supported range?"}
+        V -->|"no"| U0["unsupported —<br/>decomposed, not validated"]
+        V -->|"yes"| Q["validate qualifiers and refinements<br/>with the form that owns each"]
+        Q -->|"a validator fails"| E
+        Q --> T{"type in the<br/>dispatch table?"}
+        T -->|"no"| U["uncovered —<br/>identifier stays readable"]
+        T -->|"yes"| L["delegate the locator to<br/>the validator that owns it"]
+        L -->|"fails"| E
+        L --> P["parsed identifier"]
+        P --> D{"carries a digest?"}
+        D -->|"no"| OK["admissible"]
+        D -->|"yes"| M["require the envelope;<br/>recompute the digest<br/>from its members"]
+        M -->|"agrees"| OK
+        M -->|"disagrees"| X["refuse at ingestion"]
 
 The branch at the bottom is the one a reader most often misses. An identifier carrying a digest is a
 promise that an object listing the members exists, and a promise nobody checks is a dangling pointer.
@@ -134,11 +132,11 @@ own.
       makes a digest a claim rather than a promise. Acceptance: a vector where a member's content changed
       and the set digest did not is refused; reordered members produce a different digest; a repeated
       member is not deduplicated.
-- [ ] **Track 3 — Mapping the names already declared.** Every identity the consuming tools declare in code
+- [x] **Track 3 — Mapping the names already declared.** Every identity the consuming tools declare in code
       is written in the scheme, in a table generated from the declarations rather than hand-maintained. At
       the end there is proof that no name had to be invented — and if one has to be, that is the finding,
       recorded rather than quietly fixed.
-- [ ] **Track 4 — Reconstruction against stored data.** A report builds an identifier for each stored
+- [x] **Track 4 — Reconstruction against stored data.** A report builds an identifier for each stored
       reading from the fields it already carries and prints the distinct units it finds, plus the readings
       whose identifier could not be built and why. This is the track that can falsify the design, and it
       runs against real data rather than fixtures. It also answers the one question left open in the
@@ -148,7 +146,7 @@ own.
       embedded rather than fetched, carrying the digest of its canonical serialisation and refusing a file
       whose `specVersion` falls outside the range it declares. The registry is the one ADR-0003 names until
       the public release.
-- [ ] **Track 6 — Ports in Swift and Rust.** A Swift package at the repository root and a Rust crate under
+- [x] **Track 6 — Ports in Swift and Rust.** A Swift package at the repository root and a Rust crate under
       `crates/ref-id`, each embedding the specification, held to every vector class, and checked
       differentially against the TypeScript reference on the vectors and on generated hostile inputs.
       Acceptance: both gates green (`swift test`, `cargo test`), zero disagreements with the reference on
@@ -284,10 +282,15 @@ formed per type; there is no locator encoding layer; identifiers are one line an
 refuses what the grammar cannot carry. Open at this point: a second adversarial review of the committed
 package is in flight, and the ports (Track 6) have started.
 
+**2026-09-07 — Tracks 3 and 4 landed; the design held.** The mapping generator writes 205 of 226 declared identities with no invented part; the 21 left are a name nobody declared (records without a template stamp, a profiles folder no manifest covers, sub-packages without a name, two per-run computed entries) plus one gap in the delegate rather than the scheme — Package URL has no type for a marketplace extension. The reconstruction over 6,254 stored records identifies 5,196 of them: with `when` admitted, 749 units in 801 instrument readings and 4,394 in 4,395 gate records, where the same data gave 43 and 15 units before a moment could enter the identifier. Every unidentifiable record is a name absent from every manifest; none is a defect of the scheme. The open question on undeclared conditions dissolved: conditions were never identifier material, and the consequence — readings that differ only in conditions collide — is what `when` resolves, with same-instant batches left as one unit by definition. Three rules landed from the measurement: `at` became `state` (a freeze) beside a new `when` (RFC 3339 UTC); the corpus is the nearest manifest declaring a name, unversioned, `folder` only where no manifest exists; the governed-record fragment is typed, `<provider>/<type>@<templateVersion>/<name>`, because heading text collides in over a third of governance nodes.
+
+**2026-09-07 — Track 6 landed: Swift and Rust ports.** Both embed the specification byte-identically and pass every vector class (Swift 260/260 through a conformance executable, because the command-line toolchain ships no XCTest; Rust 9 tests over the vector file). Differential runs against the TypeScript reference agree on 292 of 294 hostile inputs; the two disagreements are the Swift purl validator's core grammar — written in-house because no maintained Swift purl library exists — on an `@` inside a namespace, recorded rather than patched over. The dialect table gained two measured rows: `rust-regex` and `swift-regex` need no adaptation, against `python-re` and `pcre2`, which need their end anchor replaced. Process: the two implementer delegations stalled or were killed twice; both ports were finished in the main loop from the vectors and the TypeScript source, which is the register entry, not a retrospective on the models.
 
 ---
 
 ## Open questions
+
+*Both answered on 2026-09-07 — see Outcomes & Retrospective. Kept as written.*
 
 **Who declares the corpus for the files with no provable name.** Measured over 722 markdown files across
 ten repositories: 12.6% sit under a publishable package, 64.4% under a private one, and 23.0% have no name
