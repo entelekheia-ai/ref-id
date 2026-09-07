@@ -56,8 +56,8 @@ readings and over stored gate artefacts. Publication on an independent version l
 work, and each has a different cost. This plan owes them a package and a specification; it does not owe
 them an integration.
 
-**A second implementation.** A Python port for an extraction pipeline is anticipated and is exactly why the
-specification is data. Building it is not this plan's work.
+**A Python port.** Anticipated for an extraction pipeline; the ports in scope are Swift and Rust (Decision
+Log, 2026-09-07), and the grammar-level runners in `spec/conformance/` are what a Python port would start from.
 
 **Computing a frozen-state qualifier.** The scheme accepts a SWHID and the parser validates its shape, but
 producing one belongs to whatever writes the reading.
@@ -228,6 +228,17 @@ own.
   Rationale: three review blockers. Without the first two, `digest` was not injective over sequences;
   without the third, an envelope served under an unparseable identifier was admissible.
   Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: two ports are in scope — Swift first, Rust second — and the Python port is dropped. The
+  Swift package sits at the repository root (`Package.swift`, `Sources/RefId`, `Tests/RefIdTests`) because
+  Swift Package Manager resolves a git dependency's manifest only at the repository root; the Rust crate
+  sits in `crates/ref-id` under a root Cargo workspace. Each port embeds the specification and is held to
+  the same vectors, plus a differential test against the TypeScript reference. The Python and Perl
+  grammar checks stay in `spec/conformance/` as the proof of the declared dialects.
+  Rationale: the maintainer's direction on 2026-09-07. The specification-as-data decision exists for
+  exactly this; the grammar runners already written are the decomposition half of any port's test runner
+  and are kept rather than rewritten.
+  Date / Author: 2026-09-07 / Danilo Borges
 
 ## Outcomes & Retrospective
 

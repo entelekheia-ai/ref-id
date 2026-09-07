@@ -51,4 +51,4 @@ Node.js 22 or later. No native dependencies.
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE). Governance & decisions: [`project/`](project/) (see
-[`GOVERNANCE.md`](GOVERNANCE.md)). Docs: [`docs/`](docs/). Agent tooling: install the `vibe-ops` plugin.
+[`GOVERNANCE.md`](GOVERNANCE.md)). Docs: [`docs/`](docs/).

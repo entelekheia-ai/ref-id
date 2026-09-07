@@ -11,4 +11,7 @@ its topic fits.
 | [`how-to/`](how-to/) | Tasks — goal-oriented recipes | trying to get something done |
 | [`tutorials/`](tutorials/) | Learning — step-by-step lessons for newcomers | learning by doing |
 
+Start with [`reference/the-ref-scheme.md`](reference/the-ref-scheme.md) for the scheme itself, and
+[`explanation/why-a-declared-name.md`](explanation/why-a-declared-name.md) for why it is shaped that way.
+
 The **source of truth is the code**; these docs describe intent. When they diverge, the code wins.
