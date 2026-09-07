@@ -10,7 +10,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "test:grammar": "python3 spec/conformance/grammar-check.py && perl spec/conformance/grammar-check.pl"
   },
   "engines": {
     "node": ">=22"
