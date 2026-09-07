@@ -82,23 +82,25 @@ space and is why a list never appears inside a name.
 And it **degrades rather than refuses**: an unknown type yields `uncovered`, so extending the scheme later
 is not a data-loss event for whoever already stored identifiers.
 
-    flowchart TD
-        S["identifier string"] --> R{"one regular expression"}
-        R -->|"no match"| E["malformed"]
-        R -->|"match"| V{"version in the<br/>supported range?"}
-        V -->|"no"| U0["unsupported —<br/>decomposed, not validated"]
-        V -->|"yes"| Q["validate qualifiers and refinements<br/>with the form that owns each"]
-        Q -->|"a validator fails"| E
-        Q --> T{"type in the<br/>dispatch table?"}
-        T -->|"no"| U["uncovered —<br/>identifier stays readable"]
-        T -->|"yes"| L["delegate the locator to<br/>the validator that owns it"]
-        L -->|"fails"| E
-        L --> P["parsed identifier"]
-        P --> D{"carries a digest?"}
-        D -->|"no"| OK["admissible"]
-        D -->|"yes"| M["require the envelope;<br/>recompute the digest<br/>from its members"]
-        M -->|"agrees"| OK
-        M -->|"disagrees"| X["refuse at ingestion"]
+```text
+flowchart TD
+    S["identifier string"] --> R{"one regular expression"}
+    R -->|"no match"| E["malformed"]
+    R -->|"match"| V{"version in the<br/>supported range?"}
+    V -->|"no"| U0["unsupported —<br/>decomposed, not validated"]
+    V -->|"yes"| Q["validate qualifiers and refinements<br/>with the form that owns each"]
+    Q -->|"a validator fails"| E
+    Q --> T{"type in the<br/>dispatch table?"}
+    T -->|"no"| U["uncovered —<br/>identifier stays readable"]
+    T -->|"yes"| L["delegate the locator to<br/>the validator that owns it"]
+    L -->|"fails"| E
+    L --> P["parsed identifier"]
+    P --> D{"carries a digest?"}
+    D -->|"no"| OK["admissible"]
+    D -->|"yes"| M["require the envelope;<br/>recompute the digest<br/>from its members"]
+    M -->|"agrees"| OK
+    M -->|"disagrees"| X["refuse at ingestion"]
+```
 
 The branch at the bottom is the one a reader most often misses. An identifier carrying a digest is a
 promise that an object listing the members exists, and a promise nobody checks is a dangling pointer.
@@ -122,35 +124,59 @@ own.
 
 - [x] **Track 1 — The specification file and the package that consumes it.** Two artefacts, not one. The
       file carries the grammar with its dialect, the tables, the digest canonicalisation, a `specVersion`,
-      and vectors in five classes: `parse`, fixing what each input decomposes to; `roundtrip`, fixing that
-      re-serialising returns the original bytes; `build`, fixing that a producer never lets a location into
-      an identifier; `digest` and `envelope`, fixing Track 2. The package reads the file rather than
-      restating it, and returns an uncovered result for an unknown type rather than throwing. Acceptance:
-      every vector class passes; the grammar and the parse vectors agree in at least one other
-      regular-expression engine through the declared adaptation.
+
+  ```text
+  and vectors in five classes: `parse`, fixing what each input decomposes to; `roundtrip`, fixing that
+  re-serialising returns the original bytes; `build`, fixing that a producer never lets a location into
+  an identifier; `digest` and `envelope`, fixing Track 2. The package reads the file rather than
+  restating it, and returns an uncovered result for an unknown type rather than throwing. Acceptance:
+  every vector class passes; the grammar and the parse vectors agree in at least one other
+  regular-expression engine through the declared adaptation.
+  ```
+
 - [x] **Track 2 — The envelope and its invariant.** The type an identifier resolves to, and the check that
       makes a digest a claim rather than a promise. Acceptance: a vector where a member's content changed
-      and the set digest did not is refused; reordered members produce a different digest; a repeated
-      member is not deduplicated.
+
+  ```text
+  and the set digest did not is refused; reordered members produce a different digest; a repeated
+  member is not deduplicated.
+  ```
+
 - [x] **Track 3 — Mapping the names already declared.** Every identity the consuming tools declare in code
       is written in the scheme, in a table generated from the declarations rather than hand-maintained. At
-      the end there is proof that no name had to be invented — and if one has to be, that is the finding,
-      recorded rather than quietly fixed.
+
+  ```text
+  the end there is proof that no name had to be invented — and if one has to be, that is the finding,
+  recorded rather than quietly fixed.
+  ```
+
 - [x] **Track 4 — Reconstruction against stored data.** A report builds an identifier for each stored
       reading from the fields it already carries and prints the distinct units it finds, plus the readings
-      whose identifier could not be built and why. This is the track that can falsify the design, and it
-      runs against real data rather than fixtures. It also answers the one question left open in the
-      scheme: whether a reading taken under conditions nobody declared should be admitted, refused, or
-      admitted and marked unattributable.
-- [ ] **Track 5 — Publication.** The package publishes on its own version line with the specification
+
+  ```text
+  whose identifier could not be built and why. This is the track that can falsify the design, and it
+  runs against real data rather than fixtures. It also answers the one question left open in the
+  scheme: whether a reading taken under conditions nobody declared should be admitted, refused, or
+  admitted and marked unattributable.
+  ```
+
+- [x] **Track 5 — Publication.** The package publishes on its own version line with the specification
       embedded rather than fetched, carrying the digest of its canonical serialisation and refusing a file
-      whose `specVersion` falls outside the range it declares. The registry is the one ADR-0003 names until
-      the public release.
+
+  ```text
+  whose `specVersion` falls outside the range it declares. The registry is the one ADR-0003 names until
+  the public release.
+  ```
+
 - [x] **Track 6 — Ports in Swift and Rust.** A Swift package at the repository root and a Rust crate under
       `crates/ref-id`, each embedding the specification, held to every vector class, and checked
-      differentially against the TypeScript reference on the vectors and on generated hostile inputs.
-      Acceptance: both gates green (`swift test`, `cargo test`), zero disagreements with the reference on
-      the vectors, and the dialect each engine needed recorded in the specification's adaptations table.
+
+  ```text
+  differentially against the TypeScript reference on the vectors and on generated hostile inputs.
+  Acceptance: both gates green (`swift test`, `cargo test`), zero disagreements with the reference on
+  the vectors, and the dialect each engine needed recorded in the specification's adaptations table.
+  ```
+
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
 
@@ -311,6 +337,8 @@ package is in flight, and the ports (Track 6) have started.
 **2026-09-07 — Track 6 landed: Swift and Rust ports.** Both embed the specification byte-identically and pass every vector class (Swift 260/260 through a conformance executable, because the command-line toolchain ships no XCTest; Rust 9 tests over the vector file). Differential runs against the TypeScript reference agree on 292 of 294 hostile inputs; the two disagreements are the Swift purl validator's core grammar — written in-house because no maintained Swift purl library exists — on an `@` inside a namespace, recorded rather than patched over. The dialect table gained two measured rows: `rust-regex` and `swift-regex` need no adaptation, against `python-re` and `pcre2`, which need their end anchor replaced. Process: the two implementer delegations stalled or were killed twice; both ports were finished in the main loop from the vectors and the TypeScript source, which is the register entry, not a retrospective on the models.
 
 ---
+
+**2026-09-07 — Track 5 landed: published.** `@entelekheia/ref-id` 0.1.0 went to the public npm registry from a maintainer's terminal, and 0.1.1 from the repository's own workflow through npm trusted publishing — the merge of a "Version Packages" pull request is the release, no token stored anywhere (ADR-0004 supersedes ADR-0003: GitHub Packages could only have carried the package under the repository owner's login, a name every consumer would later change). Three things the run measured: trusted publishing refused the workflow while the repository was private, with every OIDC claim correct, and accepted it once public; the repository token cannot git-push a tag whose commit touches a workflow file, so the release and its `v<version>` tag are created through the releases API; and the crate could not be packaged while it embedded the specification by a path outside itself, so it now carries a byte-identical copy held by a test. The crate and the tag Swift Package Manager resolves ship from the same workflow; the crate's first version still goes from a terminal, because crates.io declares a trusted publisher only on a crate that exists.
 
 ## Open questions
 

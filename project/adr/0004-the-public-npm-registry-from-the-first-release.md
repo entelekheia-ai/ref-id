@@ -33,13 +33,14 @@ maintainer's terminal, because a trusted publisher can only be declared on a pac
 - **Option B — one name in both registries, `@entelekheia-ai/ref-id`** — no rename ever; ties the package
   name to a GitHub login rather than to the organisation's scope. Rejected.
 - **Option C (chosen) — npm from the first release, trusted publishing** — the definitive name from
-  version 0.1.0; the repository may stay private, the package is public.
+  version 0.1.0; the package is public, and so is the repository — npm trusted publishing measured on
+  2026-09-07 refused the workflow's identity (`OIDC permission denied`) while the repository was private,
+  with every claim correct, and accepted it the moment the repository went public.
 
 ## Consequences
 
 Easier: consumers install with plain `npm install`, no registry line and no token. Harder: a published
-version cannot be recalled, so every release passes the workflow's gates first; provenance attestations
-stay off while the repository is private. Follow-up: declare the trusted publisher on npmjs.com after the
+version cannot be recalled, so every release passes the workflow's gates first; provenance attestations are on, which the public repository allows. Follow-up: declare the trusted publisher on npmjs.com after the
 first publish; then every release is a merged "Version Packages" pull request.
 
 ## Sunset & reversal
