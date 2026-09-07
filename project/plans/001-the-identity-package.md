@@ -270,6 +270,30 @@ own.
   characters long. A finding is a count per rule for one run; it hangs off the run.
   Date / Author: 2026-09-07 / Danilo Borges
 
+- Decision: the type names the naming system that owns the locator grammar, and the `dispatch` table is the
+  registry of types. Three types join `pkg` and `folder`: `domain` (`host[/segment…][@version]`, the owner
+  of the host names what lives under it), `email` (an addr-spec, nothing beneath it) and `dot-agent` (the
+  agent-id grammar verbatim, `namespace/name[:version]`, with the `~digest` carried by `state=`). An
+  unregistered type — `ref:spotify:…` — stays `uncovered`, never `malformed`; registering its validator is
+  what promotes it. Each of the three validates through the existing `declared-name` pattern validator, so
+  no port gained code.
+  Rationale: a stress test over agent bundles, a portfolio and model names found every unmet case to be a
+  naming system the table did not list, never a shape the grammar could not carry; the agent ecosystem's
+  own reference already orders namespaces by verifiability (domain, platform/user, mailbox, `unknown`),
+  which is the tier structure this scheme needed rather than one of its own.
+  Date / Author: 2026-09-07 / Danilo Borges
+
+- Decision: `state` accepts four forms — a SWHID, `git:<commit>`, a content hash (`sha256:`/`blake3:`, no
+  `digest: true`, so the envelope invariant never applies to it) and the literal `none`; the `properties`
+  level stays out of identifiers. The corpus rule skips an ancestor manifest whose own workspace or package
+  configuration excludes the file. A fifth fragment grammar, `data-declared-id`, documents an `id` a record
+  declares in its own data.
+  Rationale: the reference prose promised three state levels for content outside version control while
+  the grammar accepted only a SWHID — every local model quantisation was refused; a workspace root whose
+  `workspaces` globs leave `examples/` out was being written as that folder's corpus with nothing to
+  report it.
+  Date / Author: 2026-09-07 / Danilo Borges
+
 ## Outcomes & Retrospective
 
 **2026-09-07 — Tracks 1 and 2 landed.** `spec/ref-id.json` 1.0.0 carries 83 vectors (parse 41, roundtrip

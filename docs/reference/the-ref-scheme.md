@@ -181,6 +181,15 @@ When the status is `malformed`, the reported part is one of:
 |---|---|---|---|
 | `pkg` | a Package URL, versioned or not | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | the nearest manifest declares a name; unversioned, the Package URL names the living package and `state=` carries the frozen one |
 | `folder` | a declared corpus name | `^[A-Za-z0-9][A-Za-z0-9._-]*$` | no manifest declares a name anywhere above the file |
+| `domain` | `host[/segment…][@version]` — a host under the owner's control, then names the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; segments `[a-z0-9][a-z0-9._~-]*`; an optional `@version` on the last segment | the thing exists *as* a domain — a site, a portfolio, a case published under it: `ref:domain:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
+| `email` | an addr-spec, `local@host` | RFC 5322 dot-atom local part, host as above | a mailbox identifies a person or a role. Nothing lives under it: `ref:email:someone@mail.example/doctor` is malformed at the locator, because what a mailbox publishes belongs to the ecosystem that publishes it |
+| `dot-agent` | an agent identifier, `namespace/name[:version]` | the agent-id grammar of that ecosystem: the namespace is a domain, a `platform/user` under a domain, a mailbox, or the literal `unknown`; the `~digest` of its full form travels as `state=` instead | an agent bundle: `ref:dot-agent:unknown/MentorUniversitario:1.4.1`, `ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4` |
+
+**The type names the naming system that owns the locator's grammar, and this table is the registry of
+types.** A type absent from it — `ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC` — parses to `uncovered`,
+never to `malformed`: the identifier is carried whole and validated by nobody. Registering its validator
+here is what promotes it to `ok`. A dotted namespace under `dot-agent` reads as the domain tier whether or
+not the domain exists; whether it exists is the ecosystem's check, never the grammar's.
 
 A Package URL's own `#subpath` cannot be represented as a `pkg` locator: the locator excludes both `;` and
 `#`, so there is no encoding that lets a subpath through. A builder asked to build one **MUST** refuse,
@@ -206,7 +215,7 @@ A corpus **MUST** be declared — one line in the repository's own configuration
 **MUST NOT** be derived from a filesystem path. A path-derived corpus breaks whenever the same content is
 live under two roots at once, which a `file:` dependency between two repositories makes routine.
 
-The corpus of a file is the **nearest manifest that declares a name**, resolved by nearest ancestor and written as an unversioned Package URL: `ref:pkg:npm/acme-tools#acme/adr@2/0019` names a record of the living package, and `state=` carries the frozen one. A `folder` corpus is for the subtrees no manifest reaches, declared **per subtree** in one line of the repository's own configuration. Measured over one
+The corpus of a file is the **nearest manifest that declares a name**, resolved by nearest ancestor — skipping any ancestor manifest whose own workspace or package configuration excludes the file, so a workspace root whose `workspaces` globs leave a subtree out is not that subtree's corpus — and written as an unversioned Package URL: `ref:pkg:npm/acme-tools#acme/adr@2/0019` names a record of the living package, and `state=` carries the frozen one. A `folder` corpus is for the subtrees no manifest reaches, declared **per subtree** in one line of the repository's own configuration. Measured over one
 repository: 49 files under a public package and 154 above any package.
 
 ## Percent-encoding
@@ -278,7 +287,7 @@ two sides **MUST NOT** trade contents.
 
 | Qualifier | Points at | Declared form | Undeclared form |
 |---|---|---|---|
-| `state` | the captured state of the thing — which bytes, never when | — | a SWHID |
+| `state` | the captured state of the thing — which bytes, never when | — | a SWHID; `git:<commit>` (7–40 hex); a content hash, `sha256:…` or `blake3:…`; or the literal `none` |
 | `by` | the instrument that produced the reading | `ref:…` | `sha256:…` |
 | `over` | the population that was read | `ref:…` | `sha256:…` |
 | `when` | the moment the reading was taken | — | an RFC 3339 timestamp in UTC, `2026-08-12T18:55:27.811Z`; an offset is malformed |
@@ -349,9 +358,12 @@ For content that is not version-controlled, the member's type declares which lev
 
 | Level | Cost | Proves |
 |---|---|---|
-| `properties` — size and mtime | an inode read | probable change, never content |
-| `content-hash` (BLAKE3 preferred) | one sequential read, parallelisable | content |
-| `none` | zero | nothing — and the state is recorded as unknown |
+| `properties` — size and mtime | an inode read | probable change, never content — so it never enters an identifier |
+| `content-hash` (BLAKE3 preferred) | one sequential read, parallelisable | content — written as `state=blake3:…` or `state=sha256:…` |
+| `none` | zero | nothing — and the state is recorded as unknown, written as `state=none` |
+
+A content hash in `state=` hashes the thing itself and is never a digest of members, so it declares no
+set and the envelope invariant does not apply to it.
 
 **`none` is a legitimate declared level.** An unknown state recorded honestly is worth more than a
 properties hash presented as proof of content.
@@ -428,6 +440,7 @@ The declared-name path is interpreted by the target's document model.
 | Markdown prose | the heading text | ordinal, on collision within one document |
 | A code symbol | the fully-qualified name, no path | per the language's own rules |
 | A `.behavior` state | the state name within its agent, never within its file | none needed |
+| A record's own data | an `id` field the record declares in its data — a case slug, a capability name — not its front matter | none needed |
 
 The last row is the one measured to matter: per-file namespacing left 766 transitions dangling, because one
 agent's behaviour files share their states between them.

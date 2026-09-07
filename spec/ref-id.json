@@ -92,7 +92,7 @@
       "locator": "package-url",
       "validator": "package-url",
       "delegate": "type-prefixed",
-      "corpus": "the nearest manifest declaring a name; unversioned, the Package URL names the living package and state= carries the frozen one",
+      "corpus": "the nearest manifest declaring a name, skipping any ancestor manifest whose own workspace or package configuration excludes the file; unversioned, the Package URL names the living package and state= carries the frozen one",
       "reference": "https://github.com/package-url/purl-spec"
     },
     "folder": {
@@ -102,8 +102,35 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
       "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
       "corpus": "only where no manifest declares a name"
+    },
+    "domain": {
+      "locator": "hostname-path",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[a-z0-9][a-z0-9._~-]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment",
+      "corpus": "a manifest that declares a domain names the corpus by that domain; the package name stays the identifier of the software",
+      "reference": "RFC 1123 host labels, lowercase, internationalised labels in their punycode form"
+    },
+    "email": {
+      "locator": "addr-spec",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$",
+      "declaredBy": "a mailbox identifies a person or a role; nothing lives under it — what a mailbox publishes belongs to the ecosystem that publishes it",
+      "reference": "RFC 5322 addr-spec, dot-atom local part"
+    },
+    "dot-agent": {
+      "locator": "agent-id",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?|[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}|unknown)/[A-Za-z0-9][A-Za-z0-9._-]*(?::[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "the agent identifier grammar namespace/name[:version]: the namespace is a domain, a platform/user under a domain, a mailbox, or the literal unknown; the ~digest of the full form is carried by state= instead",
+      "corpus": "the agent bundle",
+      "reference": "dot-agent agent-id reference"
     }
   },
+  "typeRegistry": "a type names the naming system that owns the locator grammar; an unregistered type parses to uncovered, never to malformed, and registering its validator here is what promotes it — the registry is this table",
   "delegation": {
     "type-prefixed": "the validator receives <type>:<locator> verbatim — the type token is also the delegated format's own scheme",
     "verbatim": "the validator receives the locator alone"
@@ -146,7 +173,10 @@
     "state": {
       "role": "freeze",
       "forms": [
-        "swhid"
+        "swhid",
+        "git",
+        "content-hash",
+        "none"
       ]
     },
     "by": {
@@ -178,6 +208,18 @@
     "sha256": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "digest": true
+    },
+    "git": {
+      "pattern": "^git:[0-9a-f]{7,40}$",
+      "reference": "a commit object name, abbreviated or full — a freeze the repository can resolve, weaker than a SWHID only in that it names no archive"
+    },
+    "content-hash": {
+      "pattern": "^(sha256|blake3):[0-9a-f]{64}$",
+      "reference": "a hash of the content itself, for what no version control holds; never a digest of members, so it declares no digest: true"
+    },
+    "none": {
+      "pattern": "^none$",
+      "reference": "the declared level for a state nobody captured — an unknown state recorded honestly, worth more than a properties hash presented as proof of content"
     },
     "rfc3339": {
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
@@ -230,6 +272,10 @@
     },
     "behavior-state": {
       "declaredName": "the state name within its agent, never within its file",
+      "tieBreak": "none"
+    },
+    "data-declared-id": {
+      "declaredName": "an id field the record declares in its own data — a case slug, a capability name — not its front matter",
       "tieBreak": "none"
     }
   },
@@ -855,6 +901,178 @@
         }
       },
       {
+        "name": "dot-agent id in the unknown namespace tier",
+        "input": "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "unknown/MentorUniversitario:1.4.1"
+        }
+      },
+      {
+        "name": "dot-agent id under a domain, its digest carried by state",
+        "input": "ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "git:a1b2c3d4"
+            ]
+          ],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "acme.example/doctor:v1.0"
+        }
+      },
+      {
+        "name": "dot-agent id under a platform user and under a mailbox",
+        "input": "ref:dot-agent:github.example/someone/doctor",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "github.example/someone/doctor"
+        }
+      },
+      {
+        "name": "dot-agent id with a mailbox namespace",
+        "input": "ref:dot-agent:someone@mail.example/doctor:v2",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "someone@mail.example/doctor:v2"
+        }
+      },
+      {
+        "name": "a dotted namespace reads as the domain tier — whether the domain exists is the ecosystem's check, never the grammar's",
+        "input": "ref:dot-agent:mentor.pessoal.agent/MentorUniversitario:1.4.1",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "dot-agent",
+          "locator": "mentor.pessoal.agent/MentorUniversitario:1.4.1"
+        }
+      },
+      {
+        "name": "a domain names a corpus",
+        "input": "ref:domain:portfolio.example",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "domain",
+          "locator": "portfolio.example"
+        }
+      },
+      {
+        "name": "a declared name under a domain, versioned, with a section fragment",
+        "input": "ref:domain:portfolio.example/case-xpto@2#results",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": {
+            "path": "results",
+            "refinements": []
+          },
+          "type": "domain",
+          "locator": "portfolio.example/case-xpto@2"
+        }
+      },
+      {
+        "name": "an uppercase host is malformed at the locator",
+        "input": "ref:domain:Portfolio.example/case",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a mailbox identifies a person",
+        "input": "ref:email:someone@mail.example",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "email",
+          "locator": "someone@mail.example"
+        }
+      },
+      {
+        "name": "nothing lives under a mailbox",
+        "input": "ref:email:someone@mail.example/doctor",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "an unregistered naming system is uncovered",
+        "input": "ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "type": "spotify",
+          "locator": "track/4uLU6hMCjMI75M1A2tKUQC"
+        }
+      },
+      {
+        "name": "a content hash freezes what no version control holds",
+        "input": "ref:domain:models.example/quant-q4;state=blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+            ]
+          ],
+          "fragment": null,
+          "type": "domain",
+          "locator": "models.example/quant-q4"
+        }
+      },
+      {
+        "name": "none is a declared state level",
+        "input": "ref:domain:models.example/quant-q4;state=none",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "state",
+              "none"
+            ]
+          ],
+          "fragment": null,
+          "type": "domain",
+          "locator": "models.example/quant-q4"
+        }
+      },
+      {
+        "name": "a state in an undeclared form is malformed at state",
+        "input": "ref:domain:models.example/quant-q4;state=sha1:0f0f0f0f",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
         "name": "uppercase type is malformed",
         "input": "ref:Pkg:npm/x@1.0.0",
         "expect": {
@@ -922,6 +1140,9 @@
       "ref:folder:acme-tools;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1",
       "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
+      "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
+      "ref:domain:portfolio.example/case-xpto@2;state=none#results",
+      "ref:email:someone@mail.example",
       "ref:2:pkg:npm/x@1.0.0",
       "ref:01:pkg:npm/x@1.0.0",
       "ref:pkg:npm/@acme/scanner-core;when=2026-08-12T18:55:27.811Z#governance@0.0.1/markdown-link",
@@ -1037,6 +1258,34 @@
         "expect": {
           "error": "type"
         }
+      },
+      {
+        "name": "a dot-agent identifier builds with its digest in state",
+        "parts": {
+          "type": "dot-agent",
+          "locator": "acme.example/doctor:v1.0",
+          "qualifiers": [
+            [
+              "state",
+              "git:a1b2c3d4"
+            ]
+          ]
+        },
+        "expect": "ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4"
+      },
+      {
+        "name": "a content hash is accepted as a state",
+        "parts": {
+          "type": "domain",
+          "locator": "models.example/quant-q4",
+          "qualifiers": [
+            [
+              "state",
+              "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+            ]
+          ]
+        },
+        "expect": "ref:domain:models.example/quant-q4;state=sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
       },
       {
         "name": "a digest value passes through the builder",

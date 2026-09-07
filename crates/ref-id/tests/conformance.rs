@@ -107,7 +107,11 @@ fn envelope_vectors() {
 }
 
 fn temp_dir() -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("ref-id-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    // A counter, not the clock: two tests starting in the same microsecond shared one directory and
+    // overwrote each other's sidecar, which turned a version failure into an integrity failure.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("ref-id-{}-{}-{}", std::process::id(), n, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
