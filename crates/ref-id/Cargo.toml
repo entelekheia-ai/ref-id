@@ -6,6 +6,9 @@ edition = "2021"
 license = "Apache-2.0"
 description = "The ref: identifier scheme — a Rust port held to the specification's conformance vectors"
 repository = "https://github.com/entelekheia-ai/ref-id"
+readme = "README.md"
+keywords = ["identifier", "purl", "swhid", "specification", "naming"]
+categories = ["parser-implementations", "data-structures"]
 
 [dependencies]
 regex = "1"
