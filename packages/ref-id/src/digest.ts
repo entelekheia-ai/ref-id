@@ -6,17 +6,22 @@
 
 import { createHash } from "node:crypto"
 import { DigestError } from "./errors.ts"
-import { loadSpec } from "./spec.ts"
+import { FIELD } from "./grammar.ts"
+import { loadSpec, part } from "./spec.ts"
 
 /** Digests an ordered, non-deduplicated sequence of identifier strings. */
 export function digest(members: readonly string[]): string {
   const spec = loadSpec()
-  for (const member of members) {
+  if (!Array.isArray(members)) {
+    throw new DigestError(part(spec, "member"), "members must be an array of strings")
+  }
+  const snapshot = Array.from(members)
+  for (const member of snapshot) {
     if (typeof member !== "string" || member.includes(spec.digest.join)) {
-      throw new DigestError("member", "a member must be one identifier string and cannot carry the join character")
+      throw new DigestError(part(spec, "member"), "a member must be a string that does not carry the join character")
     }
   }
-  const joined = members.join(spec.digest.join)
+  const joined = snapshot.join(spec.digest.join)
   const hex = createHash(spec.digest.algorithm).update(joined, spec.digest.encoding as BufferEncoding).digest("hex")
-  return `${spec.digest.algorithm}:${hex}`
+  return `${spec.digest.algorithm}${FIELD}${hex}`
 }

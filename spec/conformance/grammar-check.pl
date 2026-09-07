@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Grammar-level conformance: the declared expression, unadapted (pcre2 row), must decompose every parse vector as the JSON says.
+# Grammar-level conformance: the declared expression, adapted for pcre2, must decompose every parse vector as the JSON says.
 #!/usr/bin/env perl
 # Prove ref-id.json's grammar is engine-neutral: replay vectors.parse against
 # Perl's regex engine, using the unadapted expression (pcre2 adaptation is empty).
@@ -137,7 +137,7 @@ for my $vec (@$vectors) {
     }
 }
 
-print "perl (pcre2-unadapted): $agreed/$total agreed\n";
+print "perl (pcre2): $agreed/$total agreed\n";
 for my $d (@disagreements) {
     print "  DISAGREE: $d->[0] -- $d->[1]\n";
 }

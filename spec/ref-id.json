@@ -11,34 +11,52 @@
       "state",
       "fragment"
     ],
+    "adaptationsApplyTo": "every pattern in this file — the expression, the pair grammars, the forms, the dispatch and refinement patterns",
+    "anchors": "the canonical dialect ends a pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares the replacement above",
     "adaptations": {
       "ecmascript-2018": {
         "replace": []
       },
       "pcre2": {
-        "replace": []
+        "replace": [
+          [
+            "$",
+            "\\z"
+          ]
+        ]
       },
       "rust-regex": {
-        "replace": []
+        "replace": [
+          [
+            "$",
+            "\\z"
+          ]
+        ]
       },
       "python-re": {
         "replace": [
           [
             "(?<",
             "(?P<"
+          ],
+          [
+            "$",
+            "\\Z"
           ]
         ]
       }
     },
     "state": {
       "separator": ";",
-      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>.*)$",
-      "unknownKey": "carry-through"
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>[^\\r\\n]*)$",
+      "unknownKey": "carry-through",
+      "repeatedKey": "malformed"
     },
     "fragment": {
       "separator": ";",
-      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>.*)$",
-      "path": "the text before the first separator, verbatim"
+      "pair": "^(?<key>[a-z][a-z0-9-]*)=(?<value>[^\\r\\n]*)$",
+      "path": "the text before the first separator, verbatim",
+      "repeatedKey": "malformed"
     }
   },
   "version": {
@@ -67,7 +85,8 @@
         ";": "%3B",
         "#": "%23",
         "%": "%25"
-      }
+      },
+      "strict": "every % in a nested value begins one of the forms in the table; any other % is malformed at the key"
     }
   },
   "dispatch": {
@@ -97,9 +116,11 @@
   ],
   "parts": [
     "grammar",
+    "type",
     "state",
     "fragment",
     "locator",
+    "member",
     "<qualifier key>",
     "<refinement key>"
   ],
@@ -159,6 +180,7 @@
     "lines": {
       "pattern": "^[0-9]+(,[0-9]+)?$",
       "range": "ascending",
+      "boundSeparator": ",",
       "reference": "RFC 5147 placement"
     },
     "item": {
@@ -723,6 +745,58 @@
         }
       },
       {
+        "name": "a trailing line break is malformed in every engine",
+        "input": "ref:folder:acme-tools\n",
+        "expect": {
+          "status": "malformed",
+          "part": "grammar"
+        }
+      },
+      {
+        "name": "a repeated qualifier key is malformed at that key",
+        "input": "ref:folder:acme-tools;at=swh:1:rev:7e29bb6000000000000000000000000000000000;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "malformed",
+          "part": "at"
+        }
+      },
+      {
+        "name": "a repeated refinement key is malformed at that key",
+        "input": "ref:folder:acme-tools#AGENTS.md;lines=1;lines=2",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "a raw percent in a nested value is malformed at the key",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/%40acme/x@1.0.0",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "a nested value carries the inner percent-encoding doubled",
+        "input": "ref:folder:acme-tools;by=ref:pkg:npm/%2540acme/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:pkg:npm/%2540acme/x@1.0.0"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:pkg:npm/%40acme/x@1.0.0"
+          }
+        }
+      },
+      {
         "name": "uppercase type is malformed",
         "input": "ref:Pkg:npm/x@1.0.0",
         "expect": {
@@ -892,6 +966,16 @@
         },
         "expect": {
           "error": "by"
+        }
+      },
+      {
+        "name": "a type carrying the field separator is refused",
+        "parts": {
+          "type": "1:folder",
+          "locator": "a"
+        },
+        "expect": {
+          "error": "type"
         }
       },
       {

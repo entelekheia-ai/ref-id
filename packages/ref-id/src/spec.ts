@@ -35,8 +35,10 @@ export interface RefIdSpec {
     expression: string
     groups: string[]
     adaptations: Record<string, { replace: [string, string][] }>
-    state: { separator: string; pair: string; unknownKey: string }
-    fragment: { separator: string; pair: string; path: string }
+    adaptationsApplyTo: string
+    anchors: string
+    state: { separator: string; pair: string; unknownKey: string; repeatedKey: string }
+    fragment: { separator: string; pair: string; path: string; repeatedKey: string }
   }
   version: { default: number; supported: number[]; mints: string[]; note: string }
   encoding: Record<string, { reserved: string[]; table?: Record<string, string>; note?: string }>
@@ -48,7 +50,7 @@ export interface RefIdSpec {
   roles: Record<string, string[]>
   qualifiers: Record<string, { role: string; forms: string[] }>
   forms: Record<string, { pattern?: string; reference?: string; nested?: boolean; depth?: number; encoding?: string; digest?: boolean }>
-  refinements: Record<string, { pattern: string; range?: string; reference?: string }>
+  refinements: Record<string, { pattern: string; range?: string; boundSeparator?: string; reference?: string }>
   unknownRefinement: string
   resolutionStates: string[]
   stateLevels: string[]
@@ -149,6 +151,18 @@ export function status(spec: RefIdSpec, name: string): string {
     throw new SpecVersionError(`this package names the status "${name}", which spec ${spec.specVersion} does not declare`)
   }
   return name
+}
+
+/**
+ * A part name this code needs, checked against the vocabulary the spec declares: one of `spec.parts`,
+ * or a declared qualifier or refinement key (the two placeholders in that list). Same contract as
+ * `status()`: naming a part the spec lacks is a version mismatch, reported rather than emitted.
+ */
+export function part(spec: RefIdSpec, name: string): string {
+  if (spec.parts.includes(name) || Object.hasOwn(spec.qualifiers, name) || Object.hasOwn(spec.refinements, name)) {
+    return name
+  }
+  throw new SpecVersionError(`this package names the part "${name}", which spec ${spec.specVersion} does not declare`)
 }
 
 /**

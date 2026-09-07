@@ -4,19 +4,20 @@
 // delegation to owning validators is the behaviour ADR-0001 keeps in code; every table, pattern
 // and key it consults comes from the spec object, never restated here.
 //
-// Order, and the precedence it produces: grammar → version → state and fragment decomposition →
-// (unsupported version stops here, decomposed and unvalidated) → the two sides must not trade
-// keys → qualifier values against their forms → refinement values against their patterns →
-// dispatch: unknown type is `uncovered`, else the locator goes to its validator. So a validator
-// failure (`malformed` with the part) outranks `uncovered`, which outranks `ok`.
+// Order, and the precedence it produces: grammar → version → state and fragment decomposition,
+// including the repeated-key policy → (unsupported version stops here, decomposed and unvalidated)
+// → the two sides must not trade keys → qualifier values against their forms → refinement values
+// against their patterns and range constraints → dispatch: unknown type is `uncovered`, else the
+// locator goes to its validator. So a validator failure (`malformed` with the part) outranks
+// `uncovered`, which outranks `ok`.
 
 import { decodeReserved, tableFor } from "./encoding.ts"
-import { fragmentPairGrammar, schemePrefix, statePairGrammar, topLevelGrammar } from "./grammar.ts"
-import { loadSpec, status, type RefIdSpec } from "./spec.ts"
+import { fragmentPairGrammar, pattern, schemePrefix, statePairGrammar, topLevelGrammar } from "./grammar.ts"
+import { loadSpec, part, status, type RefIdSpec } from "./spec.ts"
 import type { Pair, ParsedFragment, ParseResult } from "./types.ts"
-import { delegatedString, validateLocator } from "./validators.ts"
+import { assertImplemented, delegatedString, rangeHolds, validateLocator } from "./validators.ts"
 
-function malformed(spec: RefIdSpec, input: string, part: string, base: Partial<ParseResult>): ParseResult {
+function malformed(spec: RefIdSpec, input: string, failedPart: string, base: Partial<ParseResult>): ParseResult {
   const result: ParseResult = {
     input,
     status: status(spec, "malformed"),
@@ -26,7 +27,7 @@ function malformed(spec: RefIdSpec, input: string, part: string, base: Partial<P
     locator: base.locator ?? "",
     qualifiers: base.qualifiers ?? [],
     fragment: base.fragment ?? null,
-    part,
+    part: part(spec, failedPart),
   }
   if (base.versionText !== undefined) {
     result.versionText = base.versionText
@@ -34,46 +35,68 @@ function malformed(spec: RefIdSpec, input: string, part: string, base: Partial<P
   return result
 }
 
-type Decomposed<T> = { ok: true; value: T } | { ok: false }
+type Decomposed<T> = { ok: true; value: T } | { ok: false; part: string }
+
+/** Splits `key=value` segments with the given pair grammar; a repeated key is malformed at that key. */
+function decomposePairs(spec: RefIdSpec, grammar: RegExp, segments: string[], failedPart: string): Decomposed<Pair[]> {
+  const pairs: Pair[] = []
+  const seen = new Set<string>()
+  for (const segment of segments) {
+    const match = grammar.exec(segment)
+    if (!match?.groups) {
+      return { ok: false, part: failedPart }
+    }
+    const key = match.groups.key ?? ""
+    if (seen.has(key)) {
+      return { ok: false, part: key }
+    }
+    seen.add(key)
+    pairs.push([key, match.groups.value ?? ""])
+  }
+  return { ok: true, value: pairs }
+}
 
 function decomposeState(spec: RefIdSpec, raw: string): Decomposed<Pair[]> {
-  const pairGrammar = statePairGrammar(spec)
-  const qualifiers: Pair[] = []
-  for (const segment of raw.split(spec.grammar.state.separator)) {
-    const match = pairGrammar.exec(segment)
-    if (!match?.groups) {
-      return { ok: false }
-    }
-    qualifiers.push([match.groups.key ?? "", match.groups.value ?? ""])
-  }
-  return { ok: true, value: qualifiers }
+  return decomposePairs(spec, statePairGrammar(spec), raw.split(spec.grammar.state.separator), "state")
 }
 
 function decomposeFragment(spec: RefIdSpec, raw: string): Decomposed<ParsedFragment> {
-  const pairGrammar = fragmentPairGrammar(spec)
   const segments = raw.split(spec.grammar.fragment.separator)
   const path = segments[0] ?? ""
   if (path === "") {
-    return { ok: false }
+    return { ok: false, part: "fragment" }
   }
-  const refinements: Pair[] = []
-  for (const segment of segments.slice(1)) {
-    const match = pairGrammar.exec(segment)
-    if (!match?.groups) {
-      return { ok: false }
-    }
-    refinements.push([match.groups.key ?? "", match.groups.value ?? ""])
+  const refinements = decomposePairs(spec, fragmentPairGrammar(spec), segments.slice(1), "fragment")
+  if (!refinements.ok) {
+    return refinements
   }
-  return { ok: true, value: { path, refinements } }
+  return { ok: true, value: { path, refinements: refinements.value } }
 }
 
-/** A qualifier value that nests an identifier: decoded with the form's table and parsed one level down. */
+/** True when every `%` in the value begins one of the table's percent-forms — the strict nested encoding. */
+function strictlyEncoded(value: string, table: Record<string, string>): boolean {
+  const forms = Object.values(table)
+  let at = value.indexOf("%")
+  while (at !== -1) {
+    if (!forms.some((form) => value.startsWith(form, at))) {
+      return false
+    }
+    at = value.indexOf("%", at + 1)
+  }
+  return true
+}
+
+/** A qualifier value that nests an identifier: strictly encoded, decoded with the form's table, parsed one level down. */
 function tryNested(spec: RefIdSpec, form: RefIdSpec["forms"][string], value: string, depth: number): string | undefined {
   const maxDepth = form.depth ?? 0
   if (depth >= maxDepth || !value.startsWith(schemePrefix(spec))) {
     return undefined
   }
-  const decoded = decodeReserved(value, tableFor(spec, form))
+  const table = tableFor(spec, form)
+  if (!strictlyEncoded(value, table)) {
+    return undefined
+  }
+  const decoded = decodeReserved(value, table)
   const inner = parseInternal(spec, decoded, depth + 1)
   // A nested identifier stays readable whatever its type or version; only a malformed one is refused.
   return inner.status === status(spec, "malformed") ? undefined : decoded
@@ -97,19 +120,11 @@ function matchForms(
       }
       continue
     }
-    if (form.pattern && new RegExp(form.pattern).test(value)) {
+    if (form.pattern && pattern(spec, form.pattern).test(value)) {
       return { matches: true }
     }
   }
   return { matches: false }
-}
-
-/** The extra constraint a refinement declares beyond its pattern. An unknown constraint name is not enforced here. */
-const ranges: Record<string, (value: string) => boolean> = {
-  ascending: (value) => {
-    const bounds = value.split(",").map(Number)
-    return bounds.length < 2 || (bounds[0] ?? 0) <= (bounds[1] ?? 0)
-  },
 }
 
 function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResult {
@@ -130,7 +145,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   if (state !== undefined) {
     const decomposed = decomposeState(spec, state)
     if (!decomposed.ok) {
-      return malformed(spec, input, "state", head)
+      return malformed(spec, input, decomposed.part, head)
     }
     qualifiers = decomposed.value
   }
@@ -140,7 +155,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   if (fragmentRaw !== undefined) {
     const decomposed = decomposeFragment(spec, fragmentRaw)
     if (!decomposed.ok) {
-      return malformed(spec, input, "fragment", head)
+      return malformed(spec, input, decomposed.part, head)
     }
     fragment = decomposed.value
   }
@@ -186,7 +201,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   for (const [key, value] of qualifiers) {
     const declared = spec.qualifiers[key]
     if (!declared) {
-      continue // an unknown key is carried through, untouched
+      continue // spec.grammar.state.unknownKey — carried through untouched, asserted in validators.ts
     }
     const result = matchForms(spec, declared.forms, value, depth)
     if (!result.matches) {
@@ -204,13 +219,9 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
     for (const [key, value] of fragment.refinements) {
       const declared = spec.refinements[key]
       if (!declared) {
-        continue
+        continue // spec.unknownRefinement — carried through untouched, asserted in validators.ts
       }
-      if (!new RegExp(declared.pattern).test(value)) {
-        return malformed(spec, input, key, head)
-      }
-      const range = declared.range ? ranges[declared.range] : undefined
-      if (range && !range(value)) {
+      if (!pattern(spec, declared.pattern).test(value) || !rangeHolds(declared, value)) {
         return malformed(spec, input, key, head)
       }
     }
@@ -220,7 +231,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   if (!entry || delegated === undefined) {
     return { ...base, status: spec.unknownType }
   }
-  const validation = validateLocator(entry, delegated)
+  const validation = validateLocator(spec, entry, delegated)
   if (validation === undefined) {
     return { ...base, status: spec.unknownType } // a validator this package does not implement
   }
@@ -236,8 +247,11 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
 /** Parses a `ref:` identifier string against the loaded spec. Never throws for an identifier problem. */
 export function parse(input: string): ParseResult {
   const spec = loadSpec()
+  assertImplemented(spec)
   if (typeof input !== "string") {
-    return malformed(spec, String(input), "grammar", {})
+    // Anything that is not a string is malformed at the grammar; it is not converted, because a
+    // hostile object's conversion can itself throw, and nothing here may throw for an identifier.
+    return malformed(spec, "", "grammar", {})
   }
   return parseInternal(spec, input, 0)
 }
