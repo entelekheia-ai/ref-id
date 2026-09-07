@@ -46,14 +46,30 @@ jobs:
           commit: 'release: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Whether this run released: the npm registry carries the current version and no `v<version>` tag
+      # exists yet. Derived here rather than read from the action's `published` output, which is parsed
+      # from the `New tag:` lines that --no-git-tag suppresses. Idempotent: a rerun after a partial
+      # release finishes the missing half and a run with nothing to release does nothing.
+      - name: did this run release?
+        id: released
+        run: |
+          VERSION=$(node -p "require('./packages/ref-id/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ]; then
+            echo "released=false" >> "$GITHUB_OUTPUT"; echo "v$VERSION already tagged"
+          elif [ "$(npm view "@entelekheia/ref-id@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"; echo "npm carries $VERSION and v$VERSION is untagged: finishing the release"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"; echo "$VERSION not on npm: nothing released this run"
+          fi
       # The Rust crate follows the same version, synced into Cargo.toml by `npm run version`, and publishes
       # through crates.io trusted publishing — declared once on crates.io, no token. The first version is
       # published from a maintainer's terminal, as with npm, because the crate must exist to be trusted.
       - uses: rust-lang/crates-io-auth-action@v1
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.released.outputs.released == 'true'
         id: crates
       - name: publish the crate, when the crate already exists on crates.io
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.released.outputs.released == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates.outputs.token }}
         run: |
@@ -65,10 +81,10 @@ jobs:
       # Swift Package Manager has no registry here: it resolves the package from this repository by a
       # semver tag, so every release also carries a plain `v<version>` tag beside the changesets one.
       - name: GitHub release on the v<version> tag — the one tag SwiftPM resolves and humans read
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.released.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(node -p "require('./packages/ref-id/package.json').version")
+          VERSION=${{ steps.released.outputs.version }}
           node -e "const c=require('fs').readFileSync('packages/ref-id/CHANGELOG.md','utf8');const m=c.split(/^## /m).find(s=>s.startsWith('$VERSION'));process.stdout.write(m?m.slice(m.indexOf('\n')+1).trim():'')" > /tmp/notes.md
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION — @entelekheia/ref-id, ref-id crate, RefId" --notes-file /tmp/notes.md
