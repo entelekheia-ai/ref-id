@@ -21,11 +21,11 @@ ref:[<version>:]<type>:<locator>[;<qualifier>=<value>]*[#<declared-name-path>[;<
 ref:pkg:npm/@acme/scanner-core@0.1.0#Observation
 ref:pkg:npm/@acme/scanner-trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented
 ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health
-ref:folder:acme-governance;at=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ref:folder:acme-governance;state=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
 One regular expression decomposes it. Each captured part **MUST** then be handed to the validator that
-already owns that format — a Package URL parser for a `pkg` locator, a SWHID validator for an `at` value,
+already owns that format — a Package URL parser for a `pkg` locator, a SWHID validator for a `state` value,
 and so on. **No part of this scheme re-implements a grammar another specification already defines.** One
 exception to *delegation* is declared, and only one: the SWHID core form, validated by a pattern the
 specification file carries itself (see [Delegation](#delegation-and-its-one-exception)). Formats this
@@ -145,11 +145,11 @@ The status follows from one fixed order, and the order is what makes the precede
 Precedence, when more than one applies: **`malformed` > `unsupported` > `uncovered` > `ok`** — with the
 qualification step 2 supplies. Only a **grammar-level** `malformed` (step 1) outranks `unsupported`,
 because an unsupported version stops validation before any validator can fail. So
-`ref:2:pkg:npm/x@1.0.0;at=<a seven-character SWHID hash>` is `unsupported`, even though that same `at`
+`ref:2:pkg:npm/x@1.0.0;state=<a seven-character SWHID hash>` is `unsupported`, even though that same `state`
 value on a supported version is `malformed`.
 
 Below `unsupported`, a validator failure does outrank an unknown type: `ref:doi:10.1000/182` carrying an
-`at=` whose SWHID hash is abbreviated to seven characters is `malformed` at `at`, not `uncovered`. And an
+`state=` whose SWHID hash is abbreviated to seven characters is `malformed` at `at`, not `uncovered`. And an
 uncovered type still carries its qualifiers and its fragment through, decomposed and comparable.
 
 **An unknown type MUST NOT raise.** The identifier stays readable, storable and comparable, and the
@@ -172,15 +172,15 @@ When the status is `malformed`, the reported part is one of:
 | `state` | the qualifier list was empty, or a pair had no `=` |
 | `fragment` | the fragment was empty |
 | `locator` | the locator failed its declared form |
-| a qualifier key — `at`, `by`, `over`, … | that qualifier's value failed every form declared for it |
+| a qualifier key — `state`, `by`, `over`, `when`, … | that qualifier's value failed every form declared for it |
 | a refinement key — `lines`, `item`, `para`, … | that refinement's value failed its pattern |
 
 ## Delegation, and its one exception
 
 | Type | Locator form | Validated by | Use when |
 |---|---|---|---|
-| `pkg` | a Package URL | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | a manifest proves the name |
-| `folder` | a declared corpus name | `^[A-Za-z0-9][A-Za-z0-9._-]*$` | nothing proves the name |
+| `pkg` | a Package URL, versioned or not | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | the nearest manifest declares a name; unversioned, the Package URL names the living package and `state=` carries the frozen one |
+| `folder` | a declared corpus name | `^[A-Za-z0-9][A-Za-z0-9._-]*$` | no manifest declares a name anywhere above the file |
 
 A Package URL's own `#subpath` cannot be represented as a `pkg` locator: the locator excludes both `;` and
 `#`, so there is no encoding that lets a subpath through. A builder asked to build one **MUST** refuse,
@@ -198,15 +198,15 @@ and carries one pattern:
 ^swh:1:(cnt|dir|rev|rel|snp):[0-9a-f]{40}$
 ```
 
-Core form only — no SWHID qualifiers, and no abbreviation. An abbreviated hash **MUST** fail: an `at=`
-value spelled `swh:1:rev:` followed by only seven hex characters is malformed at `at`. A `sha256:` value
+Core form only — no SWHID qualifiers, and no abbreviation. An abbreviated hash **MUST** fail: a `state=`
+value spelled `swh:1:rev:` followed by only seven hex characters is malformed at `state`. A `sha256:` value
 **MUST** match `^sha256:[0-9a-f]{64}$`.
 
 A corpus **MUST** be declared — one line in the repository's own configuration, frozen at creation — and
 **MUST NOT** be derived from a filesystem path. A path-derived corpus breaks whenever the same content is
 live under two roots at once, which a `file:` dependency between two repositories makes routine.
 
-Corpus is declared **per subtree**, not per repository, and resolved by nearest ancestor. Measured over one
+The corpus of a file is the **nearest manifest that declares a name**, resolved by nearest ancestor and written as an unversioned Package URL: `ref:pkg:npm/acme-tools#acme/adr@2/0019` names a record of the living package, and `state=` carries the frozen one. A `folder` corpus is for the subtrees no manifest reaches, declared **per subtree** in one line of the repository's own configuration. Measured over one
 repository: 49 files under a public package and 154 above any package.
 
 ## Percent-encoding
@@ -236,7 +236,7 @@ different outer identifiers, and a nested value that itself contained `%23` surv
 
 ```text
 ref:folder:acme-governance;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1
-ref:folder:acme-governance;by=ref:pkg:npm/x@1.0.0%3Bat=swh:1:rev:7e29bb6000000000000000000000000000000000%23S
+ref:folder:acme-governance;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S
 ```
 
 **Nesting is exactly one level deep.** Depth is fixed by the specification; width is not (see
@@ -249,7 +249,8 @@ qualifier key that carries it.
 |---|---|---|
 | **Identity** | `type`, `locator`, declared-name path | the format renames the thing |
 | **Location** | a path and a byte range | any edit — an attribute, never a key |
-| **Freeze** | a SWHID in `;at=` | never |
+| **Freeze** | a SWHID in `;state=` | never |
+| **Moment** | an RFC 3339 timestamp in `;when=` | never — a second reading is a second moment |
 
 A file path **MUST NOT** appear in the identity of anything whose format declares a name. Location is an
 attribute of the node, recorded beside it. A builder given the same declared name reached through two
@@ -277,9 +278,10 @@ two sides **MUST NOT** trade contents.
 
 | Qualifier | Points at | Declared form | Undeclared form |
 |---|---|---|---|
-| `at` | the captured state of the thing | — | a SWHID |
+| `state` | the captured state of the thing — which bytes, never when | — | a SWHID |
 | `by` | the instrument that produced the reading | `ref:…` | `sha256:…` |
 | `over` | the population that was read | `ref:…` | `sha256:…` |
+| `when` | the moment the reading was taken | — | an RFC 3339 timestamp in UTC, `2026-08-12T18:55:27.811Z`; an offset is malformed |
 
 **A qualifier value is a declared name or a digest. It is never a list.** A literal list grows without
 bound and turns the identifier into a batch header rather than a name. A `by=` value that is neither a
@@ -295,7 +297,7 @@ than on the qualifier side where the SWHID specification puts it. **Where the tw
 follows RFC 5147.**
 
 ```text
-ref:folder:acme-governance;at=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1
+ref:folder:acme-governance;state=swh:1:cnt:3404a00f00000000000000000000000000000000#AGENTS.md;lines=1
 ```
 
 A refinement value that fails its pattern is malformed, and the failing part is the refinement key —
@@ -328,12 +330,12 @@ The empty sequence digests to `sha256:` over zero bytes —
 
 ## The digest never reads content
 
-Content state belongs to **each member**, in that member's own `;at=`:
+Content state belongs to **each member**, in that member's own `;state=`:
 
 ```text
 over: [
-  ref:folder:acme-governance#AGENTS.md;at=swh:1:cnt:3404a00f00000000000000000000000000000000,
-  ref:folder:acme-governance#GOVERNANCE.md;at=swh:1:cnt:48db124700000000000000000000000000000000
+  ref:folder:acme-governance#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000,
+  ref:folder:acme-governance#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000
 ]
 ```
 
@@ -375,8 +377,8 @@ else is opaque to it.
 | `alsoKnownAs` | never | Other identifiers for the same thing |
 | `data` | — | The content, interpreted by whoever knows the type |
 
-**A digest, for this invariant, is a `sha256:` value.** A SWHID in `;at=` is a captured state, not a
-digest: an identifier whose only qualifier is `at=` requires no `sets` entry and is admissible with no
+**A digest, for this invariant, is a `sha256:` value.** A SWHID in `;state=` is a captured state, not a
+digest: an identifier whose only qualifiers are `state=` and `when=` requires no `sets` entry and is admissible with no
 `sets` field at all.
 
 **The invariant:** for every qualifier whose value is a `sha256:` digest, `sets[<qualifier>]` **MUST**
@@ -422,7 +424,7 @@ The declared-name path is interpreted by the target's document model.
 
 | Document model | Declared name | Tie-break |
 |---|---|---|
-| A governed record | the `name` field of its front matter | none needed |
+| A governed record | `<provider>/<type>@<template version>/<name>` — every part from the record's own front-matter stamp; the provider of the type declares the form of `<name>` (a record number, or a front-matter `name` field) | none needed |
 | Markdown prose | the heading text | ordinal, on collision within one document |
 | A code symbol | the fully-qualified name, no path | per the language's own rules |
 | A `.behavior` state | the state name within its agent, never within its file | none needed |

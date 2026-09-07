@@ -19,7 +19,7 @@ file.
 
 A content hash is the opposite answer to a different question. It identifies the frozen past perfectly and
 cannot identify a living thing, because every edit produces a new one. The scheme uses both: a declared
-name for the living present, a SWHID in `;at=` for a captured state. Two separate investigations settled
+name for the living present, a SWHID in `;state=` for a captured state. Two separate investigations settled
 the two halves three days apart — an archival-format comparison (2026-08-07) chose SWHID for the frozen
 side, and a node-identity study (2026-08-10) chose the declared name for the living side.
 
@@ -74,7 +74,9 @@ A reading has three participants: the instrument, the corpus that was read, and 
 one thing, so an identifier without `by=` can express the instrument frozen at a moment, or the corpus
 frozen at a moment, but not one reading the other.
 
-Two attempts fail without it. Naming the instrument loses the corpus. Inventing a fragment such as
+The moment is its own qualifier, `when=`, in RFC 3339 UTC: a state says *which bytes*, a moment says
+*when*, and the two never share a key — DID Core keeps them apart as `versionId` and `versionTime`, git as
+`@{<sha>}` and `@{<time>}`. Two attempts fail without `by=`. Naming the instrument loses the corpus. Inventing a fragment such as
 `#reading/<something>` invents a name nobody declared, which the scheme's central rule forbids.
 
 ## Why `by` and `over` are separate axes
@@ -190,15 +192,18 @@ two corpora at once.
 One corpus per repository also failed: measured over one repository, 49 files sit under a public package
 and 154 above any package. Corpus is per subtree, by nearest ancestor.
 
-**Does not reopen.** The corpus is declared, and declaration is what all three failures point at.
+**Does not reopen.** The corpus is declared, and declaration is what all three failures point at. A manifest
+is a declaration: the nearest package manifest that declares a name is the corpus, as an unversioned
+Package URL, so "discovering" the corpus means finding that manifest, never deriving it from the path.
+`folder` remains for the subtrees no manifest reaches.
 
 ### An integrity qualifier on the reference
 
 RFC 5147 offers `length=` and `md5=` so a reader can detect that the target moved since the reference was
 written.
 
-Redundant here: when a member carries `;at=`, verification is comparing the current captured state against
-the recorded one — the same function without a new field. And when a member carries no `;at=`, the problem
+Redundant here: when a member carries `;state=`, verification is comparing the current captured state against
+the recorded one — the same function without a new field. And when a member carries no `;state=`, the problem
 is not integrity but the absence of state, which a checksum would appear to cover without covering.
 
 **Reopens if** a member type exists that cannot carry a captured state but must still be verifiable. If it
