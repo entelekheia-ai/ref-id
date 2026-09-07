@@ -24,7 +24,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          # No registry-url here on purpose: setup-node would write an .npmrc with a placeholder
+          # _authToken, and npm then sends that instead of its OIDC identity — a 403 that reads like a
+          # permission problem. Trusted publishing needs only `id-token: write` and npm 11.5 or later.
       - name: npm with trusted publishing support (11.5 or later)
         run: npm install -g npm@latest && npm --version
       - uses: dtolnay/rust-toolchain@stable
