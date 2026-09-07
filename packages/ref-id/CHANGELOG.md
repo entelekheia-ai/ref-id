@@ -1,5 +1,11 @@
 # @entelekheia/ref-id
 
+## 0.1.1
+
+### Patch Changes
+
+- 8dbe83d: Releases now come from the repository's own workflow through npm trusted publishing; nothing about the package's behaviour changes.
+
 ## 0.1.0
 
 ### Minor Changes
