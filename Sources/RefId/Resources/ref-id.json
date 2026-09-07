@@ -26,12 +26,7 @@
         ]
       },
       "rust-regex": {
-        "replace": [
-          [
-            "$",
-            "\\z"
-          ]
-        ]
+        "replace": []
       },
       "python-re": {
         "replace": [

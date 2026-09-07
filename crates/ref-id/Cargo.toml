@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+[package]
+name = "ref-id"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+description = "The ref: identifier scheme — a Rust port held to the specification's conformance vectors"
+publish = false
+
+[dependencies]
+regex = "1"
+serde_json = "1"
+sha2 = "0.10"
+packageurl = "0.7"

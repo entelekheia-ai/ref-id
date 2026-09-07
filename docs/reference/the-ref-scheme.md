@@ -46,9 +46,13 @@ and `fragment` all exclude CR and LF: one identifier is one line, and a string t
 
 The declared dialect is `ecmascript-2018`, and the file carries the adaptation each other engine needs, as
 a literal replacement rather than as prose. An implementation on a different engine **MUST** apply that
-engine's declared adaptation and **MUST NOT** rewrite the expression by hand. Four dialects are declared:
-`ecmascript-2018`, `pcre2` and `rust-regex` take the expression unchanged; `python-re` carries a single
-replacement, `(?<` → `(?P<`.
+engine's declared adaptation and **MUST NOT** rewrite the expression by hand. Five dialects are declared,
+each measured on every parse vector: `ecmascript-2018`, `rust-regex` and `swift-regex` take every pattern
+unchanged; `pcre2` replaces the terminal `$` with `\z` and `python-re` replaces `(?<` with `(?P<` and `$`
+with `\Z`, because in those two engines `$` also matches before a final line break, which would admit an
+identifier the canonical dialect refuses. The adaptations apply to every pattern in the file — the
+expression, the pair grammars, the forms, the dispatch and refinement patterns — not only to the
+expression.
 
 Five capture groups, in order: `version`, `type`, `locator`, `state`, `fragment`.
 

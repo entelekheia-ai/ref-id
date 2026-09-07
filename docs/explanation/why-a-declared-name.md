@@ -225,8 +225,10 @@ What is shared instead is the data: the grammar with its declared dialect, the t
 vectors. Behaviour stays code, held to the specification by the vectors rather than by prose. Measured
 before the decision: the grammar ran in four regular-expression engines from one shared file — three
 accepted the canonical expression unchanged, the fourth after one declared adaptation, and all four agreed
-on every vector. The specification now declares four dialects on that same evidence: three that need no
-adaptation, and one that carries a single replacement.
+on every vector. Since then the ports measured the anchor semantics as well: `$` matches before a final
+line break in Perl and Python but not in ECMAScript, Rust or Swift, so the specification declares five
+dialects — three that take every pattern unchanged and two that replace the terminal anchor (Python also
+renames its named groups). Every one of the five decomposes every parse vector identically.
 
 **Reopens if** either genuinely engine-shaped part — computing a SWHID, or interning the identifier tree —
 moves into the shared surface.
