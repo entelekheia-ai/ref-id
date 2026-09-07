@@ -6,7 +6,7 @@ vibe-ops-template: adr@2
 
 | Field | Value |
 |---|---|
-| Status | Accepted |
+| Status | Superseded by ADR-0004 |
 | Date | 2026-09-06 |
 | Deciders | Danilo Borges |
 

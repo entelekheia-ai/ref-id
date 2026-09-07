@@ -39,7 +39,9 @@ against vectors, never a re-derivation from this one's source.
 
 ## Install
 
-Not yet published — the first release is tracked in [`project/plans/`](project/plans/).
+```sh
+npm install @entelekheia/ref-id
+```
 
 ## Usage
 

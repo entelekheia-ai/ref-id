@@ -19,7 +19,9 @@ identifier; each captured part is handed to the validator that already owns that
 
 ## Install
 
-Not yet published — see the repository's `project/plans/`.
+```sh
+npm install @entelekheia/ref-id
+```
 
 ## Usage
 

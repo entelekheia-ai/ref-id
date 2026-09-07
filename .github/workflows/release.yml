@@ -1,8 +1,10 @@
-# Publishes @entelekheia/ref-id to GitHub Packages from CI, with the repository's own GITHUB_TOKEN —
-# no personal token anywhere. Every push to main runs the gates; while .changeset/*.md files are pending,
-# changesets/action opens or refreshes the "Version Packages" pull request instead of publishing.
-# Merging that pull request is the release: this same workflow then runs `changeset publish`.
-# Moving to the public npm registry later means changing registry-url, scope and access — nothing else.
+# Publishes @entelekheia/ref-id to the public npm registry from CI through npm trusted publishing (OIDC):
+# no token is stored anywhere — npm accepts this workflow's identity, declared once on npmjs.com under the
+# package's Trusted Publishers (owner entelekheia-ai, repository ref-id, workflow release.yml). Every push
+# to main runs the gates; while .changeset/*.md files are pending, changesets/action opens or refreshes the
+# "Version Packages" pull request instead of publishing. Merging that pull request is the release.
+# The first version was published from a maintainer's terminal, because a trusted publisher can only be
+# declared on a package that already exists.
 name: release
 on:
   push:
@@ -22,8 +24,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://npm.pkg.github.com
-          scope: '@entelekheia'
+          registry-url: https://registry.npmjs.org
+      - name: npm with trusted publishing support (11.5 or later)
+        run: npm install -g npm@latest && npm --version
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - name: gates — build, tests, grammar in three engines, Rust port
@@ -39,4 +42,3 @@ jobs:
           commit: 'release: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,7 @@
 {
   "name": "@entelekheia/ref-id",
   "version": "0.1.0",
-  "description": "The ref: identifier scheme — a specification published as data with conformance vectors, and the package that consumes it.",
+  "description": "The ref: identifier scheme \u2014 a specification published as data with conformance vectors, and the package that consumes it.",
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
@@ -19,7 +19,8 @@
     "build": "tsc -p tsconfig.build.json",
     "pretest": "mkdir -p spec && cp ../../spec/ref-id.json ../../spec/ref-id.json.sha256 spec/",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
   },
   "engines": {
     "node": ">=22"
@@ -29,8 +30,9 @@
     "typescript": "^7.0.2"
   },
   "publishConfig": {
-    "access": "restricted",
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
+    "provenance": false
   },
   "repository": {
     "type": "git",

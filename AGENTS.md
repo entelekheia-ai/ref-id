@@ -33,10 +33,9 @@ is expected and is checked against the same vectors, never against this code.
 - **The package embeds the spec** and carries the digest of its canonical serialisation. A spec edit
   without the regenerated digest fails the build on purpose.
 - **Every change to a published package's contract carries a `.changeset/*.md`** (changesets, stable
-  channel only until a beta branch exists). `changeset version` has never run: no `CHANGELOG.md` yet is
-  expected, not broken. The package publishes to GitHub Packages until its npm release — `project/adr/0003` —
-  from `.github/workflows/release.yml`: a push to `main` opens the "Version Packages" pull request, and
-  merging it publishes with the repository's own token. Nobody publishes from a machine.
+  channel only until a beta branch exists). `changeset version` runs in CI and writes `packages/ref-id/CHANGELOG.md`. The package publishes to the public npm registry — `project/adr/0004` — from
+  `.github/workflows/release.yml` through npm trusted publishing: a push to `main` opens the "Version
+  Packages" pull request, and merging it publishes. No publishing token exists anywhere.
 - Every delegated validation goes to the library that owns the format. Two exceptions are declared: the
   SWHID core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL
   core grammar (no maintained Swift library). The three purl validators differ at the edge — `packageurl-js`
@@ -80,7 +79,7 @@ Agent tooling is the `vibe-ops` plugin — no per-repo skill copies. Closing a t
 - Non-code example/fixture files need no header either.
 - Source files (`*.ts *.tsx *.js *.jsx`) carry a one-line SPDX header at the top:
 
-  ```
+  ```text
   // SPDX-License-Identifier: Apache-2.0
   ```
 
