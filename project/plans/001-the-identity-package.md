@@ -1,0 +1,254 @@
+---
+vibe-ops-template: plan@3
+---
+
+# Plan-001: The identity package
+
+| Field | Value |
+|---|---|
+| Status | In Progress |
+| Created | 2026-09-06 |
+| Author | Danilo Borges |
+| Related | ADR-0001, ADR-0002, ADR-0003 |
+
+---
+
+## Summary
+
+Several tools keep stores that need to point at each other and cannot: a node in a merged knowledge graph,
+a reading stored by an observation framework, a detector composed by a governance tool, an agent package,
+and whatever a citation checker emits. Each names things in its own way, and the graph names them worst of
+all — measured before this plan, 94% of its identifiers came from a label a model inferred rather than
+from anything a format declared. This plan builds the shared scheme: a specification published as data with
+conformance vectors, and a first implementation that consumes it. The scheme itself is written — the
+normative text is `docs/reference/the-ref-scheme.md`, the reasoning and the rejected alternatives are
+`docs/explanation/why-a-declared-name.md`, and the machine-readable form is `spec/ref-id.json`. This plan
+is how it gets built, proved against data already on disk, and published.
+
+## Goals
+
+1. A specification file — grammar with its declared dialect, dispatch and qualifier tables, digest
+   canonicalisation, conformance vectors — carrying its own version, with the digest of its canonical
+   serialisation beside it, so a second implementation is a port checked against vectors rather than a
+   re-derivation.
+2. A published package that consumes that file rather than restating any part of it, decomposing an
+   identifier with one regular expression and delegating each captured part to the validator that already
+   owns it.
+3. The envelope and its one invariant enforced: an identifier carrying a digest is admissible only
+   alongside an object whose members recompute to it.
+4. Every identity already declared in code across the consuming tools expressible in the scheme without
+   inventing a name that does not already exist.
+5. The scheme proved against stored data: a report that reconstructs units from identifiers built out of
+   the fields existing readings already carry.
+
+## Scope
+
+### In scope
+
+The specification file and the package that consumes it. The envelope type and its invariant. A mapping of
+the names the consuming tools already declare (a trait, an observation specification, a profile; a gate, a
+composed entry, a governed record) onto the scheme. A reconstruction report run over a stored registry of
+readings and over stored gate artefacts. Publication on an independent version line.
+
+### Out of scope
+
+**Adopting the scheme in any consumer.** Changing what a consumer stores or emits is that consumer's own
+work, and each has a different cost. This plan owes them a package and a specification; it does not owe
+them an integration.
+
+**A second implementation.** A Python port for an extraction pipeline is anticipated and is exactly why the
+specification is data. Building it is not this plan's work.
+
+**Computing a frozen-state qualifier.** The scheme accepts a SWHID and the parser validates its shape, but
+producing one belongs to whatever writes the reading.
+
+**Resolving the open corpus question.** Who declares the corpus for files with no provable name is
+unresolved and is the one thing that blocks an exporter. The package works without an answer; an exporter
+does not.
+
+## Design
+
+The scheme is specified in `spec/ref-id.json` and explained in `docs/reference/the-ref-scheme.md`; neither
+is restated here. Three properties of it shape the tracks below.
+
+It **wraps existing standards as intact faces** — a Package URL for a locator that a manifest proves, a
+SWHID for a captured state, RFC 5147's placement for a positional refinement — so the package delegates to
+validators it does not own and stays small enough to port.
+
+It rests on one rule: **only what somebody declared receives an identifier.** A composition is a node in
+its own package rather than a member's name with something appended, which is what bounds the identifier
+space and is why a list never appears inside a name.
+
+And it **degrades rather than refuses**: an unknown type yields `uncovered`, so extending the scheme later
+is not a data-loss event for whoever already stored identifiers.
+
+```mermaid
+flowchart TD
+    S["identifier string"] --> R{"one regular expression"}
+    R -->|"no match"| E["malformed"]
+    R -->|"match"| V{"version in the<br/>supported range?"}
+    V -->|"no"| U0["unsupported —<br/>decomposed, not validated"]
+    V -->|"yes"| Q["validate qualifiers and refinements<br/>with the form that owns each"]
+    Q -->|"a validator fails"| E
+    Q --> T{"type in the<br/>dispatch table?"}
+    T -->|"no"| U["uncovered —<br/>identifier stays readable"]
+    T -->|"yes"| L["delegate the locator to<br/>the validator that owns it"]
+    L -->|"fails"| E
+    L --> P["parsed identifier"]
+    P --> D{"carries a digest?"}
+    D -->|"no"| OK["admissible"]
+    D -->|"yes"| M["require the envelope;<br/>recompute the digest<br/>from its members"]
+    M -->|"agrees"| OK
+    M -->|"disagrees"| X["refuse at ingestion"]
+```
+
+The branch at the bottom is the one a reader most often misses. An identifier carrying a digest is a
+promise that an object listing the members exists, and a promise nobody checks is a dangling pointer.
+Recomputing at ingestion is what turns it into a verifiable claim.
+
+**Three layers, and only two can be data.** The tables (dispatch, qualifier keys, fragment grammars,
+resolution states, normalisation form) are data. The grammar is data, with a declared dialect and the
+adaptations each regular-expression engine family may apply. Behaviour — order of validation, delegation,
+normalisation, degrading rather than throwing — stays code, because encoding it as data means inventing a
+rule language and maintaining an interpreter for it once per implementation, which multiplies the
+divergence the data exists to prevent. The vectors bind behaviour instead, and they bind it where
+implementations actually differ: an unknown type matches the expression perfectly, and nothing in the
+expression says whether that yields a state or an exception.
+
+**Where the code lives.** `packages/ref-id/src/` reads `spec/ref-id.json` (copied into the package at
+build, digest-checked at load) and exposes `parse`, `serialise`, `build`, `digest` and
+`validateEnvelope`; `packages/ref-id/test/` is generated from the vectors and holds no expected value of its
+own.
+
+## Tracks
+
+- [ ] **Track 1 — The specification file and the package that consumes it.** Two artefacts, not one. The
+      file carries the grammar with its dialect, the tables, the digest canonicalisation, a `specVersion`,
+      and vectors in five classes: `parse`, fixing what each input decomposes to; `roundtrip`, fixing that
+      re-serialising returns the original bytes; `build`, fixing that a producer never lets a location into
+      an identifier; `digest` and `envelope`, fixing Track 2. The package reads the file rather than
+      restating it, and returns an uncovered result for an unknown type rather than throwing. Acceptance:
+      every vector class passes; the grammar and the parse vectors agree in at least one other
+      regular-expression engine through the declared adaptation.
+- [ ] **Track 2 — The envelope and its invariant.** The type an identifier resolves to, and the check that
+      makes a digest a claim rather than a promise. Acceptance: a vector where a member's content changed
+      and the set digest did not is refused; reordered members produce a different digest; a repeated
+      member is not deduplicated.
+- [ ] **Track 3 — Mapping the names already declared.** Every identity the consuming tools declare in code
+      is written in the scheme, in a table generated from the declarations rather than hand-maintained. At
+      the end there is proof that no name had to be invented — and if one has to be, that is the finding,
+      recorded rather than quietly fixed.
+- [ ] **Track 4 — Reconstruction against stored data.** A report builds an identifier for each stored
+      reading from the fields it already carries and prints the distinct units it finds, plus the readings
+      whose identifier could not be built and why. This is the track that can falsify the design, and it
+      runs against real data rather than fixtures. It also answers the one question left open in the
+      scheme: whether a reading taken under conditions nobody declared should be admitted, refused, or
+      admitted and marked unattributable.
+- [ ] **Track 5 — Publication.** The package publishes on its own version line with the specification
+      embedded rather than fetched, carrying the digest of its canonical serialisation and refusing a file
+      whose `specVersion` falls outside the range it declares. The registry is the one ADR-0003 names until
+      the public release.
+- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+      issue closed. The plan file itself is kept.
+
+## Success criteria
+
+- Every conformance vector class passes (`npm test` in `packages/ref-id` reports zero failures). Three fail
+  loudly if a shortcut was taken: two sequences with the same members in different order produce
+  **different** digests; a sequence containing one identifier twice does not deduplicate; the same declared
+  name reached through two different file paths produces **identical** identifiers.
+- An envelope whose members no longer recompute to its digest is refused. A run that accepts it is a
+  failing run.
+- The reconstruction report prints a unit count greater than zero **with an explicitly stated number of
+  readings it could not identify**. A run that silently identifies everything is a failing run: it means
+  the report is not checking.
+- A deliberately altered copy of the specification file fails the digest test.
+- The published package's dependency list requires no native runtime.
+
+---
+
+## Decision Log
+
+- Decision: the scheme ships as versioned data with conformance vectors, and the code consumes it; only
+  the tables and the grammar are data, behaviour stays code.
+  Rationale: ADR-0001. Measured before the decision: the grammar ran in four regular-expression engines from
+  one shared file — three accepted the canonical expression unchanged, the fourth after one declared
+  adaptation, and all four agreed on every vector.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: the SWHID core form is validated by one pattern declared in the specification — the single
+  exception to delegation.
+  Rationale: ADR-0002. No maintained dependency-free validator exists on the registry.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: the grammar captures an optional version slot; a version outside the supported range parses
+  to `unsupported`, never to malformed.
+  Rationale: the prose declared a slot the expression could not match. Capturing it keeps the published
+  expression the whole grammar and keeps behaviour out of a pre-parse step.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: the `#` of an identifier has URI-fragment semantics; a Package URL subpath's `#` is
+  percent-encoded as `%23` inside the locator; a nested identifier used as a qualifier value is
+  percent-encoded for `;`, `#` and `%`.
+  Rationale: two different nested identifiers must yield two different outer identifiers, and the whole
+  string must stay one shareable token. Encoding only `#` left a nested `;at=` breaking the split.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: adopting the scheme in any consumer is out of scope; each consumer decides its own timing.
+  Rationale: the cost differs per consumer. Bundling them would make the cheapest adoption wait on the most
+  expensive and give this plan a success criterion it cannot observe from here.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: discovery and mechanical edits are delegated; the boundary and the scheme are not.
+  Rationale: sweeping stored readings, inventorying declarations and applying an edit under a contract that
+  fits in a paragraph are cheap to hand off and easy to check. Deciding what the scheme admits has to agree
+  with this plan's intent, and a subagent does not hold the plan. Vectors are the maintainer's; an
+  implementer that disagrees with one reports it and implements what the vector says.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: the locator is the captured group verbatim, and the dispatch table declares how the string
+  handed to a validator is formed — `type-prefixed` for `pkg` (the ref type token is also the Package
+  URL's own scheme), `verbatim` for `folder`.
+  Rationale: the prose said "an intact Package URL" while the expression, with `type = pkg`, captured the
+  purl without its scheme; six vectors expected it restored and nothing said how. Found by the drift check
+  on the public twin and by the port check in two engines, which disagreed with the vectors identically.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: there is no percent-encoding layer on a locator. A purl keeps its own encoding intact, and a
+  value that needs `;` or `#` cannot be a locator — a Package URL subpath is not representable and the
+  builder refuses it. This reverts the `%23`-in-locator choice taken earlier the same day.
+  Rationale: with the `%23` layer, `build` was not injective — a locator carrying a literal `%23` and one
+  carrying `#` produced one string — because purl already percent-encodes. Injectivity with a subpath
+  would cost `%`→`%25` on every locator, doubling the encoding of canonical purls (`%2540scope`).
+  Date / Author: 2026-09-06 / Danilo Borges
+
+- Decision: an identifier is one line (the expression excludes CR and LF); `digest` refuses a member that
+  carries the join character; `validateEnvelope` refuses a requested identifier that parses `malformed`
+  or `unsupported`.
+  Rationale: three review blockers. Without the first two, `digest` was not injective over sequences;
+  without the third, an envelope served under an unparseable identifier was admissible.
+  Date / Author: 2026-09-06 / Danilo Borges
+
+## Outcomes & Retrospective
+
+*Nothing shipped yet.*
+
+---
+
+## Open questions
+
+**Who declares the corpus for the files with no provable name.** Measured over 722 markdown files across
+ten repositories: 12.6% sit under a publishable package, 64.4% under a private one, and 23.0% have no name
+at all — and a governance corpus is typically in the last group. The package works without an answer; an
+exporter does not.
+
+**Whether a reading taken under undeclared conditions is admissible.** A scan with parameters chosen for
+one run has no node to be attributed to. Track 4 makes the case visible: a stored reading whose identifier
+cannot be built is either this or a defect, and the report must say which.
+
+## Related
+
+- `docs/reference/the-ref-scheme.md` — the scheme this plan builds.
+- `docs/explanation/why-a-declared-name.md` — why each rule is shaped that way, and the alternatives
+  rejected with what would reopen each.
+- ADR-0001, ADR-0002, ADR-0003.

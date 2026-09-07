@@ -11,10 +11,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "spec"
   ],
   "scripts": {
+    "prebuild": "mkdir -p spec && cp ../../spec/ref-id.json ../../spec/ref-id.json.sha256 spec/",
     "build": "tsc -p tsconfig.build.json",
+    "pretest": "mkdir -p spec && cp ../../spec/ref-id.json ../../spec/ref-id.json.sha256 spec/",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts"
   },

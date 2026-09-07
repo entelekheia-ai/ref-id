@@ -67,8 +67,7 @@
         ";": "%3B",
         "#": "%23",
         "%": "%25"
-      },
-      "depth": 1
+      }
     }
   },
   "dispatch": {
@@ -147,7 +146,8 @@
       "reference": "ISO/IEC 18670 core identifier, no SWHID qualifiers"
     },
     "sha256": {
-      "pattern": "^sha256:[0-9a-f]{64}$"
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "digest": true
     },
     "ref": {
       "nested": true,
@@ -158,6 +158,7 @@
   "refinements": {
     "lines": {
       "pattern": "^[0-9]+(,[0-9]+)?$",
+      "range": "ascending",
       "reference": "RFC 5147 placement"
     },
     "item": {
@@ -224,6 +225,9 @@
       "alsoKnownAs": "optional, a declaration never a similarity match",
       "data": "opaque"
     },
+    "selfReference": "id",
+    "setsField": "sets",
+    "digestForms": "every form declaring digest: true",
     "invariant": "for every qualifier whose value is a digest, sets[qualifier] exists and digest(sets[qualifier]) equals it; and id equals the identifier the envelope was requested under",
     "onFailure": "refuse at ingestion"
   },
@@ -661,6 +665,64 @@
         }
       },
       {
+        "name": "a refinement key on the qualifier side is malformed",
+        "input": "ref:folder:acme-tools;lines=1#AGENTS.md",
+        "expect": {
+          "status": "malformed",
+          "part": "lines"
+        }
+      },
+      {
+        "name": "a qualifier key on the fragment side is malformed",
+        "input": "ref:folder:acme-tools#AGENTS.md;at=swh:1:rev:7e29bb6000000000000000000000000000000000",
+        "expect": {
+          "status": "malformed",
+          "part": "at"
+        }
+      },
+      {
+        "name": "an empty path before a refinement is malformed",
+        "input": "ref:folder:acme-tools#;lines=1",
+        "expect": {
+          "status": "malformed",
+          "part": "fragment"
+        }
+      },
+      {
+        "name": "a nested identifier of an unsupported version is carried, not rejected",
+        "input": "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [
+            [
+              "by",
+              "ref:2:pkg:npm/x@1.0.0"
+            ]
+          ],
+          "fragment": null,
+          "type": "folder",
+          "locator": "acme-tools",
+          "nested": {
+            "by": "ref:2:pkg:npm/x@1.0.0"
+          }
+        }
+      },
+      {
+        "name": "a version token round-trips as written",
+        "input": "ref:01:pkg:npm/x@1.0.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "pkg",
+          "locator": "npm/x@1.0.0",
+          "explicitVersion": true,
+          "versionText": "01"
+        }
+      },
+      {
         "name": "uppercase type is malformed",
         "input": "ref:Pkg:npm/x@1.0.0",
         "expect": {
@@ -729,6 +791,8 @@
       "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
       "ref:2:pkg:npm/x@1.0.0",
+      "ref:01:pkg:npm/x@1.0.0",
+      "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
       "ref:doi:10.1000/182;at=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
       "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y"
     ],

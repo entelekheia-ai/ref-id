@@ -5,6 +5,10 @@ dist/
 .env
 .env.*
 
+# The package embeds the spec by copying it in at prebuild/pretest time (packages/ref-id/package.json);
+# spec/ref-id.json itself stays canonical and tracked only at the repository root.
+packages/ref-id/spec/
+
 # Clone-local configuration: what is true of one working tree on one machine, layered over the committed
 # vibeops.config.*. The .json name is retired — this tooling's own record (which norm was promulgated
 # here, the boundary it agreed to) is committed in vibeops.config.json, which must NOT be listed here.
