@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # check.sh — the canonical way to run this repository's full governance gate by hand.
 #
-# Running the governance runner directly composes only its built-in checks and silently omits every
+# Running `vibe-ops check` directly composes only its built-in checks and silently omits every
 # fragment this repository owns, while still reporting "N checks, 0 failed". This script sets what has
 # to be set, so the correct invocation has a name shorter than the mistake. It is also what
 # .githooks/pre-commit runs, so this gives the identical result without committing.
+#
+# The gate needs `vibe-ops` on PATH; _run.sh says so by name when it is missing.
 #
 # Unlike the hook it always runs the fragments' self-test: a manual check has no per-commit cost to
 # protect and should give the strongest guarantee available. It reports the same way the hook does —
