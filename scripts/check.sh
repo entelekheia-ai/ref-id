@@ -19,9 +19,18 @@ SELF_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(git -C "$SELF_DIR" rev-parse --show-toplevel)
 CHECK_DIR="$ROOT/scripts/checks"
 
-if [ -x "$CHECK_DIR/self-test.sh" ]; then
-  if ! "$CHECK_DIR/self-test.sh"; then
-    echo "check.sh: the fragments' self-test failed — a check has stopped detecting what it was written for." >&2
+# The self-test, which is a real thing again and reached a different way. This looked for a
+# `self-test.sh` beside the shell fragments — there are no shell fragments any more, that file never
+# existed here, and the branch was a promise nothing could keep while the comment above went on making
+# it. The composed gates carry fixtures instead, and `--self-test` asserts each one still fires on the
+# tree it was written to fail against, which is the guarantee that comment claims.
+#
+# Skipped when the binary is absent rather than failing here: the run below reports that by name, and one
+# refusal naming one cause is worth more than two.
+if command -v vibe-ops >/dev/null 2>&1; then
+  if ! vibe-ops check --self-test "$ROOT" >/dev/null 2>&1; then
+    echo "check.sh: a gate stopped firing on its own fixture — it no longer detects what it was written for." >&2
+    vibe-ops check --self-test "$ROOT" >&2
     exit 1
   fi
 fi

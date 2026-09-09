@@ -19,7 +19,12 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { canonicalise } from '../packages/ref-id/dist/index.js'
+// The SOURCE, not the build. `dist/` is gitignored, and `npm test` does not produce it — its `pretest`
+// only copies the spec — so a resealer reaching for the build fails on a fresh clone with a module-not-
+// found trace, at exactly the moment the failing test told somebody to run it. Reading the source also
+// means the digest is computed by the same file the verifier uses rather than by an artefact that can be
+// a build behind it.
+import { canonicalise } from '../packages/ref-id/src/spec.ts'
 
 const SPEC = fileURLToPath(new URL('../spec/ref-id.json', import.meta.url))
 const SIDECAR = `${SPEC}.sha256`
@@ -27,7 +32,20 @@ const checkOnly = process.argv.includes('--check')
 
 const raw = readFileSync(SPEC, 'utf8')
 const computed = createHash('sha256').update(canonicalise(JSON.parse(raw)), 'utf8').digest('hex')
-const recorded = readFileSync(SIDECAR, 'utf8').trim()
+
+let recorded
+try {
+  recorded = readFileSync(SIDECAR, 'utf8').trim()
+} catch {
+  // An absent sidecar is the first seal, not an error to trace. Writing it is the whole job.
+  if (checkOnly) {
+    console.error('spec/ref-id.json has no sidecar — run `node scripts/seal-spec.mjs` to write it')
+    process.exit(1)
+  }
+  writeFileSync(SIDECAR, `${computed}\n`)
+  console.log(`sealed for the first time: ${computed}`)
+  process.exit(0)
+}
 
 if (computed === recorded) {
   console.log(`sealed: ${computed}`)

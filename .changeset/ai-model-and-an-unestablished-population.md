@@ -15,12 +15,29 @@ stored data, where 438 readings are about a population their producer never reco
 It is `unknown` and deliberately **not** `none`, which `state` already uses. A state cannot be empty, so
 `none` is unambiguous there; a population over zero members is a real and different thing from a
 population nobody recorded, and an identifier must not let the two read alike. It is also a floor rather
-than a destination: a producer that can enumerate its population says which one with `sha256`.
+than a destination: a producer that can enumerate its population says which one with `sha256`. Both halves
+of that fence are now vectors rather than prose — `over=none` and `state=unknown` are each `malformed`,
+so a port that blurred them would fail the suite instead of passing it quietly.
+
+**A form is the one addition an older reader cannot absorb**, and the reference doc now says so. An
+unregistered type parses `uncovered`, an unknown qualifier key is carried through, a later version parses
+`unsupported` — but a qualifier's `forms` list is closed, so a 1.1.0 reader meeting `over=unknown` gets
+`malformed`, on an identifier that is well formed under the version that minted it. That is intended: a
+form is what a value *means*, and carrying an unrecognised one through would admit a claim nobody can
+check. It is also why a consumer pins `specVersion` rather than assuming forward tolerance.
 
 **`ai-model` is registered as a type.** Its locator is the id a model is served under — the exact string a
-caller sends to select it. The pattern is permissive on purpose, admitting both an Ollama tag's `:` and a
-hub-style name's `/`, because coercing a served name breaks the round-trip that makes it an identifier at
-all; rejecting a shape a real serving process accepts would be a defect rather than a safeguard.
+caller sends to select it. The pattern is permissive on purpose, admitting an Ollama tag's `:`, a hub-style
+name's `/` and an LM Studio quantisation key's `@`, because coercing a served name breaks the round-trip
+that makes it an identifier at all; rejecting a shape a real serving process accepts would be a defect
+rather than a safeguard. Permissive is not unbounded: every `/`-separated segment opens on an
+alphanumeric, which admits each of those and excludes `..`, `//` and a trailing `/`. The delegate is
+verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit
+a traversal from a locator that parsed clean.
+
+Case is significant and nothing normalises it, which is worth stating because it is the one part with no
+way back: two callers naming one model in two casings mint two identifiers, and folding them later would
+be a change to normalisation, which mints identifier version 2.
 
 This type is this specification's own rather than a delegation, and that was established before it was
 written rather than assumed. Package URL registers namespaces for artifact registries only, `huggingface`

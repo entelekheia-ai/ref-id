@@ -330,8 +330,17 @@ own.
   names a downloadable artifact tied to a registry, so **no published grammar names a hosted API model**
   and there was nothing to point at. The locator is the id a model is served under, and the pattern is
   permissive on purpose: coercing a served name breaks the round-trip that makes it an identifier, so a
-  shape a real serving process accepts — an Ollama tag's `:`, a hub-style name's `/` — is admitted rather
-  than tidied.
+  shape a real serving process accepts — an Ollama tag's `:`, a hub-style name's `/`, an LM Studio
+  quantisation key's `@` — is admitted rather than tidied.
+  Amended the same day, on review. `@` was excluded in the first cut, which contradicted the stated
+  principle instead of applying it: a quantisation key and a revision pin both carry it. And permissive
+  gained a bound — every `/`-separated segment opens on an alphanumeric, which admits every real shape
+  tested and excludes `..`, `//` and a trailing `/`. The delegate is `verbatim`, so a consumer mapping a
+  served id onto a path inherits whatever the locator admitted, and a traversal that parsed clean is a
+  surface handed on by an identifier rather than chosen by the consumer. Case stays significant with no
+  normalisation, now recorded in `declaredBy` as the irreversible half: two callers naming one model in two
+  casings mint two identifiers, and folding them later is a change to normalisation, which mints identifier
+  version 2.
   Date / Author: 2026-09-09 / Danilo Borges
 
 - Decision: `over`'s unestablished level is `unknown`, not the `none` that `state` already uses.

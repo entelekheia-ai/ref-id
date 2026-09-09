@@ -133,8 +133,8 @@
       "locator": "served-model-id",
       "validator": "declared-name",
       "delegate": "verbatim",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
-      "declaredBy": "the id the model is served under — the exact string a caller sends to the serving process to select it, verbatim. Deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all. ':' and '/' are both admitted on purpose — an Ollama tag ('llama3:8b') and a hub-style name ('mlx-community/Qwen3-1.7B-4bit') are both real ids a serving process accepts today, and rejecting either would be a defect, not a safeguard.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
+      "declaredBy": "the id the model is served under — the exact string a caller sends to the serving process to select it, verbatim. Deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2.",
       "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation."
     }
   },
@@ -1332,6 +1332,66 @@
           "fragment": null,
           "type": "folder",
           "locator": "acme-tools"
+        }
+      },
+      {
+        "name": "none is not a population level — a population of zero is not a population nobody recorded",
+        "input": "ref:folder:acme-tools;over=none",
+        "expect": {
+          "status": "malformed",
+          "part": "over"
+        }
+      },
+      {
+        "name": "unknown is not a state level — the fence from the other side",
+        "input": "ref:folder:acme-tools;state=unknown",
+        "expect": {
+          "status": "malformed",
+          "part": "state"
+        }
+      },
+      {
+        "name": "unknown is declared for over alone, never for by",
+        "input": "ref:folder:acme-tools;by=unknown",
+        "expect": {
+          "status": "malformed",
+          "part": "by"
+        }
+      },
+      {
+        "name": "an ai-model id cannot carry a character outside its declared class",
+        "input": "ref:ai-model:a b",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "an ai-model id carries a quantisation key after @",
+        "input": "ref:ai-model:qwen2.5-7b-instruct@q4_k_m",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "type": "ai-model",
+          "locator": "qwen2.5-7b-instruct@q4_k_m",
+          "qualifiers": [],
+          "fragment": null
+        }
+      },
+      {
+        "name": "an ai-model id cannot traverse — every segment opens on an alphanumeric",
+        "input": "ref:ai-model:a/../../etc/passwd",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "an ai-model id cannot carry an empty segment",
+        "input": "ref:ai-model:a//b",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
         }
       }
     ],

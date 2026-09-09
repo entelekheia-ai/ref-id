@@ -31,6 +31,34 @@
     },
     {
       "gate": "mirror",
+      "label": "spec-version-doc",
+      "options": {
+        "compare": "text",
+        "rule": "spec-version-doc-drift",
+        "subject": "the specVersion the reference doc prints as `Today`",
+        "left": { "json": "specVersion", "in": "spec/ref-id.json" },
+        "right": {
+          "capture": "\\| `specVersion` \\| `([^`]+)` \\|",
+          "in": "docs/reference/the-ref-scheme.md"
+        }
+      },
+      "fixture": {
+        "expect": ["spec-version-doc-drift"],
+        "options": {
+          "compare": "text",
+          "rule": "spec-version-doc-drift",
+          "subject": "the specVersion the reference doc prints as `Today`",
+          "left": { "json": "specVersion", "in": "spec.json" },
+          "right": { "capture": "\\| `specVersion` \\| `([^`]+)` \\|", "in": "doc.md" }
+        },
+        "files": {
+          "spec.json": "{\"specVersion\":\"1.2.0\"}\n",
+          "doc.md": "| Field | Today |\n|---|---|\n| `specVersion` | `1.0.0` | the document |\n"
+        }
+      }
+    },
+    {
+      "gate": "mirror",
       "label": "spec-seal",
       "options": {
         "compare": "text",

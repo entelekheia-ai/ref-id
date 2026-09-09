@@ -111,6 +111,18 @@ Exactly two changes mint a new identifier version, and with it a new `specVersio
 **normalisation or percent-encoding**, and a change to the **separators or the shape**. Everything else is
 an addition through the extension points below.
 
+**One addition is not soft on an older reader, and it is the one with no extension point.** An
+unregistered type parses `uncovered`, an unknown qualifier key and an unknown refinement are carried
+through, and an identifier naming a later version parses `unsupported` — each a status that says *not mine
+to judge*. There is no equivalent for a **form**: a qualifier's `forms` list is closed, so a reader on an
+older `specVersion` meeting a value from a form added since gets `malformed` at that qualifier — a hard
+failure on an identifier that is well formed under the version that minted it. `over=unknown`, added in
+1.2.0, is `malformed@over` to a 1.1.0 reader.
+
+That is the intended behaviour and not an oversight: a form is what a value *means*, and carrying an
+unrecognised one through would be admitting a claim nobody can check. But it makes a form the addition to
+weigh hardest, and it is why a consumer pins `specVersion` rather than assuming forward tolerance.
+
 ## Parse statuses
 
 Quoted verbatim from `statuses`:
@@ -453,7 +465,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.0.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.2.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension
