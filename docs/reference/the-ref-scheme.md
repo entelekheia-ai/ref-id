@@ -184,6 +184,7 @@ When the status is `malformed`, the reported part is one of:
 | `domain` | `host[/segment…][@version]` — a host under the owner's control, then names the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; segments `[a-z0-9][a-z0-9._~-]*`; an optional `@version` on the last segment | the thing exists *as* a domain — a site, a portfolio, a case published under it: `ref:domain:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
 | `email` | an addr-spec, `local@host` | RFC 5322 dot-atom local part, host as above | a mailbox identifies a person or a role. Nothing lives under it: `ref:email:someone@mail.example/doctor` is malformed at the locator, because what a mailbox publishes belongs to the ecosystem that publishes it |
 | `dot-agent` | an agent identifier, `namespace/name[:version]` | the agent-id grammar of that ecosystem: the namespace is a domain, a `platform/user` under a domain, a mailbox, or the literal `unknown`; the `~digest` of its full form travels as `state=` instead | an agent bundle: `ref:dot-agent:unknown/MentorUniversitario:1.4.1`, `ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4` |
+| `ai-model` | the id the model is served under, verbatim | `^[A-Za-z0-9][A-Za-z0-9._:/-]*$` — declared-name, deliberately permissive: no published grammar names a hosted API model (Package URL registers only artifact-registry namespaces such as `huggingface` and `mlflow`; CycloneDX and SPDX 3.0's `AIPackage` both delegate identity to an ordinary purl or free text; OpenTelemetry's `gen_ai.request.model` is explicitly free text), and coercing a served name breaks the round-trip that makes it an identifier at all. `:` and `/` are both admitted — an Ollama tag (`llama3:8b`) and a hub-style name (`mlx-community/Qwen3-1.7B-4bit`) are both ids a real serving process accepts today | a served model, named exactly as its serving process names it: `ref:ai-model:Qwen3-4B-Instruct-2507-4bit`, `ref:ai-model:llama3:8b`, `ref:ai-model:mlx-community/Qwen3-1.7B-4bit` |
 
 **The type names the naming system that owns the locator's grammar, and this table is the registry of
 types.** A type absent from it — `ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC` — parses to `uncovered`,
@@ -289,7 +290,7 @@ two sides **MUST NOT** trade contents.
 |---|---|---|---|
 | `state` | the captured state of the thing — which bytes, never when | — | a SWHID; `git:<commit>` (7–40 hex); a content hash, `sha256:…` or `blake3:…`; or the literal `none` |
 | `by` | the instrument that produced the reading | `ref:…` | `sha256:…` |
-| `over` | the population that was read | `ref:…` | `sha256:…` |
+| `over` | the population that was read | `ref:…` | `sha256:…`; or the literal `unknown` — the declared level for a population nobody established. Deliberately not `none`, which `state` uses: a state cannot be empty, so `none` is unambiguous there, while a population over zero members is a real and different thing from a population nobody recorded |
 | `when` | the moment the reading was taken | — | an RFC 3339 timestamp in UTC, `2026-08-12T18:55:27.811Z`; an offset is malformed |
 
 **A qualifier value is a declared name or a digest. It is never a list.** A literal list grows without
