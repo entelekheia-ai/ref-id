@@ -21,7 +21,27 @@ function digestOf(value: unknown): string {
 }
 
 test("spec-integrity: the real embedded spec loads", () => {
-  assert.doesNotThrow(() => loadSpec())
+  // WHERE AN EDIT TO THE SPECIFICATION SURFACES, so the remedy belongs here rather than only in a script
+  // somebody has to remember. `loadSpec` refuses a file that disagrees with its sidecar and most of this
+  // suite goes through it, so a stale sidecar arrives as six failures whose shared cause is one line —
+  // and between running the resealer and copying a digest out of an error by hand, the second is what
+  // happens when nothing says otherwise.
+  //
+  // It may name a path in this repository because this file is not shipped (`files` is `dist` and
+  // `spec`). `spec.ts` is shipped and may not: a consumer hitting `SpecIntegrityError` has no
+  // `scripts/` of ours to run.
+  try {
+    loadSpec()
+  } catch (error) {
+    assert.fail(
+      `${(error as Error).message}\n\n` +
+        "  If you edited spec/ref-id.json, its sidecar is stale. Re-seal it:\n" +
+        "    node scripts/seal-spec.mjs\n\n" +
+        "  Then copy the pair into the ports, which embed their own:\n" +
+        "    Sources/RefId/Resources/   crates/ref-id/spec/\n" +
+        "  The `spec-copies` gate refuses a commit where those have parted company.",
+    )
+  }
 })
 
 test("spec-integrity: one altered byte inside a string, sidecar unchanged, throws SpecIntegrityError", () => {

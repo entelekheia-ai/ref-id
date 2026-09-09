@@ -344,13 +344,19 @@ own.
   Date / Author: 2026-09-09 / Danilo Borges
 
 - Decision: the sidecar digest gets a writer, `scripts/seal-spec.mjs`, computing through the package's own
-  `canonicalise`.
-  Rationale: the digest existed only inside the check that verifies it, so every edit to the specification
-  needed somebody to recompute it by hand — and a wrong one disables every implementation at once instead
-  of failing a single test, because the loader refuses the file rather than a vector. Reusing
-  `canonicalise` rather than writing a second serialisation is the load-bearing half: a resealer that
-  canonicalised differently from the verifier would produce a file that seals cleanly and refuses to load
-  everywhere.
+  `canonicalise` — and the guidance to run it enters the lifecycle, while the running of it does not.
+  Rationale: stated carelessly the first time and corrected on measurement. A stale sidecar was never
+  silent — `loadSpec` refuses the file and most of the suite goes through it, so an unresealed edit
+  already arrived as six failures (measured: 138 passing became 2 passing, 6 failing). What was missing
+  was the way back: the correct digest existed only inside the error message and the repair was to copy it
+  out by hand. Reusing `canonicalise` is the load-bearing half — a resealer with its own serialisation
+  would produce a file that seals cleanly here and refuses to load everywhere.
+  Resealing stays manual on purpose: a hook that resealed on every edit would restamp whatever arrived,
+  which is what a seal exists to prevent, and is the same argument that keeps a gate from fixing itself.
+  But a script nothing points at is a script nobody runs — between it and copying a digest by hand, the
+  second is what happens when nothing says otherwise. So the guidance is what is wired in, at both places
+  the failure surfaces: the integrity test fails with the command in its message, and the `spec-copies`
+  gate carries the remedy in each finding's subject.
   Date / Author: 2026-09-09 / Danilo Borges
 
 ## Outcomes & Retrospective
