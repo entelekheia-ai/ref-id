@@ -1,0 +1,49 @@
+# The gates, on every pull request and on main — separate from `release.yml`, which keeps its own copy
+# because the checks that guard a publish must run in the job that publishes.
+#
+# Before this file the gates ran only on `push: main`, so a pull request had nothing checking it and the
+# first run of anything was against the branch that releases. The specification is data with a sidecar
+# digest, and an edit that reseals nothing is refused by the loader rather than by a vector — which shows
+# up here as `npm test`, and showed up nowhere at all while this workflow did not exist.
+#
+# Swift is its own job on macOS. The conformance runner is the only thing that exercises the Swift port's
+# 433 vectors and it had no automated caller, which for a repository whose headline property is
+# three-implementation parity left exactly one implementation unevidenced. It is an executable rather
+# than a test target on purpose (see Package.swift): it runs on a toolchain with no XCTest.
+name: gates
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-and-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: the specification still matches its own sidecar
+        # Ahead of the suite because it is the failure that arrives as six unrelated-looking errors, and
+        # because this is the one drift the copy gate cannot see: four copies equally stale agree with
+        # each other perfectly. Reads the source, so no build is needed and none has happened yet.
+        run: node scripts/seal-spec.mjs --check
+      - name: build, tests, grammar in three engines, Rust port
+        run: |
+          npm run build
+          npm test
+          npm run test:grammar
+          cargo test --quiet
+
+  swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift conformance
+        run: swift run ref-id-conformance
