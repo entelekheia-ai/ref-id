@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export { build } from "./build.ts"
+export { canonical, sameIdentifier } from "./canonical.ts"
 export { digest } from "./digest.ts"
 export { validateEnvelope } from "./envelope.ts"
 export { BuildError, DigestError, RefIdError, SerialiseError } from "./errors.ts"

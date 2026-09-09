@@ -352,6 +352,36 @@ own.
   producer that can enumerate its population names which one with `sha256`.
   Date / Author: 2026-09-09 / Danilo Borges
 
+- Decision: qualifier order does not distinguish. `;a=1;b=2` and `;b=2;a=1` are one identifier, compared
+  through a canonical form that sorts qualifiers by key; preserving written order on re-serialisation is
+  demoted from MUST to SHOULD.
+  Rationale: asked for by the same consumer, and found the same way — by a defect the identifier surfaced
+  rather than by reading. The 1.2.0 rule said only that written order must be preserved and left open
+  whether two orders were two identifiers, so a producer's incidental choice was inside the identity of
+  what it named. Concretely: the consumer writes an axis per condition an observation declares, and under
+  a written order swapping two entries of that declaration — an edit that says nothing about the
+  observation, which is a function of the same conditions either way — renamed every reading the
+  observation had ever produced, with nothing detecting the edit. Order is not a property of the thing
+  being named: the qualifiers are a keyed set, each key at most once by the `repeatedKey` rule, and a set
+  has no order to lose. This is deliberately **not** the same as *Sets are ordered*, which governs a
+  sequence named by a digest, where order is declared content.
+  Weighed and rejected: leaving it to each consumer. The consumer here could canonicalise on its own —
+  it mints every identifier through one module — and that is exactly what makes it the wrong place. Two
+  consumers answering privately would agree until they compared, which is the moment an identifier exists
+  for. A rule about identity belongs to the thing that defines identity.
+  The version call: 1.3.0 rather than 2.0.0, and no identifier version bump. Neither of the two changes
+  `version.mints` lists moves — normalisation and percent-encoding are untouched, separators and shape are
+  untouched — and every string valid under 1.2.0 parses identically under 1.3.0. What changes is which
+  *pairs* were always one thing, so a 1.2.0 reader is wrong about no single identifier and wrong about
+  some comparisons. The reference says so under the forward-tolerance section, because a consumer that
+  only parses needs nothing and one that dedupes or indexes is the one that upgrades.
+  Cost, and where it differs from the two amendments before it: those needed no code in any port, because
+  both dispatch generically from the data. This one does — a canonical form is a function, not a table
+  entry. TypeScript has it (`packages/ref-id/src/canonical.ts`, `canonical` and `sameIdentifier`, 11
+  conformance vectors); **Rust and Swift do not yet**, and are not red, because each vector family has its
+  own test file and an unexercised family is simply not read. Parity is owed and is open.
+  Date / Author: 2026-09-09 / Danilo Borges
+
 - Decision: the sidecar digest gets a writer, `scripts/seal-spec.mjs`, computing through the package's own
   `canonicalise` — and the guidance to run it enters the lifecycle, while the running of it does not.
   Rationale: stated carelessly the first time and corrected on measurement. A stale sidecar was never

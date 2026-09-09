@@ -123,6 +123,13 @@ That is the intended behaviour and not an oversight: a form is what a value *mea
 unrecognised one through would be admitting a claim nobody can check. But it makes a form the addition to
 weigh hardest, and it is why a consumer pins `specVersion` rather than assuming forward tolerance.
 
+**1.3.0 differs in kind from that, and is worth naming separately.** *Qualifier order does not
+distinguish* changes no identifier's parse and mints no new one — every string valid before is valid now,
+with the same decomposition. What it changes is which **pairs** of identifiers were always one thing. So a
+1.2.0 reader is not wrong about any single identifier and is wrong about some comparisons: handed
+`;a=1;b=2` and `;b=2;a=1` it reports two, where a 1.3.0 reader reports one. A consumer that only parses
+needs nothing; one that compares, dedupes or indexes identifiers is the one that upgrades.
+
 ## Parse statuses
 
 Quoted verbatim from `statuses`:
@@ -309,7 +316,42 @@ two sides **MUST NOT** trade contents.
 bound and turns the identifier into a batch header rather than a name. A `by=` value that is neither a
 nested `ref:` nor a `sha256:` digest **MUST** be reported malformed at `by`.
 
-Qualifier order is the order written, and **MUST** be preserved on re-serialisation.
+### Qualifier order does not distinguish
+
+`;a=1;b=2` and `;b=2;a=1` are **the same identifier**. Two producers holding the same qualifiers name one
+thing, whichever order each of them happened to write.
+
+The rule this replaces said only that written order **MUST** be preserved on re-serialisation, and left
+open whether two orders were two identifiers. They are not. Order is not a property of what is being
+named — the qualifiers are a set of pairs, each key at most once, and a set has no order. Leaving the
+question open put a producer's incidental choice into the identity of the thing it named, so an edit that
+changed nothing about the subject renamed it.
+
+Preserving written order on re-serialisation stays, demoted from **MUST** to **SHOULD**: round-tripping
+bytes unchanged is good practice, it is what `serialise(parse(s)) === s` asserts, and it is not what
+identity is judged on. An implementation **MUST NOT** rely on order to tell two identifiers apart.
+
+**Comparison is over the canonical form.** `canonical(s)` re-serialises a parsed identifier with its
+qualifiers sorted by key, in UTF-16 code unit order, leaving every other part exactly as parsed. Two
+identifiers are the same when their canonical forms are equal byte for byte. Sorting is the cheapest
+canonicalisation and is not itself the point — what is load-bearing is that one deterministic order
+exists, so that any two implementations reach the same answer.
+
+Three things this does **not** change:
+
+- **The bytes a producer writes.** `build()` emits what it was handed, `serialise()` emits what it parsed,
+  and neither sorts. A producer wanting its identifiers comparable as plain strings sorts before it
+  builds; one that does not is still correct, and is compared through `canonical`.
+- **Identifier version.** Nothing about normalisation, percent-encoding, separators or shape moves, so no
+  identifier already minted becomes a different one. What changes is which pairs of them were always the
+  same.
+- **Sequences.** A set named by a digest stays ordered — see *Sets are ordered* below. The two rules read
+  as opposites and are not: a qualifier list is a keyed set with no order to lose, and a digest names a
+  sequence whose order is declared content.
+
+**Refinements are not qualifiers here.** They sit on the fragment side and are positional — `lines=1,20`
+names a range — so `canonical` leaves them in the order they were written.
+
 
 ### Refinements
 
@@ -465,7 +507,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.2.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.3.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension
