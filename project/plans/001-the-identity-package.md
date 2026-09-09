@@ -320,7 +320,52 @@ own.
   report it.
   Date / Author: 2026-09-07 / Danilo Borges
 
+- Decision: `ai-model` is registered as a type of this specification's own, rather than delegated to an
+  existing one.
+  Rationale: checked before it was written, not after. Package URL registers namespaces for artifact
+  registries only — `huggingface`, `mlflow` — and none for a hosted vendor. CycloneDX carries the category
+  as a component type and identifies the component with an ordinary purl. SPDX 3.0's `AIPackage` identifies
+  by `name`, whose own definition is `xsd:string` "designated by the creator", and delegates identity to
+  `packageUrl`. OpenTelemetry's `gen_ai.request.model` is explicitly free text. Every grammar that exists
+  names a downloadable artifact tied to a registry, so **no published grammar names a hosted API model**
+  and there was nothing to point at. The locator is the id a model is served under, and the pattern is
+  permissive on purpose: coercing a served name breaks the round-trip that makes it an identifier, so a
+  shape a real serving process accepts — an Ollama tag's `:`, a hub-style name's `/` — is admitted rather
+  than tidied.
+  Date / Author: 2026-09-09 / Danilo Borges
+
+- Decision: `over`'s unestablished level is `unknown`, not the `none` that `state` already uses.
+  Rationale: the two qualifiers carry different ambiguities, so sharing a word would import one into the
+  other. A state cannot be empty, so `none` reads unambiguously there. A population *can* be empty — a
+  census over zero members is a real reading — and it is a different fact from a population nobody
+  recorded; one word for both would let them read alike inside an identifier, which is the class of error
+  the scheme exists to prevent. It is also a floor rather than a destination, and the reference says so: a
+  producer that can enumerate its population names which one with `sha256`.
+  Date / Author: 2026-09-09 / Danilo Borges
+
+- Decision: the sidecar digest gets a writer, `scripts/seal-spec.mjs`, computing through the package's own
+  `canonicalise`.
+  Rationale: the digest existed only inside the check that verifies it, so every edit to the specification
+  needed somebody to recompute it by hand — and a wrong one disables every implementation at once instead
+  of failing a single test, because the loader refuses the file rather than a vector. Reusing
+  `canonicalise` rather than writing a second serialisation is the load-bearing half: a resealer that
+  canonicalised differently from the verifier would produce a file that seals cleanly and refuses to load
+  everywhere.
+  Date / Author: 2026-09-09 / Danilo Borges
+
 ## Outcomes & Retrospective
+
+**2026-09-09 — the first consumer amended the specification twice, and both amendments were additive.**
+`specVersion` 1.2.0 adds the `ai-model` type and `over=unknown`. The result worth keeping is the parity
+one: **neither port needed a source change** — the Swift and Rust implementations read forms and dispatch
+generically from the data, so both held the amended vectors on a copy of the file alone (TypeScript 138,
+Rust 9, Swift 433; the grammar agreed 79/79 on python-re and on pcre2). That is the design goal of a
+specification carried as data, observed rather than asserted, on the first real change it met.
+
+Both gaps were found the same way the `state` levels were: a consumer tried three spellings from three
+directions against real stored data and every one was refused. It is worth naming as a method — the gaps a
+specification has are the ones nobody could try until somebody had data that needed them, and the report
+that finds them is a consumer's, not the specification's.
 
 **2026-09-07 — Tracks 1 and 2 landed.** `spec/ref-id.json` 1.0.0 carries 83 vectors (parse 41, roundtrip
 15, build 9, digest 7, envelope 11) and a digest sidecar; `packages/ref-id` passes all of them plus the
