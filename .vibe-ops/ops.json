@@ -1,0 +1,59 @@
+{
+  "id": "spec-copies",
+  "version": "0.0.1",
+  "summary": "The specification is embedded three times, and the three must not part company",
+  "gates": [
+    {
+      "gate": "mirror",
+      "label": "spec-bytes",
+      "options": {
+        "compare": "sha",
+        "rule": "spec-copy-drift",
+        "subject": "the specification a port embeds",
+        "pairs": [
+          ["spec/ref-id.json", "Sources/RefId/Resources/ref-id.json"],
+          ["spec/ref-id.json", "crates/ref-id/spec/ref-id.json"]
+        ]
+      },
+      "fixture": {
+        "expect": ["spec-copy-drift"],
+        "options": {
+          "compare": "sha",
+          "rule": "spec-copy-drift",
+          "subject": "the specification a port embeds",
+          "pairs": [["spec/ref-id.json", "port/ref-id.json"]]
+        },
+        "files": {
+          "spec/ref-id.json": "{\"specVersion\":\"1.2.0\"}\n",
+          "port/ref-id.json": "{\"specVersion\":\"1.1.0\"}\n"
+        }
+      }
+    },
+    {
+      "gate": "mirror",
+      "label": "spec-seal",
+      "options": {
+        "compare": "text",
+        "rule": "spec-seal-drift",
+        "subject": "the sidecar digest a port embeds",
+        "pairs": [
+          ["spec/ref-id.json.sha256", "Sources/RefId/Resources/ref-id.json.sha256"],
+          ["spec/ref-id.json.sha256", "crates/ref-id/spec/ref-id.json.sha256"]
+        ]
+      },
+      "fixture": {
+        "expect": ["spec-seal-drift"],
+        "options": {
+          "compare": "text",
+          "rule": "spec-seal-drift",
+          "subject": "the sidecar digest a port embeds",
+          "pairs": [["spec/ref-id.json.sha256", "port/ref-id.json.sha256"]]
+        },
+        "files": {
+          "spec/ref-id.json.sha256": "7e7cce5e8a887bdaa46ecf5454a9f88c36fa38468a36f1673d64c9b7348e56f5\n",
+          "port/ref-id.json.sha256": "0000000000000000000000000000000000000000000000000000000000000000\n"
+        }
+      }
+    }
+  ]
+}
