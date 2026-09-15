@@ -20,7 +20,7 @@ or a subtree declared in the repository configuration.
 
 ## Step 1 — The target is established as a node, or the work stops here
 
-This step is judgement and runs before the script. Four rules decide it, and each one refuses work that
+This step is judgement and runs before the script. Five rules decide it, and each one refuses work that
 the grammar would otherwise accept.
 
 **Only what somebody declared receives an identifier.** A name declared inside a package, or a
@@ -29,15 +29,23 @@ conditions a reading was taken under are attributes. Neither an edge nor an attr
 and stopping here is a correct outcome of this skill — say so and stop.
 
 **Location never enters identity.** Identity is the type, the locator and the fragment path. A file path
-and a byte range are location; a captured version is freeze, and it travels in `state=`. A file path
-inside an identifier is the defect this separation exists to catch, so a target that can only be
-described by where it sits has not been declared yet.
+and a byte range are location, and a file path inside an identifier is the defect this separation exists
+to catch — a target that can only be described by where it sits has not been declared yet.
+
+**A released version belongs in the locator.** The ecosystem declared `x@1.0.0`, so the version is part
+of the name, and it goes wherever that type's grammar carries one — `pkg` and `domain` on `@`,
+`dot-agent` on `:`, `ai-model` on `@` for a quantisation key. `state=` freezes content that was released
+under no version — a commit, a SWHID, a content hash — so the two compose:
+`ref:pkg:npm/x@1.0.0;state=swh:1:rev:…` is a conformance vector, and 25 of the 27 `pkg` vectors in the
+specification carry a version. A version placed in `state=` is refused on arrival, because every `state=`
+form takes a digest or a commit object name.
 
 **A composition is a name in the package that declares it**, never a member's identifier with the
 composition appended. Appending is what makes an identifier space grow without bound as nesting deepens.
 
-**The qualifiers are chosen here, before the script runs.** `state=` freezes a version and takes the
-forms `swhid`, `git`, `content-hash` or `none`. `by=` names the instrument that produced a reading, as a
+**The qualifiers are chosen here, before the script runs.** `state=` freezes the content the identifier
+was read against and takes the forms `swhid`, `git`, `content-hash` or `none` — never a released version,
+which the rule above keeps in the locator. `by=` names the instrument that produced a reading, as a
 nested identifier or a `sha256` digest. `over=` names what the observation ranged over, and takes a
 nested identifier, a `sha256` digest, or `unknown`. `when=` is RFC 3339 in UTC, and an offset is refused.
 Declared absence and real absence differ: `state=none` is a declared level and so is `over=unknown`,
@@ -60,8 +68,12 @@ node .agents/skills/identify/scripts/identify.ts mint --type <type> --locator <l
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.
 
-Three facts about how it runs, none of them visible from the command:
+Four facts about how it runs, none of them visible from the command:
 
+- **A corpus it resolves is unversioned, and that rule is scoped to corpus resolution.** `mint --path`
+  builds the Package URL from the manifest's `name` and leaves its `version` behind, so a record's
+  identifier survives the releases of the package it sits in. Passing `--type pkg --locator npm/x@1.0.0`
+  is the other act — naming a released artifact — and it is accepted and exits `0`.
 - **It mirrors `spec/ref-id.json` into `packages/ref-id/spec/` before importing the package.**
   `loadSpec()` reads the copy beside the package, git ignores that copy, and a fresh checkout has none —
   so without the mirror every call fails on a clone.
@@ -80,6 +92,10 @@ Three facts about how it runs, none of them visible from the command:
 | `target-undeclared` | the corpus resolved; which declared name inside it is the target is still open | choose from `declaredNames`, or pass `--corpus` when the package itself is the target |
 | `uncovered-type` | the type parses and no validator owns its locator | go to Step 5, or choose a registered type |
 | `build-refused` | the grammar rejected a part; `part` names which | correct that segment |
+
+**A `folder` locator is a bare declared name, and its pattern admits no `@`.** `folder` reaches Step 1's
+version rule with nothing to place: it exists only where no manifest declares a name, so its subtree was
+published under no version.
 
 **A `folder` corpus has no declaration mechanism yet.** The specification says the name is declared by
 "one line in the repository configuration, per subtree, nearest ancestor wins", and names no file, no
@@ -153,7 +169,8 @@ Registering one is four things, in this order:
 ## Checklist
 
 - [ ] The target was established as a node in Step 1, or the work stopped with that said out loud
-- [ ] No file path and no byte range entered the identity
+- [ ] No file path and no byte range entered the identity, and a released version stayed in the locator
+      rather than being pushed into `state=`
 - [ ] The qualifiers were chosen before the script ran, and declared absence was distinguished from
       absence
 - [ ] The script ran, and any refusal was answered by its own row in Step 3 rather than worked around
@@ -181,6 +198,11 @@ Step 3 is where the correction goes.
 **The `folder` paragraph in Step 3 expires the day the declaration mechanism exists.** It asserts that the
 specification names a repository configuration and defines none. A file, format or key that implements it
 makes that paragraph wrong rather than merely dated, and the refusal row above it changes with it.
+
+**Step 1's rules are stated over identity and exercised by one mode.** Each one is checked against the
+manual `--type`/`--locator` path as well as `mint --path`, because the two modes reach different halves of
+the grammar — a rule true of every corpus can be false of every released artifact, and the corpus mode
+alone reports a pass either way.
 
 **The sweep's identifier pattern trims trailing punctuation** so that an identifier ending a sentence
 parses. A locator legitimately ending in one of those characters would be cut, and the tell is a

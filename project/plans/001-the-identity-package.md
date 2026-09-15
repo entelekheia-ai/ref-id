@@ -398,6 +398,19 @@ own.
   gate carries the remedy in each finding's subject.
   Date / Author: 2026-09-09 / Danilo Borges
 
+- Decision: a released version belongs in the locator, and `state=` freezes only what nobody released.
+  The "unversioned" rule recorded on 2026-09-07 is scoped to **corpus resolution** — it says how the
+  corpus of a file is written, never that an identifier may not carry a version — and any prose restating
+  it says which of the two it means.
+  Rationale: the `identify` skill had generalised that rule into "a captured version is freeze, and it
+  travels in `state=`", which three measurements refute. 25 of the 27 `pkg` conformance vectors carry a
+  version; four of those carry a version *and* a `state=` and parse `ok`, so the two compose rather than
+  substitute; and no `state=` form — `swhid`, `git`, `content-hash`, `none` — can express a version at
+  all, so the rule routed versions to a field that refuses them. The skill's own script already disagreed
+  with its prose: `mint --type pkg --locator npm/foo@1.2.3` exits `0`. No change to the specification or
+  the package follows — `dispatch.pkg.corpus` already carries the scope, and the code was right.
+  Date / Author: 2026-09-15 / Danilo Borges
+
 ## Outcomes & Retrospective
 
 **2026-09-09 — the first consumer amended the specification twice, and both amendments were additive.**
