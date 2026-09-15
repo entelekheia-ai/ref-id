@@ -62,7 +62,9 @@ is expected and is checked against the same vectors, never against this code.
 | Rules (always-on or path-scoped) | `.agents/rules/<name>.md` | `.claude/rules/<name>.md` → `../../.agents/rules/<name>.md` |
 | Skills | `.agents/skills/<name>/SKILL.md` | `.claude/skills/<name>` → `../../.agents/skills/<name>` |
 
-Agent tooling is the `vibe-ops` plugin — no per-repo skill copies. Closing a task goes through
+Agent tooling is the `vibe-ops` plugin — no per-repo copy of anything it ships. The one skill this
+repository owns is [`identify`](.agents/skills/identify/SKILL.md), which decides whether something can be
+identified under the scheme and produces the identifier. Closing a task goes through
 `/vibe-ops:close-task`, never a plain delete.
 
 ## Keeping this file current
