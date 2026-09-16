@@ -127,6 +127,9 @@ public func loadSpec() throws -> Spec {
 extension Spec {
     public func vectorClass(_ name: String) -> [[String: Any]] { array("vectors", name).compactMap { $0 as? [String: Any] } }
     public func roundtripVectors() -> [String] { strings("vectors", "roundtrip") }
+    /// Every vector group name `spec.vectors` declares — so a runner can prove it executes all of
+    /// them, not just the ones it happened to name by hand.
+    public func vectorClasses() -> [String] { Array(dictionary("vectors").keys) }
     public func grammarExpression() -> String { string("grammar", "expression") }
 }
 
