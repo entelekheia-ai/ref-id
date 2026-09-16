@@ -38,9 +38,26 @@ npm install @entelekheia/ref-id
 
 ## Usage
 
-The entry points are `parse`, `serialise`, `digest` and `validateEnvelope`; their contracts are the
-vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `digest`, `envelope`). An unknown locator type parses
-and degrades to `uncovered`; it never throws.
+The entry points are `parse`, `serialise`, `digest`, `validateEnvelope`, `samePackage` and `covers`; their
+contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `digest`, `envelope`,
+`comparison`). An unknown locator type parses and degrades to `uncovered`; it never throws.
+
+Three questions get three answers, and they are not interchangeable:
+
+```ts
+import { covers, sameIdentifier, samePackage } from "@entelekheia/ref-id"
+
+sameIdentifier("pkg:npm/x@1.0.0", "pkg:npm/x@2.0.0") // false — two identifiers, compared byte for byte
+samePackage("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x@2.0.0") // true  — one released thing, two versions
+covers("ref:pkg:npm/x", "ref:pkg:npm/x@1.0.0") // true  — the general covers the specific
+covers("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x") // false — and never the reverse
+```
+
+`sameIdentifier` is what a digest and an envelope are built on, so it stays strict. `samePackage` is
+symmetric and ignores the locator's version, and only where the type declares it carries one — a mailbox's
+`@` and a served model's quantisation key are not versions. `covers` is **asymmetric**: what the first
+identifier leaves undeclared, the second may declare freely; what the first declares, the second must
+declare identically. That is what makes a partial identifier a query over a store keyed by identifier.
 
 ## Requirements
 

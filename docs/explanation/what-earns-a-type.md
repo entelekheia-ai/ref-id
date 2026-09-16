@@ -33,7 +33,7 @@ Two shapes of name fail, for opposite reasons:
   generalizes to everyone and therefore settles nothing — admitting it would just relocate the same fight to
   a different word.
 
-(Plan-002, Design, "The admissibility test": `project/plans/002-the-types-that-cannot-be-contested.md:90-100`.)
+(Plan-002, Design, "The admissibility test".)
 
 ## Nine types, read as nine ways an authority can exist
 
@@ -55,7 +55,7 @@ next to a folder. Reading them as nine ways an authority can exist makes the set
 Three types share one authority — a standards body — because three different bodies (ITU-T, ISO, GS1) each
 own one number format outright, and none of the three grammars would survive being merged into the others:
 `isbn` and `gtin` overlap exactly at the 13-digit form and diverge at the 10-digit one, which is the
-argument the plan leaves open rather than settled (`project/plans/002-…md:273-276`, "Open questions").
+argument the plan leaves open rather than settled (Plan-002, "Open questions").
 
 ## What to reach for when a type is not in the registry
 
@@ -69,7 +69,7 @@ status moves, from `uncovered` (nothing here validates it) to `ok` (a validator 
 producer wrote on day one is the string a consumer reads after the promotion — nothing is rewritten, and
 nothing that depended on the old spelling breaks.
 
-(Plan-002, Design, "The type that defers its species": `project/plans/002-…md:102-108`; the `unknown`
+(Plan-002, Design, "The type that defers its species"; the `unknown`
 dispatch entry itself, `spec/ref-id.json`, confirms the colon-delimited species and the "registering that
 species... moves only its status" language verbatim.)
 
@@ -95,7 +95,7 @@ rejection cost nothing new.
 **Reopens if** an opaque, machine-minted value needs to be nameable with no minting authority available to
 prefix it at all — a case the plan does not have today.
 
-(Plan-002, Decision Log: `project/plans/002-…md:248-253`.)
+(Plan-002, Decision Log, the `uuid` decision.)
 
 ### An identifier nested as the type, `ref:<identifier>:<rest>`
 
@@ -118,7 +118,7 @@ does not cover.
 **Reopens if** a type appears whose authority is expressible as none of a host, a registry, a mailbox or a
 declared species. None was found while surveying the corpora this scheme was built to name.
 
-(Plan-002, Decision Log: `project/plans/002-…md`, the nested-type decision.)
+(Plan-002, Decision Log, the nested-type decision.)
 
 ## Related
 

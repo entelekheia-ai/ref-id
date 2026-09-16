@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-15 |
 | Author | Danilo Borges |
 | Depends on | Plan-001 |
@@ -165,22 +165,22 @@ tilde alone is an ordinary character in a username.
 
 ## Tracks
 
-- [ ] **Track 1 — The registry and its test.** Rewrite `dispatch` in `spec/ref-id.json`: `domain` becomes
+- [x] **Track 1 — The registry and its test.** Rewrite `dispatch` in `spec/ref-id.json`: `domain` becomes
       `url` with the new segment, `dot-agent` leaves, and `unknown`, `tel`, `isbn` and `gtin` enter. Add
       the admissibility clause to `typeRegistry`. Add the vectors binding each new grammar and each
       refusal, including the four agent-identifier tiers re-expressed under the new types. Reseal. At the
       end the specification declares nine types and refuses a tenth for a stated reason.
-- [ ] **Track 2 — The two comparisons.** `samePackage` and `covers` in `packages/ref-id`, with a vector
+- [x] **Track 2 — The two comparisons.** `samePackage` and `covers` in `packages/ref-id`, with a vector
       group of their own binding the asymmetry — the general covers the specific, and the specific does
       not cover the general. At the end the reference implementation answers both and the vectors fail if
       either direction flips.
-- [ ] **Track 3 — The check digits.** `isbn` and `gtin` validate their check digit rather than only their
+- [x] **Track 3 — The check digits.** `isbn` and `gtin` validate their check digit rather than only their
       shape, which makes them the first types whose validator computes. The algorithm is a weighted sum
       and adds no dependency. At the end a number with a correct shape and a wrong check digit is
       refused, with a vector proving it.
-- [ ] **Track 4 — The Swift port.** Held to the same vectors, gated by `swift run ref-id-conformance`.
-- [ ] **Track 5 — The Rust port.** Held to the same vectors, gated by `cargo test --workspace`.
-- [ ] **Track 6 — What earns a type.** A page under `docs/explanation/` carrying the test, why the
+- [x] **Track 4 — The Swift port.** Held to the same vectors, gated by `swift run ref-id-conformance`.
+- [x] **Track 5 — The Rust port.** Held to the same vectors, gated by `cargo test --workspace`.
+- [x] **Track 6 — What earns a type.** A page under `docs/explanation/` carrying the test, why the
       registry is deliberately small, and what to reach for when a type is not in it. The
       type-registration step of the `identify` skill gains the test as its first question.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
@@ -275,9 +275,61 @@ tilde alone is an ordinary character in a username.
   edit with a real case behind it.
   Date / Author: 2026-09-15 / Danilo Borges
 
+- Decision: whether a locator carries a version is declared per type, as `dispatch.<type>.versionTail`,
+  rather than inferred from the punctuation.
+  Rationale: the first implementation read an `@` as a version wherever it found one, and an `@` means
+  four different things across the nine types — a released version in a Package URL and a host path, the
+  separator between a mailbox and its domain, a quantisation key on a served model, and nothing at all in
+  a telephone or article number. Measured: two different mailboxes compared equal, and two quantisations
+  of one model collapsed into one. Declaring it in the specification also gives the ports something to
+  read instead of a rule each would re-derive.
+  Date / Author: 2026-09-16 / Danilo Borges
+
+- Decision: a `url` path segment may not open on `.`, which excludes `.` and `..`.
+  Rationale: widening the segment to refuse the colon dropped, as a side effect, a property the previous
+  pattern had — that a segment opens on an alphanumeric — and with it the refusal of a path traversal.
+  The served-model entry in the same table already argues why that matters: the delegate is verbatim, so
+  a consumer mapping a declared name onto a path inherits whatever the locator carried. Three variants
+  were measured against the corpus of real agent identifiers and hosts; excluding `.` at the head of a
+  segment was the only one with no error, refusing every traversal while still admitting a platform
+  whose usernames open on a character no allowlist would have predicted.
+  Date / Author: 2026-09-16 / Danilo Borges
+
+- Decision: a relation refuses an identifier whose parts this implementation did not produce — `malformed`
+  and any scheme version it does not support — and compares the scheme version as a dimension.
+  Rationale: a later identifier version is minted for a change to normalisation, percent-encoding,
+  separators or shape, which is exactly the set of changes that make a locator decomposed by the wrong
+  expression unreliable. Measured: a v1 and a v2 identifier compared equal under both relations while
+  `sameIdentifier` refused the same pair, so two neighbours in one module disagreed about the same two
+  strings.
+  Date / Author: 2026-09-16 / Danilo Borges
+
 ## Outcomes & Retrospective
 
-*Not yet started.*
+**2026-09-16 — all six tracks landed; the review found what the vectors did not.** The registry is nine
+types, the two relations exist, and the three implementations pass their own gates. Backward
+compatibility was measured rather than asserted: every identifier in the previous specification's vector
+corpus was re-parsed against the new one, and thirteen moved from `ok` to `uncovered` while **none**
+became `malformed` and none threw.
+
+**What the process taught, and it is the same lesson twice.** Three defects were found by probing the new
+types by hand before any vector existed for them, and four more by an adversarial review after the suite
+was green — a validator declared in the specification that no implementation had, a delegation mode whose
+pattern could never match, a relation blind to fragment refinements, and a version heuristic that read
+four different meanings of `@` as one. Every one of them passed every gate. **A behaviour with no vector
+is a behaviour whose failure is silent**, and the suite's green is exactly as wide as the vectors, never
+wider.
+
+The comparison vector group exists now, and was checked against the defect rather than against the fix:
+six of its seventeen vectors fail when run against the relation as it was first written. A vector that
+cannot fail is the check that feels like verifying and is not.
+
+**Still open, and named rather than quietly dropped:** the two relations live only in the reference
+implementation. Goal 5 asks the three implementations to agree, proven by the same vectors, and the ports
+have nothing to compare yet. Worse, and found while checking that: each port's runner names the vector
+groups it runs by hand, so the `comparison` group was added to the specification and both ports stayed
+green without running a single one of its vectors. A group no runner names is a group that never runs, in
+every implementation at once — which is the same defect as an unvectored behaviour, one level up.
 
 <!-- ===== END LIVING SECTIONS ===== -->
 

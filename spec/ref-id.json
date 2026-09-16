@@ -92,6 +92,7 @@
       "locator": "package-url",
       "validator": "package-url",
       "delegate": "type-prefixed",
+      "versionTail": true,
       "corpus": "the nearest manifest declaring a name, skipping any ancestor manifest whose own workspace or package configuration excludes the file; unversioned, the Package URL names the living package and state= carries the frozen one",
       "reference": "https://github.com/package-url/purl-spec"
     },
@@ -99,6 +100,7 @@
       "locator": "declared-corpus-name",
       "validator": "declared-name",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
       "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
       "corpus": "only where no manifest declares a name"
@@ -107,8 +109,9 @@
       "locator": "hostname-path",
       "validator": "declared-name",
       "delegate": "verbatim",
-      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[^/@;#:]+)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
-      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment. A segment admits every character except the four the grammar reserves and ':', which is excluded so that a name carrying its own version after a colon is refused rather than absorbed whole — an identifier spelled in another format's convention must be converted, and a segment admitting ':' would accept it silently with the version inert inside the name. '~' is admitted alone, because a digest never appears without the colon that introduces it.",
+      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[^/@;#:.][^/@;#:]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "versionTail": true,
+      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment. A segment admits every character except the four the grammar reserves and ':', which is excluded so that a name carrying its own version after a colon is refused rather than absorbed whole — an identifier spelled in another format's convention must be converted, and a segment admitting ':' would accept it silently with the version inert inside the name. '~' is admitted alone, because a digest never appears without the colon that introduces it. A segment may not open on '.', which excludes '.' and '..' for the reason the served-model entry gives below: the delegate is verbatim, so a consumer mapping a declared name onto a path would otherwise inherit a traversal from a locator that parsed clean.",
       "corpus": "a manifest that declares a host names the corpus by that host; the package name stays the identifier of the software",
       "reference": "RFC 1123 host labels, lowercase, internationalised labels in their punycode form"
     },
@@ -116,6 +119,7 @@
       "locator": "addr-spec",
       "validator": "declared-name",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$",
       "declaredBy": "a mailbox identifies a person or a role; nothing lives under it — what a mailbox publishes belongs to the ecosystem that publishes it",
       "reference": "RFC 5322 addr-spec, dot-atom local part"
@@ -124,6 +128,7 @@
       "locator": "deferred-species-name",
       "validator": "declared-name",
       "delegate": "verbatim",
+      "versionTail": true,
       "pattern": "^(?:[a-z][a-z0-9+.-]*:)?[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
       "declaredBy": "an authority this registry does not cover. The optional prefix before the first ':' names the species — the naming system the locator belongs to — so that an uncovered authority is still named precisely rather than opaquely; registering that species as a type of its own later leaves the written identifier unchanged and moves only its status. A colon is safe inside this locator and unsafe at the top level for the same reason: here the outer type is fixed, so this grammar owns every colon within it.",
       "corpus": "whatever the species declares"
@@ -132,6 +137,7 @@
       "locator": "global-number",
       "validator": "declared-name",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^\\+[1-9][0-9]{1,14}$",
       "declaredBy": "the global number of ITU-T E.164, written as RFC 3966 writes it — the leading '+' is required, so one number has one spelling. Visual separators are legal in both standards and are not admitted here: a locator reaches its validator verbatim, so a non-canonical spelling is refused rather than repaired.",
       "reference": "RFC 3966 tel URI, global-number-digits; ITU-T E.164"
@@ -140,6 +146,7 @@
       "locator": "book-number",
       "validator": "check-digit",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^(?:97[89][0-9]{10}|[0-9]{9}[0-9X])$",
       "declaredBy": "the International Standard Book Number of ISO 2108, in its canonical digits with no hyphens. Both registered lengths are admitted: the 13-digit form, which is also a GTIN-13 under the 978 and 979 prefixes, and the 10-digit form, whose final character may be 'X' for the value ten. The check digit is computed, so a number of the right shape and the wrong digit is refused.",
       "reference": "ISO 2108"
@@ -148,6 +155,7 @@
       "locator": "trade-item-number",
       "validator": "check-digit",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$",
       "declaredBy": "the Global Trade Item Number of GS1 — the number a retail barcode carries. Four lengths are registered and all four are admitted: GTIN-8 (EAN-8), GTIN-12 (UPC-A), GTIN-13 (EAN-13) and GTIN-14 (ITF-14). The check digit is the GS1 weighted sum and is computed, so a number of the right shape and the wrong digit is refused. A 13-digit book number is both a GTIN-13 and an ISBN; the two types overlap there deliberately and diverge at the 10-digit form.",
       "reference": "GS1 General Specifications, GTIN and its check digit calculation"
@@ -156,6 +164,7 @@
       "locator": "served-model-id",
       "validator": "declared-name",
       "delegate": "verbatim",
+      "versionTail": false,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
       "declaredBy": "the id the model is served under — the exact string a caller sends to the serving process to select it, verbatim. Deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2.",
       "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation."
@@ -331,6 +340,29 @@
     "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte",
     "reserialisation": "SHOULD preserve the order written; MUST NOT be relied on to tell two identifiers apart",
     "note": "distinct from `canonicalisation`, which is the form of THIS FILE for its own digest"
+  },
+  "comparison": {
+    "note": "two relations equality cannot express. Both are computed on the parsed parts, never on the bytes, and both refuse an identifier this grammar did not decompose: `malformed` has no parts, and a version of the scheme an implementation does not support has parts read by the wrong expression. An `uncovered` type is compared like any other — its locator's grammar is unknown, its shape is not.",
+    "dimensions": [
+      "type",
+      "version",
+      "locator stem",
+      "locator version",
+      "fragment path",
+      "fragment refinements",
+      "qualifiers"
+    ],
+    "samePackage": {
+      "symmetry": "symmetric",
+      "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an '@' belongs to the format and is part of the stem.",
+      "purpose": "whether two identifiers name the same released thing at whatever version each declares"
+    },
+    "covers": {
+      "symmetry": "asymmetric — the general covers the specific, and the specific does not cover the general",
+      "rule": "the type and the scheme version must be equal and the locator stems must be equal. For the locator version, the fragment path, each fragment refinement and each qualifier: what the first leaves undeclared, the second may declare freely; what the first declares, the second must declare identically.",
+      "purpose": "a partial identifier is a query — a store keyed by identifier answers a family by asking which of its keys the partial one covers",
+      "reflexive": "every identifier this relation accepts covers itself"
+    }
   },
   "canonicalisation": {
     "form": "json-sorted-keys-compact",
@@ -1631,7 +1663,9 @@
       {
         "name": "a malformed identifier has no canonical form",
         "input": "ref:eita:t@1/o;state=none;state=none",
-        "expect": { "error": "state" }
+        "expect": {
+          "error": "state"
+        }
       }
     ],
     "roundtrip": [
@@ -2020,6 +2054,178 @@
           ]
         },
         "expect": "admissible"
+      }
+    ],
+    "comparison": [
+      {
+        "name": "identical identifiers are the same package and cover each other",
+        "a": "ref:pkg:npm/x@1.0.0",
+        "b": "ref:pkg:npm/x@1.0.0",
+        "expect": {
+          "samePackage": true,
+          "covers": true,
+          "coversReversed": true
+        }
+      },
+      {
+        "name": "no version covers a version; the reverse does not hold",
+        "a": "ref:pkg:npm/x",
+        "b": "ref:pkg:npm/x@1.0.0",
+        "expect": {
+          "samePackage": true,
+          "covers": true,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "two versions are one package and neither covers the other",
+        "a": "ref:pkg:npm/x@1.0.0",
+        "b": "ref:pkg:npm/x@2.0.0",
+        "expect": {
+          "samePackage": true,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "a namespace '@' is not a version — it opens a segment",
+        "a": "ref:pkg:npm/%40acme/x",
+        "b": "ref:pkg:npm/%40acme/x@1.0.0",
+        "expect": {
+          "samePackage": true,
+          "covers": true,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "a mailbox '@' is not a version: two mailboxes are two things",
+        "a": "ref:email:someone@mail.example",
+        "b": "ref:email:someone@other.example",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "a served model's '@' keys a quantisation, never a version",
+        "a": "ref:ai-model:mymodel@q4_k_m",
+        "b": "ref:ai-model:mymodel@q8_0",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "no declared name covers one",
+        "a": "ref:pkg:npm/x",
+        "b": "ref:pkg:npm/x@1.0.0#Observation",
+        "expect": {
+          "samePackage": false,
+          "covers": true,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "two declared names are neither",
+        "a": "ref:pkg:npm/x#A",
+        "b": "ref:pkg:npm/x#B",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "no refinement covers one",
+        "a": "ref:folder:acme-tools#AGENTS.md",
+        "b": "ref:folder:acme-tools#AGENTS.md;lines=1",
+        "expect": {
+          "samePackage": false,
+          "covers": true,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "two refinement values are neither — a range is not a family",
+        "a": "ref:folder:acme-tools#AGENTS.md;lines=1",
+        "b": "ref:folder:acme-tools#AGENTS.md;lines=9",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "no qualifier covers one",
+        "a": "ref:pkg:npm/x",
+        "b": "ref:pkg:npm/x;state=none",
+        "expect": {
+          "samePackage": false,
+          "covers": true,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "two qualifier values are neither",
+        "a": "ref:pkg:npm/x;state=none",
+        "b": "ref:pkg:npm/x;state=git:a1b2c3d",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "qualifier order does not distinguish either relation",
+        "a": "ref:pkg:npm/x;state=none;when=2026-01-01T00:00:00Z",
+        "b": "ref:pkg:npm/x;when=2026-01-01T00:00:00Z;state=none",
+        "expect": {
+          "samePackage": true,
+          "covers": true,
+          "coversReversed": true
+        }
+      },
+      {
+        "name": "two types are never compared",
+        "a": "ref:url:acme.example/x",
+        "b": "ref:pkg:npm/x",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "an uncovered type compares like any other",
+        "a": "ref:eita:trait",
+        "b": "ref:eita:trait@1",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "a malformed identifier names nothing, itself included",
+        "a": "ref:url:NOPE",
+        "b": "ref:url:NOPE",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
+      },
+      {
+        "name": "an unsupported scheme version has parts read by the wrong grammar",
+        "a": "ref:pkg:npm/x",
+        "b": "ref:2:pkg:npm/x@1.0.0",
+        "expect": {
+          "samePackage": false,
+          "covers": false,
+          "coversReversed": false
+        }
       }
     ]
   }
