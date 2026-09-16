@@ -1089,6 +1089,22 @@
         }
       },
       {
+        "name": "a species is lowercase, so one naming system has one spelling under unknown",
+        "input": "ref:unknown:DOI:10.1000/182",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a species with nothing under it names no thing",
+        "input": "ref:unknown:doi:",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
         "name": "a species inside unknown may itself be a naming system this registry once carried",
         "input": "ref:unknown:dot-agent:doctor@v1.0",
         "expect": {

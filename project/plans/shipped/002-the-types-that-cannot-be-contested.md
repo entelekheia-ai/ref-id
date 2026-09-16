@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-15 |
 | Author | Danilo Borges |
 | Depends on | Plan-001 |
@@ -183,7 +183,7 @@ tilde alone is an ordinary character in a username.
 - [x] **Track 6 — What earns a type.** A page under `docs/explanation/` carrying the test, why the
       registry is deliberately small, and what to reach for when a type is not in it. The
       type-registration step of the `identify` skill gains the test as its first question.
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
 
 ## Success criteria
@@ -324,12 +324,43 @@ The comparison vector group exists now, and was checked against the defect rathe
 six of its seventeen vectors fail when run against the relation as it was first written. A vector that
 cannot fail is the check that feels like verifying and is not.
 
-**Still open, and named rather than quietly dropped:** the two relations live only in the reference
-implementation. Goal 5 asks the three implementations to agree, proven by the same vectors, and the ports
-have nothing to compare yet. Worse, and found while checking that: each port's runner names the vector
-groups it runs by hand, so the `comparison` group was added to the specification and both ports stayed
-green without running a single one of its vectors. A group no runner names is a group that never runs, in
-every implementation at once — which is the same defect as an unvectored behaviour, one level up.
+**2026-09-16 — the five goals, answered one by one.**
+
+1. **The admissibility test exists in both surfaces it was promised in.** `typeRegistry` carries it as
+   data, so it travels with the specification to any implementation; Step 5 of the type-registration
+   procedure asks it as its first question, before the check against the eight rejected alternatives that
+   was already there. Met.
+2. **Nine types, each naming an authority a third party can verify.** A package registry, a host owner, a
+   mailbox provider, a serving process, three standards bodies, a local subtree, and — named honestly
+   rather than hidden — none at all. Met.
+3. **Backward compatibility, measured rather than asserted.** Every identifier in the previous
+   specification's vector corpus (97 distinct strings) was re-parsed against the new one: 43 still `ok`,
+   21 `uncovered`, and **none that was `ok` became `malformed`**. Nothing threw. Met.
+4. **The two relations exist, and their vectors bind the asymmetry.** Seventeen vectors, each carrying
+   three assertions, because a vector asserting only the forward direction passes while an asymmetric
+   relation is inverted. Met — and checked against the defect rather than the fix: six of the seventeen
+   fail when run against the relation as first written.
+5. **The three implementations agree, proven by the same vectors.** TypeScript 195 subtests, Rust 12/12,
+   Swift 582/0, all against one `spec/ref-id.json`. Met, and by a wider margin than asked: the guard
+   added along the way makes each runner refuse a vector group it does not execute, so the agreement is
+   now enforced rather than hoped for.
+
+**An acceptance criterion turned out to be wrong, in the generous direction.** Success criterion 1 asked
+that each new type carry both an accepting and a refusing vector. It was written as a bookkeeping check
+and passed as one — until closure ran it literally and found `unknown` had three accepting vectors and no
+refusing one. The criterion was right and the work had not met it; two refusals were added at closure.
+A criterion nobody runs is a prediction, and this one was a prediction for most of the plan's life.
+
+**What the work taught, and it is one lesson at three scales.** Ten defects were found in this plan, and
+**not one was found by the test suite**: three by probing a new type by hand before any vector existed for
+it, four by an adversarial review after every gate was green, and three by a guard written because of the
+first seven. A behaviour with no vector, a relation with no vector, and a vector group with no runner are
+the same defect at increasing scale — and the last one is invisible in every implementation at once. The
+suite's green is exactly as wide as its vectors, never wider, and the only way to learn the width is to
+try to make a check fail.
+
+**Nothing is left open.** The `canonical` group, which the guard exposed as never having run in either
+port, runs in all three.
 
 <!-- ===== END LIVING SECTIONS ===== -->
 

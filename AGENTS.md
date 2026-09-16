@@ -28,6 +28,13 @@ is expected and is checked against the same vectors, never against this code.
   vectors, not by prose or by a rule language.
 - **Two changes mint a new `specVersion` major:** normalisation or percent-encoding, and separators or
   shape. A new locator type, qualifier key, refinement key or fragment grammar is an addition.
+  **Retiring a type is an addition too**, which is counter-intuitive and load-bearing: an identifier
+  written against the departed type keeps parsing, keeps its parts and stays comparable, because an
+  unregistered type degrades to `uncovered`. That is what makes the registry editable rather than frozen.
+- **A vector group nothing runs is the defect that hides every other one.** Each runner declares by name
+  the groups it executes and refuses any group `spec.vectors` declares that it does not — because a group
+  added to the specification obliges no implementation to run it, and a runner that silently skips one
+  reports green for a contract it never checked.
 - **A digest is a claim, never a promise.** An identifier carrying a digest is admissible only with an
   envelope whose members recompute to it; the validator refuses the rest at ingestion.
 - **The package embeds the spec** and carries the digest of its canonical serialisation. A spec edit
