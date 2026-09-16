@@ -245,6 +245,21 @@ tilde alone is an ordinary character in a username.
   without the colon that introduces it.
   Date / Author: 2026-09-15 / Danilo Borges
 
+- Decision: a type stays a single token; an identifier nested as the type — `ref:<identifier>:<rest>`,
+  so that the authority is itself named under the scheme — is refused.
+  Rationale: it solves the right problem the wrong way. The competition it targets is real, and the
+  admissibility test above removes it for a clause rather than for a grammar change. Measured against the
+  reference implementation, the nested form already parses today and parses wrongly: the type group
+  admits no colon and the locator admits every colon, so a second colon is absorbed into the locator and
+  the result is `ok` with the authority and the thing fused into one opaque string. A form that is
+  already valid syntax with a different meaning cannot be given a new one without breaking what reads it
+  that way — and two registered types, Package URL and the served model identifier, carry a colon as data
+  today. Escaping the colon to delimit it produces a percent-encoded authority, which is less legible
+  than the plain host the `url` type already offers.
+  Reopens if a type appears whose authority cannot be expressed as a host, a registry, a mailbox or a
+  declared species — none of which was found while surveying the corpora this scheme is meant to name.
+  Date / Author: 2026-09-16 / Danilo Borges
+
 - Decision: `uuid` is not a type; an opaque machine-minted identifier is named by the authority that
   minted it, with the identifier itself as the declared name in the fragment.
   Rationale: two products can mint the same opaque value, so a type whose only promise is "this has no
