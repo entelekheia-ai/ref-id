@@ -9,8 +9,23 @@ A specification published as data with conformance vectors, and the package that
 
 </div>
 
-<!-- PROOF PLACEHOLDER: a copied, runnable parse → digest → envelope example lands here once
-     packages/ref-id ships its first vectors. Do not compose one by hand. -->
+```ts
+import { parse, digest, validateEnvelope } from "@entelekheia/ref-id"
+
+parse("ref:pkg:npm/@acme/scanner-core@0.1.0#Observation")
+// => { status: "ok", type: "pkg", locator: "npm/@acme/scanner-core@0.1.0", ... }
+
+const members = [
+  "ref:folder:acme-tools#AGENTS.md;state=swh:1:cnt:3404a00f00000000000000000000000000000000",
+  "ref:folder:acme-tools#GOVERNANCE.md;state=swh:1:cnt:48db124700000000000000000000000000000000",
+]
+const setDigest = digest(members)
+// => "sha256:75433bb5329808aa4064084a54173f0328926eb38ddce742f61cbd4f0ebba71e"
+
+const requestedId = `ref:folder:acme-tools;over=${setDigest}`
+validateEnvelope(requestedId, { id: requestedId, sets: { over: members } })
+// => { admissible: true }
+```
 
 ## Why
 

@@ -7,7 +7,20 @@ The package embeds `spec/ref-id.json` and is held to it by that file's conforman
 ref:[<version>:]<type>:<locator>[;<qualifier>=<value>]*[#<declared-name-path>[;<refinement>=<value>]*]
 ```
 
-<!-- PROOF PLACEHOLDER: copy the smallest runnable example from test/ once the vectors pass. -->
+```ts
+import { parse } from "@entelekheia/ref-id"
+
+parse("ref:pkg:npm/@acme/scanner-core@0.1.0#Observation")
+// => {
+//   status: "ok",
+//   type: "pkg",
+//   locator: "npm/@acme/scanner-core@0.1.0",
+//   fragment: { path: "Observation", refinements: [] },
+//   delegated: "pkg:npm/@acme/scanner-core@0.1.0",
+//   canonical: "pkg:npm/%40acme/scanner-core@0.1.0",
+//   ...
+// }
+```
 
 ## Why
 
