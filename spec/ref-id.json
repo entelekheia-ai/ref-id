@@ -103,13 +103,13 @@
       "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
       "corpus": "only where no manifest declares a name"
     },
-    "domain": {
+    "url": {
       "locator": "hostname-path",
       "validator": "declared-name",
       "delegate": "verbatim",
-      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[a-z0-9][a-z0-9._~-]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
-      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment",
-      "corpus": "a manifest that declares a domain names the corpus by that domain; the package name stays the identifier of the software",
+      "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[^/@;#:]+)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "the owner of the host names what lives under it: each path segment is a declared name, never a URL path, and @version is optional on the last segment. A segment admits every character except the four the grammar reserves and ':', which is excluded so that a name carrying its own version after a colon is refused rather than absorbed whole — an identifier spelled in another format's convention must be converted, and a segment admitting ':' would accept it silently with the version inert inside the name. '~' is admitted alone, because a digest never appears without the colon that introduces it.",
+      "corpus": "a manifest that declares a host names the corpus by that host; the package name stays the identifier of the software",
       "reference": "RFC 1123 host labels, lowercase, internationalised labels in their punycode form"
     },
     "email": {
@@ -120,14 +120,37 @@
       "declaredBy": "a mailbox identifies a person or a role; nothing lives under it — what a mailbox publishes belongs to the ecosystem that publishes it",
       "reference": "RFC 5322 addr-spec, dot-atom local part"
     },
-    "dot-agent": {
-      "locator": "agent-id",
+    "unknown": {
+      "locator": "deferred-species-name",
       "validator": "declared-name",
       "delegate": "verbatim",
-      "pattern": "^(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?|[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}|unknown)/[A-Za-z0-9][A-Za-z0-9._-]*(?::[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
-      "declaredBy": "the agent identifier grammar namespace/name[:version]: the namespace is a domain, a platform/user under a domain, a mailbox, or the literal unknown; the ~digest of the full form is carried by state= instead",
-      "corpus": "the agent bundle",
-      "reference": "dot-agent agent-id reference"
+      "pattern": "^(?:[a-z][a-z0-9+.-]*:)?[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*(?:@[A-Za-z0-9][A-Za-z0-9._+-]*)?$",
+      "declaredBy": "an authority this registry does not cover. The optional prefix before the first ':' names the species — the naming system the locator belongs to — so that an uncovered authority is still named precisely rather than opaquely; registering that species as a type of its own later leaves the written identifier unchanged and moves only its status. A colon is safe inside this locator and unsafe at the top level for the same reason: here the outer type is fixed, so this grammar owns every colon within it.",
+      "corpus": "whatever the species declares"
+    },
+    "tel": {
+      "locator": "global-number",
+      "validator": "declared-name",
+      "delegate": "verbatim",
+      "pattern": "^\\+[1-9][0-9]{1,14}$",
+      "declaredBy": "the global number of ITU-T E.164, written as RFC 3966 writes it — the leading '+' is required, so one number has one spelling. Visual separators are legal in both standards and are not admitted here: a locator reaches its validator verbatim, so a non-canonical spelling is refused rather than repaired.",
+      "reference": "RFC 3966 tel URI, global-number-digits; ITU-T E.164"
+    },
+    "isbn": {
+      "locator": "book-number",
+      "validator": "check-digit",
+      "delegate": "verbatim",
+      "pattern": "^(?:97[89][0-9]{10}|[0-9]{9}[0-9X])$",
+      "declaredBy": "the International Standard Book Number of ISO 2108, in its canonical digits with no hyphens. Both registered lengths are admitted: the 13-digit form, which is also a GTIN-13 under the 978 and 979 prefixes, and the 10-digit form, whose final character may be 'X' for the value ten. The check digit is computed, so a number of the right shape and the wrong digit is refused.",
+      "reference": "ISO 2108"
+    },
+    "gtin": {
+      "locator": "trade-item-number",
+      "validator": "check-digit",
+      "delegate": "verbatim",
+      "pattern": "^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$",
+      "declaredBy": "the Global Trade Item Number of GS1 — the number a retail barcode carries. Four lengths are registered and all four are admitted: GTIN-8 (EAN-8), GTIN-12 (UPC-A), GTIN-13 (EAN-13) and GTIN-14 (ITF-14). The check digit is the GS1 weighted sum and is computed, so a number of the right shape and the wrong digit is refused. A 13-digit book number is both a GTIN-13 and an ISBN; the two types overlap there deliberately and diverge at the 10-digit form.",
+      "reference": "GS1 General Specifications, GTIN and its check digit calculation"
     },
     "ai-model": {
       "locator": "served-model-id",
@@ -138,7 +161,7 @@
       "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation."
     }
   },
-  "typeRegistry": "a type names the naming system that owns the locator grammar; an unregistered type parses to uncovered, never to malformed, and registering its validator here is what promotes it — the registry is this table",
+  "typeRegistry": "a type names the naming system that owns the locator grammar; an unregistered type parses to uncovered, never to malformed, and registering its validator here is what promotes it — the registry is this table. A type name MUST be one an unrelated party solving the same problem would have chosen identically: a product name fails, because claiming it is the point of it, and a short desirable word naming a general activity fails for the opposite reason, because several parties would choose it and none owns a grammar. The test refuses the fight before it starts — a registry that admits a contested name is settled by whoever is larger rather than by whoever is right. An authority the registry does not cover is named through 'unknown' with its species declared, which costs nothing and stays precise.",
   "delegation": {
     "type-prefixed": "the validator receives <type>:<locator> verbatim — the type token is also the delegated format's own scheme",
     "verbatim": "the validator receives the locator alone"
@@ -922,20 +945,20 @@
         }
       },
       {
-        "name": "dot-agent id in the unknown namespace tier",
-        "input": "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
+        "name": "an agent named by no authority carries the name alone, under unknown",
+        "input": "ref:unknown:MentorUniversitario@1.4.1",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [],
           "fragment": null,
-          "type": "dot-agent",
-          "locator": "unknown/MentorUniversitario:1.4.1"
+          "type": "unknown",
+          "locator": "MentorUniversitario@1.4.1"
         }
       },
       {
-        "name": "dot-agent id under a domain, its digest carried by state",
-        "input": "ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4",
+        "name": "an agent named by its host, its digest carried by state",
+        "input": "ref:url:acme.example/doctor@v1.0;state=git:a1b2c3d4",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -946,61 +969,212 @@
             ]
           ],
           "fragment": null,
+          "type": "url",
+          "locator": "acme.example/doctor@v1.0"
+        }
+      },
+      {
+        "name": "a platform vouching for a user is two segments under the host",
+        "input": "ref:url:github.example/someone/doctor",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "url",
+          "locator": "github.example/someone/doctor"
+        }
+      },
+      {
+        "name": "a segment refuses the colon, so a name carrying its own version is not absorbed whole",
+        "input": "ref:url:acme.example/doctor:v1.0",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a retired type degrades to uncovered — an identifier written against it keeps its parts",
+        "input": "ref:dot-agent:acme.example/doctor:v1.0",
+        "expect": {
+          "status": "uncovered",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
           "type": "dot-agent",
           "locator": "acme.example/doctor:v1.0"
         }
       },
       {
-        "name": "dot-agent id under a platform user and under a mailbox",
-        "input": "ref:dot-agent:github.example/someone/doctor",
+        "name": "a dotted host needs no registry to parse — whether it resolves is the ecosystem's check, never the grammar's",
+        "input": "ref:url:mentor.pessoal.agent/MentorUniversitario@1.4.1",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [],
           "fragment": null,
-          "type": "dot-agent",
-          "locator": "github.example/someone/doctor"
+          "type": "url",
+          "locator": "mentor.pessoal.agent/MentorUniversitario@1.4.1"
         }
       },
       {
-        "name": "dot-agent id with a mailbox namespace",
-        "input": "ref:dot-agent:someone@mail.example/doctor:v2",
+        "name": "a tilde opens a segment — a platform whose usernames carry one needs no exception",
+        "input": "ref:url:sr.ht/~reykjalin/fonn@v1.0",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [],
           "fragment": null,
-          "type": "dot-agent",
-          "locator": "someone@mail.example/doctor:v2"
+          "type": "url",
+          "locator": "sr.ht/~reykjalin/fonn@v1.0"
         }
       },
       {
-        "name": "a dotted namespace reads as the domain tier — whether the domain exists is the ecosystem's check, never the grammar's",
-        "input": "ref:dot-agent:mentor.pessoal.agent/MentorUniversitario:1.4.1",
+        "name": "an opaque value minted by a product is named by that product, with the value as the declared name",
+        "input": "ref:url:entelekheia.example/app#550e8400-e29b-41d4-a716-446655440000",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "type": "url",
+          "locator": "entelekheia.example/app",
+          "fragment": {
+            "path": "550e8400-e29b-41d4-a716-446655440000",
+            "refinements": []
+          }
+        }
+      },
+      {
+        "name": "unknown carries its species, so an uncovered authority is still named precisely",
+        "input": "ref:unknown:doi:10.1000/182",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [],
           "fragment": null,
-          "type": "dot-agent",
-          "locator": "mentor.pessoal.agent/MentorUniversitario:1.4.1"
+          "type": "unknown",
+          "locator": "doi:10.1000/182"
+        }
+      },
+      {
+        "name": "a species inside unknown may itself be a naming system this registry once carried",
+        "input": "ref:unknown:dot-agent:doctor@v1.0",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "unknown",
+          "locator": "dot-agent:doctor@v1.0"
+        }
+      },
+      {
+        "name": "a telephone number is the global form of E.164, and the leading + is required",
+        "input": "ref:tel:+5511999999999",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "tel",
+          "locator": "+5511999999999"
+        }
+      },
+      {
+        "name": "a telephone number without its + is a different spelling of the same number, and only one spelling is an identifier",
+        "input": "ref:tel:5511999999999",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "visual separators are legal in the standard and refused here — a locator reaches its validator verbatim",
+        "input": "ref:tel:+1-201-555-0123",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a thirteen-digit book number carries a check digit that is computed, not matched",
+        "input": "ref:isbn:9780262033848",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "isbn",
+          "locator": "9780262033848"
+        }
+      },
+      {
+        "name": "the ten-digit form admits X for the value ten in its check digit",
+        "input": "ref:isbn:080442957X",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "isbn",
+          "locator": "080442957X"
+        }
+      },
+      {
+        "name": "a book number of the right shape and the wrong check digit is a typo, which a pattern alone cannot see",
+        "input": "ref:isbn:9780262033847",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
+        }
+      },
+      {
+        "name": "a trade item number is the number a retail barcode carries, in any of its four registered lengths",
+        "input": "ref:gtin:036000291452",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "gtin",
+          "locator": "036000291452"
+        }
+      },
+      {
+        "name": "the eight-digit length is a trade item number too",
+        "input": "ref:gtin:40170725",
+        "expect": {
+          "status": "ok",
+          "version": 1,
+          "qualifiers": [],
+          "fragment": null,
+          "type": "gtin",
+          "locator": "40170725"
+        }
+      },
+      {
+        "name": "a trade item number with the wrong check digit is refused by the same weighted sum",
+        "input": "ref:gtin:036000291453",
+        "expect": {
+          "status": "malformed",
+          "part": "locator"
         }
       },
       {
         "name": "a domain names a corpus",
-        "input": "ref:domain:portfolio.example",
+        "input": "ref:url:portfolio.example",
         "expect": {
           "status": "ok",
           "version": 1,
           "qualifiers": [],
           "fragment": null,
-          "type": "domain",
+          "type": "url",
           "locator": "portfolio.example"
         }
       },
       {
         "name": "a declared name under a domain, versioned, with a section fragment",
-        "input": "ref:domain:portfolio.example/case-xpto@2#results",
+        "input": "ref:url:portfolio.example/case-xpto@2#results",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -1009,13 +1183,13 @@
             "path": "results",
             "refinements": []
           },
-          "type": "domain",
+          "type": "url",
           "locator": "portfolio.example/case-xpto@2"
         }
       },
       {
         "name": "an uppercase host is malformed at the locator",
-        "input": "ref:domain:Portfolio.example/case",
+        "input": "ref:url:Portfolio.example/case",
         "expect": {
           "status": "malformed",
           "part": "locator"
@@ -1053,7 +1227,7 @@
       },
       {
         "name": "a content hash freezes what no version control holds",
-        "input": "ref:domain:models.example/quant-q4;state=blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "input": "ref:url:models.example/quant-q4;state=blake3:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -1064,13 +1238,13 @@
             ]
           ],
           "fragment": null,
-          "type": "domain",
+          "type": "url",
           "locator": "models.example/quant-q4"
         }
       },
       {
         "name": "none is a declared state level",
-        "input": "ref:domain:models.example/quant-q4;state=none",
+        "input": "ref:url:models.example/quant-q4;state=none",
         "expect": {
           "status": "ok",
           "version": 1,
@@ -1081,13 +1255,13 @@
             ]
           ],
           "fragment": null,
-          "type": "domain",
+          "type": "url",
           "locator": "models.example/quant-q4"
         }
       },
       {
         "name": "a state in an undeclared form is malformed at state",
-        "input": "ref:domain:models.example/quant-q4;state=sha1:0f0f0f0f",
+        "input": "ref:url:models.example/quant-q4;state=sha1:0f0f0f0f",
         "expect": {
           "status": "malformed",
           "part": "state"
@@ -1472,7 +1646,7 @@
       "ref:folder:acme-tools#AGENTS.md;zz=q",
       "ref:doi:10.1000/182",
       "ref:dot-agent:unknown/MentorUniversitario:1.4.1",
-      "ref:domain:portfolio.example/case-xpto@2;state=none#results",
+      "ref:url:portfolio.example/case-xpto@2;state=none#results",
       "ref:email:someone@mail.example",
       "ref:2:pkg:npm/x@1.0.0",
       "ref:01:pkg:npm/x@1.0.0",
@@ -1610,7 +1784,7 @@
       {
         "name": "a content hash is accepted as a state",
         "parts": {
-          "type": "domain",
+          "type": "url",
           "locator": "models.example/quant-q4",
           "qualifiers": [
             [
@@ -1619,7 +1793,7 @@
             ]
           ]
         },
-        "expect": "ref:domain:models.example/quant-q4;state=sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+        "expect": "ref:url:models.example/quant-q4;state=sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
       },
       {
         "name": "a digest value passes through the builder",
