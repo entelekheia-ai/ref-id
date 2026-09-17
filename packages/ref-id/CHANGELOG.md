@@ -1,5 +1,89 @@
 # @entelekheia/ref-id
 
+## 0.4.0
+
+### Minor Changes
+
+- dd95fbe: Nine locator types, and two relations equality cannot express.
+
+  `domain` becomes `url`, whose path segment refuses `:` so that a name carrying its own version after a
+  colon is refused rather than absorbed whole. `dot-agent` is retired: an identifier written against it
+  still parses, as `uncovered`, and its four namespace tiers are re-expressed under `url`, `email` and the
+  new `unknown`. `unknown` carries an optional species before the first `:`, so an authority this registry
+  does not cover is still named precisely. `tel`, `isbn` and `gtin` enter, and the last two are the first
+  types whose validator computes a check digit rather than matching a shape.
+
+  `samePackage` answers whether two identifiers name the same released thing at whatever version each
+  declares. `covers` answers whether the first is the second with less declared — the general covers the
+  specific and not the reverse — which makes a partial identifier a query over a store keyed by identifier.
+
+  The scheme stays at identifier version 1 throughout.
+
+- 9f9efdd: The locator carries the path to a file, and the fragment names what is declared inside that file.
+
+  A `folder` locator continues into the subtree it names, one segment per directory, so
+  `ref:folder:acme-tools/docs/guide.md#Setup` names a heading in a file rather than hanging that
+  heading on the corpus. A `pkg` locator carries a path after its version, which leaves for the
+  Package URL as that format's own subpath component — `ref:pkg:npm/x@1.0.0/docs/guide.md` now
+  canonicalises to `pkg:npm/x@1.0.0#docs/guide.md` instead of folding the path into the version as
+  `@1.0.0%2Fdocs%2Fguide.md`. With no version declared there is no marker separating the name from the
+  path, so a file in an unversioned corpus is named through `folder`.
+
+  `covers` follows: the general stem now reaches the specific one when it is equal **or a whole
+  segment prefix** of it, so a corpus covers the files under it. The segment boundary is load-bearing —
+  `acme-tools` does not cover `acme-tools-extra`. A path stays in the stem and only the version leaves
+  it, so one file at two releases is one package and two files in one release are not.
+
+  One conformance vector is revoked: a corpus name may now contain a path separator.
+
+  A mailbox carries the items served under it. `email` refused a path because its locator is an RFC 5322
+  addr-spec, and the dispatch entry stated the reason as a claim about the world — _"nothing lives under
+  it"_. What sits under a mailbox is the person's own items, named by whoever serves them, and the scheme
+  checks neither who minted an id nor that the item exists. The addr-spec is now the **first segment** of
+  the locator and nothing else, so an item id carrying an `@` — which an RFC 5322 Message-ID does — sits
+  after the first `/` and is never mistaken for the mailbox. A Message-ID is carried without the angle
+  brackets the RFC writes it between, which is the form a mail API hands over.
+
+  A second conformance vector is revoked: the one named _"nothing lives under a mailbox"_.
+
+  Every error this package throws is now a `RefIdError`. `SpecIntegrityError` and `SpecVersionError` sat
+  outside the hierarchy, so `catch (e) { if (e instanceof RefIdError) … }` silently missed the two
+  failures a consumer is least equipped to recover from — the specification not matching its own digest,
+  and declaring a major this build cannot honour. Both now extend it and carry `part: "spec"`.
+
+- 0a0187e: The package runs in a browser.
+
+  Importing anything from this package used to pull a filesystem in: `loadSpec()` read `spec/ref-id.json`
+  through `node:fs`, hashed it through `node:crypto`, and every public function called it. A bundler has
+  neither the file nor those modules, so any consumer that minted an identifier client-side failed — at
+  build time if its bundler refused the specifiers, at runtime otherwise.
+
+  `exports` now carries a `browser` condition above the default, serving a second build of the same source
+  whose specification is a constant compiled in by `scripts/gen-spec.mjs`. The public API is unchanged and
+  no consumer configures anything: a bundler that honours the condition takes the browser build, Node takes
+  the default and keeps reading and verifying from disk exactly as before.
+
+  The integrity guarantee moves rather than disappearing. The generator refuses to emit a module from a
+  specification that fails its sidecar digest, and a staleness test regenerates and diffs the committed
+  constant, so a compiled-in specification that no longer matches the file fails the gate instead of
+  shipping. The browser build does not re-hash its own constant — that would compare a constant against a
+  digest compiled from it in the same build, a check that cannot fail — and exports `SPEC_DIGEST` as a
+  statement about provenance instead.
+
+  What the browser build gives up is stated in the package README: no integrity check at runtime, no
+  `loadSpecFrom` (it takes a directory), and a `digest()` that honours `sha256` alone. It gains a runtime
+  dependency, `@noble/hashes` — pure JavaScript, no dependencies of its own — because the web platform
+  publishes no synchronous hash and making `digest()` asynchronous would have changed the public API.
+
+  `npm run test:differential` now runs the browser build as a fourth implementation beside Node, Rust and
+  Swift over every input the specification names, so the two builds are held to each other rather than each
+  to its own expectations.
+
+  One note for TypeScript consumers: under `"moduleResolution": "bundler"` without `customConditions`, the
+  compiler resolves types through the default condition while your bundler takes the browser build, so
+  `tsc` accepts an import of `loadSpecFrom` that the bundle then refuses. Adding
+  `"customConditions": ["browser"]` makes the compiler see the same surface the bundler does.
+
 ## 0.3.0
 
 ### Minor Changes
