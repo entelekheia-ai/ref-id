@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-17 |
 | Author | Danilo Borges |
 | Related | ADR-0001 (the specification is one data file the package consumes) |
@@ -145,7 +145,7 @@ through the default condition.
 
 ## Tracks
 
-- [ ] **Track 1 — The generator and its guard.** A build step reads `spec/ref-id.json`, verifies it
+- [x] **Track 1 — The generator and its guard.** A build step reads `spec/ref-id.json`, verifies it
       against its sidecar, and emits the spec as a typed constant module; a gate check regenerates and
       diffs, failing when the committed module does not match. At the end, editing the JSON without
       regenerating turns the gate red, and regenerating turns it green — both demonstrated, not asserted.
@@ -216,7 +216,7 @@ through the default condition.
       stopped being true — `packageurl-js` and Node's `crypto` as the whole runtime surface — and gained a
       second guardrail against a builtin reaching the browser graph.
 
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
 
 ## Success criteria
@@ -316,7 +316,80 @@ sidecar, run the gate, and observe it fail on the stale generated module; regene
 
 ## Outcomes & Retrospective
 
-*Not yet written — Tracks 1 through 4 have landed; the retrospective belongs to `/vibe-ops:close-plan`.*
+**Shipped 2026-09-17**, in two pull requests: [#14](https://github.com/entelekheia-ai/ref-id/pull/14)
+carried Tracks 1 through 4, and [#15](https://github.com/entelekheia-ai/ref-id/pull/15) carried a CI
+repair that this plan's own harness change exposed. All four tracks landed; none was cut.
+
+### The goals, one by one
+
+1. **`import { build, parse }` works in a bundled browser application, no `node:` specifier, no consumer
+   configuration.** Met, and verified past the criterion rather than against it. A scratch consumer
+   bundled with esbuild carries zero Node builtins, and running it in Chrome 153 — with no `process` and
+   no `require` in scope — returns the same string and the same digest the Node build returns for the
+   same parts.
+2. **The two builds agree, proven by the vectors and by comparison rather than by each build's own
+   expectations.** Met, and the plan under-specified what it would take. `scripts/differential.mjs`
+   carries the browser build as a fourth implementation, but its line protocol is shared with the Rust
+   and Swift ports and carries `parse` and `serialise` only — so `spec.vectors.build`, `digest` and
+   `envelope` would have stayed exercised against the Node build alone, and the browser build's sha256
+   would have been exercised by nothing at all. `test/browser-parity.test.ts` closes that, comparing the
+   two builds rather than giving either its own expectations.
+3. **A stale compiled-in spec fails the gate rather than shipping.** Met. Demonstrated at closure in both
+   directions: one byte changed in `spec/ref-id.json` and resealed turns `npm test` red on the staleness
+   guard and `./scripts/check.sh` red on port-copy and doc drift; regenerating turns both green.
+4. **The integrity guarantee is preserved in a form the browser can have.** Met as designed. The
+   generator refuses to emit from a spec that fails its sidecar; the browser build does not re-hash its
+   own constant, and exports `SPEC_DIGEST` as a statement about provenance rather than a check.
+5. **The published surface states which environments it runs in.** Met. `Requirements` became
+   `Environments` in the package README, with a table and four named things the browser build gives up.
+
+### What the plan got wrong
+
+- **It missed a second dependency on the filesystem.** The Design reasoned entirely about `loadSpec()`
+  and never noticed that `digest.ts` imports `node:crypto` on its own account. The browser entry point
+  alone could therefore never have met Goal 1. The response was a second seam (`hash.ts` beside
+  `spec.ts`), which is an extension of the pattern the plan chose rather than a new one — but the plan as
+  written would not have produced a working build.
+- **Two success criteria were unrunnable as written.** `grep -c "node:" dist/index.browser.js` and its
+  sibling name a path that does not exist from the repository root; the artifact is at
+  `packages/ref-id/dist/index.browser.js`. Wrong in the direction of failing to run, not of passing
+  falsely.
+- **One success criterion attributed a guard to the wrong gate.** `./scripts/check.sh; echo $?` is
+  annotated *"0, including the staleness guard"*. The staleness guard is a `node --test` case and runs in
+  `npm test`; `check.sh` composes the governance gate and does not include it. The gate does go red on a
+  spec edit, but through the port-copy and doc-drift checks — a different mechanism reaching the same
+  colour, which is exactly the kind of coincidence a criterion should not rely on.
+- **The mechanical check the plan asked for would have passed by construction.** `grep`ping the emitted
+  entry point cannot fail: `tsc` emits one module per source file, so that file is re-export lines and
+  the builtin sits in `dist/spec.node.js`. The walk over the whole closure replaced it; the plan's greps
+  are kept as a floor and still return 0.
+
+### What the work cost beyond its scope
+
+- **A runtime dependency.** `@noble/hashes` entered the package because the web platform publishes no
+  synchronous hash and making `digest()` asynchronous would have changed the public API. `AGENTS.md` and
+  `.agents/rules/repo-guardrails.md` both declared `packageurl-js` and Node's `crypto` as the whole
+  runtime surface; both were corrected.
+- **A CI repair.** Registering the browser build as a fourth implementation put the harness under enough
+  attention to notice it had been red on `main` since [#13](https://github.com/entelekheia-ai/ref-id/pull/13)
+  and naming no cause. Three defects, fixed in #15: the `differential` job runs `npm ci` and never
+  creates the gitignored spec copy the package reads; `port()` discarded the child's `stderr`, which is
+  why two red runs named nothing; and — the one that matters — the harness promoted the next row that
+  managed to run into the reference seat, so on this plan's own PR the browser build silently became the
+  reference and the run reported *157 inputs × 4 implementations, 1 disagreement* for a comparison it had
+  never made. The count was true and the claim under it was not.
+
+### Still open
+
+The third open question is the only one this plan answered with a number and not a decision: the compiled
+constant is 67 597 bytes of a 148 148-byte unminified consumer bundle, roughly 46 %. Whether a trimmed
+spec is worth the second artifact it would create is untouched — `declaredBy` and `reference` are long
+prose fields the code never reads, and they hold most of that weight. The first two open questions
+(bundlers that ignore the `browser` condition; whether a test runner should resolve it) are also
+untouched, and a fourth was found at closure: under `"moduleResolution": "bundler"` without
+`customConditions`, TypeScript resolves types through the default condition while the bundler takes the
+browser build, so `tsc --noEmit` accepts an import of `loadSpecFrom` that the bundle refuses. That is
+documented in the package README rather than solved.
 
 <!-- ===== END LIVING SECTIONS ===== -->
 

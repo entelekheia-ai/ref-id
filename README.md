@@ -53,7 +53,8 @@ against vectors, never a re-derivation from this one's source.
 | `RefId` (Swift) | A Swift package at the repository root, held to the same vectors; `swift run ref-id-conformance` is its gate. **Its public surface is still reaching parity with the reference** — see below. | [`Sources/RefId/`](Sources/RefId/) |
 
 **The three ports agree on every answer, and not yet on every name.** A differential test runs all three
-over every input the specification names and fails on the first disagreement (`npm run
+— together with the TypeScript package's browser build, as a fourth implementation — over every input the
+specification names, and fails on the first disagreement (`npm run
 test:differential`), so a `ref:` identifier means the same thing in each. What is still under
 construction is the *surface*: the Rust and Swift ports do not yet expose every operation the TypeScript
 reference does — `sameIdentifier` is missing from both — and some operations are spelled differently
