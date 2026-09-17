@@ -213,14 +213,40 @@ enum PackageURL {
         return Parsed(type: type, namespace: segments, name: name, version: version, qualifiers: qualifiers)
     }
 
+    /// Percent-encoding is applied to the decoded value, never to whatever spelling arrived.
+    ///
+    /// Encoding an already-encoded segment turns `%40acme` into `%2540acme`, a different name — so the
+    /// segment is decoded first and the operation becomes idempotent, which is what lets two spellings
+    /// of one package reach the same canonical form. A segment that is not valid encoding decodes to
+    /// nothing, and is then passed through as written rather than mangled.
+    private static func reEncode(_ segment: String) -> String {
+        percentEncode(segment.removingPercentEncoding ?? segment)
+    }
+
+    /// The canonical spelling of a Package URL, per the specification's own normalisation rules.
+    ///
+    /// Three of them are not cosmetic, because two systems comparing identifiers by canonical form must
+    /// agree or they disagree about whether two ids name one thing: the type is lower-cased, every
+    /// name segment is encoded from its decoded value, and qualifiers are ordered by key. The reference
+    /// implementation and the Rust port get all three from their purl libraries; this port has no
+    /// maintained library to get them from, so they are written here and bound by vectors.
     private static func serialise(_ parsed: Parsed) -> String {
-        var out = "pkg:" + parsed.type + "/"
+        var out = "pkg:" + parsed.type.lowercased() + "/"
         if !parsed.namespace.isEmpty {
-            out += parsed.namespace.map(percentEncode).joined(separator: "/") + "/"
+            out += parsed.namespace.map(reEncode).joined(separator: "/") + "/"
         }
-        out += percentEncode(parsed.name)
+        out += reEncode(parsed.name)
         if let version = parsed.version { out += "@" + version }
-        if let qualifiers = parsed.qualifiers { out += "?" + qualifiers }
+        if let qualifiers = parsed.qualifiers, !qualifiers.isEmpty {
+            let ordered = qualifiers
+                .split(separator: "&", omittingEmptySubsequences: true)
+                .sorted { left, right in
+                    let key = { (pair: Substring) in pair.split(separator: "=", maxSplits: 1).first ?? pair }
+                    return key(left).lexicographicallyPrecedes(key(right))
+                }
+                .joined(separator: "&")
+            out += "?" + ordered
+        }
         return out
     }
 

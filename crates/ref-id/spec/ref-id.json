@@ -1756,6 +1756,45 @@
      "status": "malformed",
      "part": "locator"
     }
+   },
+   {
+    "name": "a name already percent-encoded is not encoded twice",
+    "input": "ref:pkg:npm/%40acme/x@1.0.0",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "pkg",
+     "locator": "npm/%40acme/x@1.0.0",
+     "canonical": "pkg:npm/%40acme/x@1.0.0"
+    }
+   },
+   {
+    "name": "a package type canonicalises in lower case",
+    "input": "ref:pkg:NPM/x@1.0.0",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "pkg",
+     "locator": "NPM/x@1.0.0",
+     "canonical": "pkg:npm/x@1.0.0"
+    }
+   },
+   {
+    "name": "purl qualifiers canonicalise in key order, whatever order they were written",
+    "input": "ref:pkg:npm/x@1.0.0?os=linux&arch=amd64",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "pkg",
+     "locator": "npm/x@1.0.0?os=linux&arch=amd64",
+     "canonical": "pkg:npm/x@1.0.0?arch=amd64&os=linux"
+    }
    }
   ],
   "canonical": [
