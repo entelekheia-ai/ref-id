@@ -8,8 +8,8 @@
 // canonicalised a Package URL differently for as long as the protocol below dropped the field, and the
 // suites never said so.
 //
-// The inputs are every `vectors.parse` input plus every `vectors.comparison` operand, so the corpus grows
-// with the specification instead of with this file.
+// The inputs are drawn from the vector groups themselves, so the corpus grows with the specification
+// instead of with this file.
 
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
@@ -46,32 +46,7 @@ function corpus() {
   return [...seen].map((input) => input.replace(/\n/g, "\\n").replace(/\r/g, "\\r"))
 }
 
-/** The canonical JSON the ports print, produced from the reference implementation for the same input. */
-// `canonical` is two different things one letter apart: the exported function canonicalises the whole
-// identifier, while the result's own `canonical` field is the delegated locator's canonical spelling —
-// the purl. It is the field the ports print, and the field this compares.
-async function reference(inputs) {
-  const { parse, serialise } = await import(join(ROOT, "packages/ref-id/src/index.ts"))
-  return inputs.map((escaped) => {
-    const input = escaped.replace(/\\n/g, "\n").replace(/\\r/g, "\r")
-    let result
-    try {
-      result = parse(input)
-    } catch (error) {
-      return { threw: String(error) }
-    }
-    const row = { ...result }
-    delete row.nested
-    delete row.delegated
-    try {
-      row.serialised = serialise(result)
-    } catch {
-      // A result the serialiser refuses simply carries no `serialised` field, which is what the ports do.
-    }
-    return row
-  })
-}
-
+/** Runs one implementation over the whole corpus and parses the one JSON object it prints per line. */
 function port(command, args, inputs) {
   const out = execFileSync(command, args, { cwd: ROOT, input: `${inputs.join("\n")}\n`, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
   return out.trim().split("\n").map((line) => JSON.parse(line))
@@ -102,15 +77,21 @@ function compare(name, mine, theirs, input) {
 }
 
 const inputs = corpus()
-const reference_ = await reference(inputs)
 
+// **All three speak the protocol, and all three are run the same way.** Calling the reference in-process
+// while spawning the other two would judge it by a path they never take, so a defect living only in the
+// protocol's own serialisation would be invisible in exactly the implementation the others are compared
+// against. The first row is the reference the other two are compared to; it is otherwise an ordinary port.
 const ports = [
+  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical"]],
   ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--canonical"]],
   ["swift", "swift", ["run", "-q", "ref-id-conformance", "--parse", "--canonical"]],
 ]
 
 let failures = 0
 let known = 0
+let reference = null
+
 for (const [name, command, args] of ports) {
   let rows
   try {
@@ -125,8 +106,12 @@ for (const [name, command, args] of ports) {
     failures += 1
     continue
   }
+  if (reference === null) {
+    reference = rows
+    continue
+  }
   for (const [index, input] of inputs.entries()) {
-    const { differences, known: isKnown } = compare(name, reference_[index], rows[index], input)
+    const { differences, known: isKnown } = compare(name, reference[index], rows[index], input)
     if (differences.length === 0) continue
     if (isKnown) {
       known += 1
@@ -140,6 +125,11 @@ for (const [name, command, args] of ports) {
   }
 }
 
+if (reference === null) {
+  console.error("the reference implementation did not run; nothing was compared")
+  process.exit(1)
+}
+
 const suffix = known > 0 ? `, ${known} known purl-validity edge${known === 1 ? "" : "s"}` : ""
-console.log(`differential: ${inputs.length} inputs × ${ports.length} ports, ${failures} disagreement${failures === 1 ? "" : "s"}${suffix}`)
+console.log(`differential: ${inputs.length} inputs × ${ports.length} implementations, ${failures} disagreement${failures === 1 ? "" : "s"}${suffix}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -28,3 +28,8 @@ after the first `/` and is never mistaken for the mailbox. A Message-ID is carri
 brackets the RFC writes it between, which is the form a mail API hands over.
 
 A second conformance vector is revoked: the one named *"nothing lives under a mailbox"*.
+
+Every error this package throws is now a `RefIdError`. `SpecIntegrityError` and `SpecVersionError` sat
+outside the hierarchy, so `catch (e) { if (e instanceof RefIdError) … }` silently missed the two
+failures a consumer is least equipped to recover from — the specification not matching its own digest,
+and declaring a major this build cannot honour. Both now extend it and carry `part: "spec"`.
