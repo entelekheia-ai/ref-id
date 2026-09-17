@@ -7,7 +7,7 @@
 
 import { execFileSync } from "node:child_process"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import { basename, dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -117,7 +117,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
       return refuse("no-corpus", "no manifest reaching this path declares a name", {
         target: rel(target),
         skipped,
-        answer: "declare a folder corpus for the subtree, then pass --type folder --locator <declared name>",
+        answer: "pass --root <the directory whose name the corpus carries>, or --type folder --locator <corpus>/<path>",
       })
     }
     dir = parent
@@ -184,52 +184,32 @@ function publishedAs(corpus: Corpus, target: string): { version: string; path: s
 }
 
 /**
- * The name a subtree declares for itself, nearest ancestor winning — the one line
- * `dispatch.folder.declaredBy` has always described and nothing has ever read.
- *
- * A `.ref-id` file holds that name and nothing else. It is a declaration rather than a derivation, so
- * moving the subtree does not rename what is inside it, which is the whole reason identity is not a
- * path. Blank lines and `#` comments are skipped; the first remaining line is the name.
- */
-function declaredCorpus(from: string): { name: string; root: string; declaredIn: string } | undefined {
-  for (let dir = from; ; dir = dirname(dir)) {
-    const path = join(dir, ".ref-id")
-    if (existsSync(path)) {
-      const name = readFileSync(path, "utf8")
-        .split("\n")
-        .map((line) => line.trim())
-        .find((line) => line.length > 0 && !line.startsWith("#"))
-      if (name) return { name, root: dir, declaredIn: rel(path) }
-    }
-    if (dir === ROOT || dirname(dir) === dir) return undefined
-  }
-}
-
-/**
  * The corpus name a `folder` locator carries, for a file the package manager does not ship.
  *
- * A declaration wins over a derivation, so `.ref-id` is consulted before the manifest. A scoped package
- * name (`@acme/tools`) does not fit the declared-name pattern, and shortening it to its last segment
- * would make two scopes collide under one corpus — so with no declaration to fall back on, this refuses
- * and names the file to write, rather than choosing between two wrong names.
+ * **The root is the package's own directory**, and its base name is the corpus name — not the package
+ * name from the manifest, which carries a scope (`@acme/tools`) that no declared corpus name may hold.
+ * `--root` overrides it for a subtree no manifest describes.
+ *
+ * Nothing is written to disk to record this, and nothing needs to be: the name is not a lookup key the
+ * scheme resolves. `ref:folder:xpto/etc` matches inside `xpto` and nowhere else, and a reader that
+ * wants the bytes has to find `xpto` for itself — the same way a reader of `ref:pkg:npm/x@1.0.0` has
+ * to reach a registry. The identifier names; resolving is the reader's half.
  */
-function folderCorpus(target: string, corpus?: Corpus): { locator: string } | Refusal {
-  const declared = declaredCorpus(corpus?.dir ?? dirname(target))
-  const name = declared?.name ?? corpus?.locator.replace(/^(npm|cargo)\//, "") ?? ""
-  // The path runs from whatever declared the name, never from somewhere else — a path measured from the
-  // manifest while the name came from an ancestor drops the segments between them, and two files with
-  // the same name in two packages collide under one identifier. That collision is what this plan exists
-  // to remove, so it is worth the extra line here.
-  const path = relative(declared?.root ?? corpus?.dir ?? dirname(target), target)
+function folderCorpus(target: string, root: string): { locator: string } | Refusal {
+  const name = basename(root)
+  // The path runs from the root whose base name became the corpus name, never from somewhere else. A
+  // path measured from one directory while the name came from another drops the segments between them,
+  // and two files with the same name in two packages collide under one identifier — the collision this
+  // whole plan exists to remove.
+  const path = relative(root, target)
   const candidate = `${name}/${path}`
   return refId.parse(`ref:folder:${candidate}`).status === "ok"
     ? { locator: candidate }
-    : refuse("corpus-undeclared", "no subtree reaching this file declares a name a corpus can carry", {
-        manifest: corpus?.manifest,
+    : refuse("corpus-name-unusable", "the root directory's name does not fit a declared corpus name", {
+        root: rel(root),
         triedName: name,
-        declaredIn: declared?.declaredIn,
         pattern: spec.dispatch.folder.pattern,
-        answer: `write the corpus name into a .ref-id file at the subtree root, or pass --type folder --locator <corpus>/${path}`,
+        answer: `pass --root <directory whose name the corpus carries>, or --type folder --locator <corpus>/${path}`,
       })
 }
 
@@ -254,9 +234,14 @@ function mint(args: Map<string, string[]>): never {
     // own name is a corpus with no manifest anywhere above it — documentation beside a package, a
     // repository that publishes nothing — so a manifest that reaches nothing is only fatal when no
     // declaration reaches the file either.
+    // A manifest is how a released artifact is found, not how a corpus is. A subtree handed in with
+    // `--root` is a corpus with no manifest anywhere above it — documentation beside a package, a
+    // repository that publishes nothing — so a manifest that reaches nothing is only fatal when the
+    // caller named no root either.
+    const given = args.get("root")?.[0]
     const resolved = nearestCorpus(target)
     const corpus = "refusal" in resolved ? undefined : resolved
-    if (!corpus && !declaredCorpus(dirname(target))) {
+    if (!corpus && !given) {
       emit(resolved)
     }
     type ??= corpus?.type ?? "folder"
@@ -270,7 +255,7 @@ function mint(args: Map<string, string[]>): never {
         type = "pkg"
         locator = `${corpus.locator}@${shipped.version}/${shipped.path}`
       } else {
-        const named = folderCorpus(target, corpus)
+        const named = folderCorpus(target, given ? resolve(ROOT, given) : (corpus?.dir ?? dirname(target)))
         if ("refusal" in named) {
           emit(named)
         }

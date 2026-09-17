@@ -81,10 +81,36 @@ when a rule above is disputed rather than applied.
 
 ```sh
 node .agents/skills/identify/scripts/identify.ts mint --path <path> --fragment '<declared name>'
+node .agents/skills/identify/scripts/identify.ts mint --path <path> --fragment '<name>' --root <dir>
 node .agents/skills/identify/scripts/identify.ts mint --path <path> --corpus
 node .agents/skills/identify/scripts/identify.ts mint --type <type> --locator <locator> \
   --fragment '<name>' --qualifier 'when=2026-01-01T00:00:00Z'
 ```
+
+### Which type a file gets, and why the answer is not a preference
+
+The locator reaches the file, so something has to say where it starts counting from. **One question
+decides it: does a clean install of the package contain this file?**
+
+| The package manager ships it | It does not |
+|---|---|
+| `ref:pkg:npm/x@1.0.0/README.md#Install` | `ref:folder:x/test/parse.test.ts#vectors` |
+| The version is part of the name, because that release is where the file is | The package directory is the root, and its **base name** is the corpus name |
+
+The question is answered by `npm pack --dry-run --json` — the list a publish would actually upload, so
+the `files` field, the ignore files and every npm default are npm's answer and not a re-implementation
+here. Getting that wrong fails in the direction that matters: a `pkg` identifier for a file the install
+does not contain resolves to nothing.
+
+Two consequences, both deliberate:
+
+- **The corpus name is the directory's base name, never the manifest's `name`.** A scoped package name
+  (`@acme/tools`) cannot be a declared corpus name, and cutting it to its last segment would put two
+  scopes under one corpus. `--root` overrides the root for a subtree no manifest describes.
+- **Nothing is written to disk to record the name, and nothing needs to be.** `ref:folder:xpto/etc`
+  matches inside `xpto` and nowhere else; a reader that wants the bytes has to locate `xpto` itself,
+  exactly as a reader of `ref:pkg:npm/x@1.0.0` has to reach a registry. The identifier names; resolving
+  is the reader's half, and the scheme promises nothing about it.
 
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.
