@@ -6,7 +6,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-17 |
 | Author | Danilo Borges |
 | Related | Plan-001 (shipped), Plan-002 (shipped), ADR-0001 |
@@ -254,7 +254,7 @@ discriminant and not a description. The attribute is the *result*, and that stay
       CI job drives it — `.github/workflows/gates.yml` runs the three suites in isolation. This plan
       edits the same hand-ported algorithm in three languages, so the absence is load-bearing now.
       At the end a script drives all three over every vector and CI fails on divergence.
-- [ ] Run `/vibe-ops:close-plan`.
+- [x] Run `/vibe-ops:close-plan`.
 
 ## Success criteria
 
