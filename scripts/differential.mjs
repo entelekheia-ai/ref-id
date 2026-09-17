@@ -46,9 +46,22 @@ function corpus() {
   return [...seen].map((input) => input.replace(/\n/g, "\\n").replace(/\r/g, "\\r"))
 }
 
-/** Runs one implementation over the whole corpus and parses the one JSON object it prints per line. */
+/**
+ * Runs one implementation over the whole corpus and parses the one JSON object it prints per line.
+ *
+ * `stderr` is captured and re-thrown with the message, not discarded. It was discarded once, and the
+ * cost was measured: this harness ran red in CI for two merges reporting only `could not run —
+ * Command failed: node …`, while the child was saying `ENOENT … packages/ref-id/spec/ref-id.json` on
+ * every line. A failure that names no cause is a failure nobody acts on.
+ */
 function port(command, args, inputs) {
-  const out = execFileSync(command, args, { cwd: ROOT, input: `${inputs.join("\n")}\n`, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+  let out
+  try {
+    out = execFileSync(command, args, { cwd: ROOT, input: `${inputs.join("\n")}\n`, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+  } catch (error) {
+    const said = String(error.stderr ?? "").trim() || String(error.stdout ?? "").trim()
+    throw new Error(said ? `${error.message.split("\n")[0]}\n${said.split("\n").slice(0, 5).join("\n")}` : error.message)
+  }
   return out.trim().split("\n").map((line) => JSON.parse(line))
 }
 
@@ -112,21 +125,30 @@ let failures = 0
 let known = 0
 let reference = null
 
-for (const [name, command, args] of ports) {
+for (const [index, [name, command, args]] of ports.entries()) {
+  // THE REFERENCE IS ROW 0, AND IT IS NOT WHICHEVER ROW HAPPENS TO RUN FIRST. This used to read
+  // `if (reference === null)`, so a reference that failed to start promoted the next row into its
+  // place, silently. Measured on 2026-09-17: the TypeScript row could not run, the browser build
+  // became the reference, and the run reported `157 inputs × 4 implementations, 1 disagreement` —
+  // naming a reference that had never executed, and comparing Rust and Swift against a build that
+  // was never meant to be the standard. The count was true and the claim underneath it was not.
+  const isReference = index === 0
   let rows
   try {
     rows = port(command, args, inputs)
   } catch (error) {
-    console.error(`${name}: could not run — ${error.message.split("\n")[0]}`)
+    console.error(`${name}: could not run — ${error.message}`)
     failures += 1
+    if (isReference) break
     continue
   }
   if (rows.length !== inputs.length) {
     console.error(`${name}: produced ${rows.length} rows for ${inputs.length} inputs`)
     failures += 1
+    if (isReference) break
     continue
   }
-  if (reference === null) {
+  if (isReference) {
     reference = rows
     continue
   }
@@ -146,7 +168,8 @@ for (const [name, command, args] of ports) {
 }
 
 if (reference === null) {
-  console.error("the reference implementation did not run; nothing was compared")
+  const [referenceName] = ports[0]
+  console.error(`${referenceName} is the reference and it did not run; nothing was compared`)
   process.exit(1)
 }
 
