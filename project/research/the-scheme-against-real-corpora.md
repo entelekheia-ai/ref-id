@@ -1,6 +1,6 @@
 # Research — Does the `ref:` scheme identify what real producers declare, and what they have already stored?
 
-Feeds [Plan-001](../plans/001-the-identity-package.md), Tracks 3 and 4, and the `state`/`when`, manifest-corpus and typed-fragment rules now in `spec/ref-id.json`.
+Feeds [Plan-001](../plans/shipped/001-the-identity-package.md), Tracks 3 and 4, and the `state`/`when`, manifest-corpus and typed-fragment rules now in `spec/ref-id.json`.
 Expires when: the specification leaves scheme version 1, or a producer surveyed here changes its record format.
 
 **The answer.** The scheme covers what a manifest proves: over nine in ten declared things — packages, traits, observation specs, detectors, compositions, governed records — map with every part taken from a declaration, and the remainder fail for a name nobody declared, with one gap outside the scheme (Package URL has no type for marketplace extensions). Admitting a moment (`when`) into the identifier turns stored readings into units: over nine in ten readings of one producer and virtually all of another become distinct identifiers, where a handful had been before. What stays unidentifiable is, without exception, a name absent from every manifest. Confidence **high** — every count comes from a deterministic generator run over a frozen snapshot.

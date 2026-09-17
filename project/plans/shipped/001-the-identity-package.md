@@ -6,7 +6,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-06 |
 | Author | Danilo Borges |
 | Related | ADR-0001, ADR-0002, ADR-0003 |
@@ -177,7 +177,7 @@ own.
   the vectors, and the dialect each engine needed recorded in the specification's adaptations table.
   ```
 
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
 
 ## Success criteria
@@ -412,6 +412,34 @@ own.
   Date / Author: 2026-09-15 / Danilo Borges
 
 ## Outcomes & Retrospective
+
+**2026-09-16 — closed.** All five goals were met. The specification file and its vectors (Goal 1)
+grew from 83 vectors at 1.0.0 to a 1.3.0 spec now carrying 195 TypeScript conformance tests across 8
+vector families (parse, roundtrip, build, digest, envelope, canonical, comparison, dialect/integrity);
+the package (Goal 2) decomposes with one expression and delegates every locator to its owning validator;
+the envelope invariant (Goal 3) is enforced and refuses a member set that no longer recomputes; every
+identity the consuming tools declare was mapped without inventing a name, with the one real gap (a
+marketplace-extension purl type) recorded rather than patched over (Goal 4); and the reconstruction report
+(Goal 5) ran against 6,254 stored records and identified 5,196 of them, turning up the `when` qualifier
+this plan needed.
+
+All six tracks landed as designed; none was cut. Success criteria, re-run at closure rather than taken on
+faith: TypeScript 195/195 green, Rust 12/12 (`cargo test --workspace`), Swift 582/0 failed (`swift run
+ref-id-conformance`), the grammar runners 102/102 in both python-re and pcre2, and the package's only
+runtime dependency is `packageurl-js` — no native runtime anywhere. The one genuinely open item at the
+2026-09-09 entry — canonical-form parity in Rust and Swift, noted then as "owed and open" — closed itself
+between that entry and this one: both ports now carry `canonical_vectors`/canonical conformance tests and
+pass them, with no Decision Log entry marking when, because the work landed inside Track 6 rather than as
+a separate decision.
+
+What was cut, by design rather than by discovery: adopting the scheme in any consumer, a Python port
+(runners kept, package dropped), computing a frozen-state qualifier, and the corpus question for files no
+manifest reaches. All four are named in Scope § Out of scope and none reopened during the six tracks.
+
+Nothing here was routed through a task dossier, because none was spawned — every track was small enough
+to execute directly against the plan. The one skill correction this plan's own work produced (the
+`identify` skill's over-generalised freeze/version rule, Decision Log 2026-09-15) was already applied to
+`.agents/skills/identify/SKILL.md` the same day, so there is nothing left to route from that finding.
 
 **2026-09-09 — the first consumer amended the specification twice, and both amendments were additive.**
 `specVersion` 1.2.0 adds the `ai-model` type and `over=unknown`. The result worth keeping is the parity
