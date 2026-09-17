@@ -54,7 +54,6 @@ export interface RefIdSpec {
   unknownRefinement: string
   resolutionStates: string[]
   stateLevels: string[]
-  fragmentGrammars: Record<string, { declaredName: string; tieBreak: string }>
   digest: {
     algorithm: string
     over: string

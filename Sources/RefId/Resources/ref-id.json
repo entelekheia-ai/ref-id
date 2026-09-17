@@ -198,16 +198,20 @@
    "locator",
    "fragment.path"
   ],
+  "cut": "the locator names the item and the fragment names one level inside it. What that level is depends on the kind of item — a folder cuts to a file, a file to a declared name inside it. Descending a level moves the previous one into the locator, so an identifier carries exactly one cut and choosing where to cut is choosing what is named.",
+  "scope": "a path inside the locator is the scope a declared name was declared in, not where the bytes sit. The scope of a heading in a document IS that document, which is why it belongs to identity; a language that gives a symbol a qualified name needs no path for the same reason.",
   "location": [
-   "path",
-   "byte range"
+   "a filesystem path on one machine",
+   "a byte offset into one copy",
+   "a mirror serving the same bytes"
   ],
   "freeze": [
    "state"
   ],
   "moment": [
    "when"
-  ]
+  ],
+  "note": "location is how a reader reaches the bytes from OUTSIDE the identifier, and it never enters one. A refinement such as `lines=` is not location: it narrows within the cut, and it is declared, not measured."
  },
  "qualifiers": {
   "state": {
@@ -302,28 +306,6 @@
   "content-hash",
   "none"
  ],
- "fragmentGrammars": {
-  "governed-record": {
-   "declaredName": "<provider>/<type>@<template version>/<name>, every part from the record's own front matter stamp; the provider of the type declares the form of <name>",
-   "tieBreak": "none"
-  },
-  "markdown": {
-   "declaredName": "the heading text",
-   "tieBreak": "ordinal on collision within one document"
-  },
-  "code-symbol": {
-   "declaredName": "the fully-qualified name, no path",
-   "tieBreak": "per the language"
-  },
-  "behavior-state": {
-   "declaredName": "the state name within its agent, never within its file",
-   "tieBreak": "none"
-  },
-  "data-declared-id": {
-   "declaredName": "an id field the record declares in its own data — a case slug, a capability name — not its front matter",
-   "tieBreak": "none"
-  }
- },
  "digest": {
   "algorithm": "sha256",
   "over": "identifier-strings",
@@ -355,7 +337,7 @@
   "samePackage": {
    "symmetry": "symmetric",
    "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an @ belongs to the format and is part of the stem. Where a version is carried, an @ that opens a segment is a namespace and an @ inside a segment closes the name — the version runs to the next /, and the path after it stays in the stem, because one file at two releases is one file.",
-   "purpose": "whether two identifiers name the same released thing at whatever version each declares"
+   "purpose": "whether two identifiers name the same released thing at whatever version each declares. Only a type declaring `versionTail` has a version dimension at all — three of the nine do — so for every other type this relation is equality, and its name is borrowed from the type that motivated it."
   },
   "covers": {
    "symmetry": "asymmetric — the general covers the specific, and the specific does not cover the general",

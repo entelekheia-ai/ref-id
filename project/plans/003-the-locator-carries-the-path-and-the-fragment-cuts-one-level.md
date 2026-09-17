@@ -203,32 +203,32 @@ discriminant and not a description. The attribute is the *result*, and that stay
 
 ## Tracks
 
-- [ ] **Track 1 — The locator carries the path.** Widen `dispatch.folder.pattern`; implement the
+- [x] **Track 1 — The locator carries the path.** Widen `dispatch.folder.pattern`; implement the
       segment rule for `@` in the `package-url` validator and in `split()` so a `pkg` subpath is not
       swallowed by the version; re-seal the spec with `node scripts/seal-spec.mjs` and copy the pair
       into both ports. At the end the three decompositions above hold and
       `ref:pkg:npm/x@1.0.0/docs/guide.md` canonicalises without `%2F`. New vectors: the widened
       folder case, the three `@` decompositions, and the inversion of *"corpus name with a path
       separator is malformed"* — the one existing vector this plan revokes.
-- [ ] **Track 2 — `covers` by segment prefix.** Change the stem comparison in all three
+- [x] **Track 2 — `covers` by segment prefix.** Change the stem comparison in all three
       implementations. Add the two witness vectors (corpus vs a file under it → true; corpus vs a
       sibling corpus whose name merely starts with the same characters → false) and keep the
       uncovered-type pair at false. At the end all 17 existing comparison vectors still pass and the
       two new ones bind the boundary.
-- [ ] **Track 3 — The Package URL conversion becomes a rule.** Write the subpath mapping and the
+- [x] **Track 3 — The Package URL conversion becomes a rule.** Write the subpath mapping and the
       declared loss into `dispatch.pkg` and `docs/reference/the-ref-scheme.md`. At the end there is a
       vector per direction and the documentation states what a purl cannot carry.
-- [ ] **Track 4 — The specification reorganises by type.** Move `samePackage` and the qualifier
+- [x] **Track 4 — The specification reorganises by type.** Move `samePackage` and the qualifier
       admissibility into `dispatch`; move `fragmentGrammars` into `docs/reference/the-ref-scheme.md`;
       repoint the five reads of `spec.qualifiers` (`parse.ts:194,202`, `build.ts:18`, `spec.ts:162`).
       Correct `docs/reference/the-ref-scheme.md:222`, which states the prohibition this plan revokes,
       and the folder row at `:202`, the fragment-grammars section at `:491-503` and the qualifiers
       section at `:307`. At the end no rule true of one type sits outside that type's entry.
-- [ ] **Track 5 — The skill and the mint follow the specification.** Rewrite `SKILL.md:26-33` to the
+- [x] **Track 5 — The skill and the mint follow the specification.** Rewrite `SKILL.md:26-33` to the
       level rule; teach `identify.ts mint --path` to put the file in the locator. At the end,
       re-minting a corpus produces one `state=` per file, and the same heading text in two documents
       produces two identifiers.
-- [ ] **Track 7 — A mailbox is a corpus.** `email` today refuses a path because its locator is an RFC
+- [x] **Track 7 — A mailbox is a corpus.** `email` today refuses a path because its locator is an RFC
       5322 addr-spec, and `dispatch.email.declaredBy` states the reason as a claim about the world:
       *"a mailbox identifies a person or a role; nothing lives under it"*. That claim is false — what
       sits under a mailbox is the person's own items, named by whoever serves them, and the scheme
@@ -310,6 +310,30 @@ entrance test is what will catch any hand-rolled parsing that creeps in behind t
   whether an item's id was minted by a mail provider or by the person changes nothing the scheme can
   check. The delegated addr-spec runs to the first `/`, so RFC 5322 still describes what the validator
   receives.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: `qualifiers` stays transversal and does **not** move into `dispatch`.
+  Rationale: measured while working Track 4, against the plan's own Design section. `state=` freezes
+  anything, and `by=`/`over=`/`when=` describe a reading — an `isbn` can be read by an instrument at a
+  moment as readily as a `pkg` can. Declaring them per type would copy four entries into nine dispatch
+  entries, which is the repetition this track exists to remove, in the other direction. What is genuinely
+  of one type is `samePackage`: three of the nine declare `versionTail`, and for the other six the
+  relation is equality wearing a borrowed name.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: `samePackage` keeps its name; only its stated purpose is corrected.
+  Rationale: the name is exported from the published package, so renaming it breaks the one production
+  consumer for a cosmetic gain. The text is what was asserting of nine types something true of three.
+  Reopens if the package takes a breaking release for another reason.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: the Swift port stays independent rather than binding to the Rust purl crate.
+  Rationale: the only Swift Package URL implementation was last pushed in 2021 and has no release, so the
+  choice was between writing ~100 lines and calling Rust over a C ABI. Binding would make the two ports
+  agree by construction, and the differential test would compare an implementation with itself — the
+  defect found in an earlier review surfaced precisely because the readers were independent. It would
+  also require cargo at build time or a pre-built XCFramework per platform. The three canonicalisation
+  divergences the port does carry are bound by vectors instead, in Track 6.
   Date / Author: 2026-09-17 / Danilo Borges
 
 - Decision: `state=` stays a qualifier and gains no position on the fragment side.

@@ -199,9 +199,9 @@ When the status is `malformed`, the reported part is one of:
 | Type | Locator form | Validated by | Use when |
 |---|---|---|---|
 | `pkg` | a Package URL, versioned or not | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | the nearest manifest declares a name; unversioned, the Package URL names the living package and `state=` carries the frozen one |
-| `folder` | a declared corpus name | `^[A-Za-z0-9][A-Za-z0-9._-]*$` | no manifest declares a name anywhere above the file |
+| `folder` | a declared corpus name, then one segment per directory down to the file | `^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)*$` | the file is not one a package manager ships, so no release contains it: `ref:folder:acme-tools/docs/guide.md#Setup`. A clean install of the package would not hold this file, and a `pkg` identifier for it would resolve to nothing |
 | `url` | `host(/segment)*(@version)?` — a host under the owner's control, then each path segment a name the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; a segment admits every character except `/`, `@`, `;`, `#` and `:` — the colon is excluded so an identifier spelled in another format's own convention (a version after a colon, a digest after a tilde) is refused rather than absorbed silently, with the version and digest inert inside a name; `~` is admitted alone, because a digest never appears without the colon that precedes it; an optional `@version` on the last segment | the thing exists *as* a host — a site, a portfolio, a case published under it: `ref:url:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
-| `email` | an addr-spec, `local@host` | RFC 5322 dot-atom local part, host as above | a mailbox identifies a person or a role. Nothing lives under it: `ref:email:someone@mail.example/doctor` is malformed at the locator, because what a mailbox publishes belongs to the ecosystem that publishes it |
+| `email` | an addr-spec as the first segment, then one segment per item served under it | RFC 5322 dot-atom local part on the first segment only, host as above | a mailbox identifies a person or a role, and the items served under it are declared by whoever serves them — a message by its RFC 5322 Message-ID, a thread by the id its provider minted: `ref:email:someone@mail.example/CADx9v7abc123@mail.gmail.com#Assunto`. The addr-spec is the first segment and nothing else, so an item id carrying an `@` is never mistaken for the mailbox. A Message-ID is written without the angle brackets the RFC surrounds it with, which is the form a mail API hands over |
 | `unknown` | a deferred species, `species:name(@version)?` | a declared-name pattern, deliberately permissive | an authority this registry does not cover, named precisely instead of opaquely: `ref:unknown:doi:10.1000/182`, `ref:unknown:orcid:0000-0002-1825-0097`. Promoting the species to a type of its own later leaves the written identifier unchanged and moves only its status, from `uncovered` to `ok` |
 | `tel` | a global number, `+` and up to 15 digits | ITU-T E.164, written as RFC 3966's `global-number-digits` — the leading `+` is required, so one number has one spelling | a telephone number: `ref:tel:+15551234567`. A visually separated spelling is refused, not repaired |
 | `isbn` | 10 or 13 digits, no hyphens | ISO 2108, pattern and check digit | a book number: `ref:isbn:9780306406157`. A 13-digit ISBN is also a GTIN-13 under the 978/979 prefixes; the two types overlap there deliberately and diverge at the 10-digit form |
@@ -215,12 +215,23 @@ here is what promotes it to `ok`. A type name is admissible only when an unrelat
 problem would have chosen it identically — see
 [`what-earns-a-type.md`](../explanation/what-earns-a-type.md) for the test and for what was rejected.
 
-A Package URL's own `#subpath` cannot be represented as a `pkg` locator: the locator excludes both `;` and
-`#`, so there is no encoding that lets a subpath through. A builder asked to build one **MUST** refuse,
-naming the locator as the failing part.
+A Package URL's own `#subpath` reaches a `pkg` locator as a path after the version, never as a `#`. The
+locator excludes both `;` and `#` and carries no encoding that would let one through, so a builder handed
+a literal `#` **MUST** refuse, naming the locator as the failing part — but `npm/x@1.0.0/docs/guide.md` is
+admissible and canonicalises as `pkg:npm/x@1.0.0#docs/guide.md`, the subpath leaving for the component
+that means exactly this. The scheme's own `#` has no Package URL equivalent and is a declared loss in that
+direction.
 
-A corpus name **MUST NOT** contain a path separator; `ref:folder:acme-governance/docs#AGENTS.md` is
-malformed at the locator. An invalid Package URL is likewise malformed at the locator.
+**Where the version ends and the path begins is decided by one rule.** An `@` preceded by `/`, or first in
+the locator, opens a segment and belongs to the name — `npm/@acme/x` carries no version. An `@` inside a
+segment closes the name: the version runs from it to the next `/`, and everything after that `/` is the
+path. **With no version declared there is no marker at all**, so `npm/a/b/c` stays a namespaced package
+and carries no path — a file in a corpus nobody versioned is named through `folder`.
+
+A corpus name carries the path to a file inside it: `ref:folder:acme-governance/docs/AGENTS.md#Licence`
+names a declared name inside that file, and `ref:folder:acme-governance/docs/` is malformed at the
+locator, because a trailing separator names no item. An invalid Package URL is likewise malformed at the
+locator.
 
 The SWHID core form is the single declared exception to **delegation** — the one format owned by another
 specification that this file validates itself, because no maintained validator for it exists on the package
@@ -490,18 +501,28 @@ and leaves a string that still validates, so nothing reports the loss.
 
 ## Fragment grammars
 
-The declared-name path is interpreted by the target's document model.
+**This table is guidance for whoever mints, not a rule any parser applies.** The scheme does not
+interpret the kind of item being cut: it hands over what it can, and the implementer finds the rest.
+That is why this table lives here and not in `spec/ref-id.json` — a table in the specification reads as
+a contract, and no implementation has ever consulted this one.
+
+What stays normative is only the shape: the locator names the item, the fragment names one level inside
+it, and a refinement narrows within that level.
 
 | Document model | Declared name | Tie-break |
 |---|---|---|
 | A governed record | `<provider>/<type>@<template version>/<name>` — every part from the record's own front-matter stamp; the provider of the type declares the form of `<name>` (a record number, or a front-matter `name` field) | none needed |
-| Markdown prose | the heading text | ordinal, on collision within one document |
+| Markdown prose | the heading text | **the file is in the locator**, so two documents never share a name; ordinal on collision within one document |
 | A code symbol | the fully-qualified name, no path | per the language's own rules |
 | A `.behavior` state | the state name within its agent, never within its file | none needed |
 | A record's own data | an `id` field the record declares in its data — a case slug, a capability name — not its front matter | none needed |
 
-The last row is the one measured to matter: per-file namespacing left 766 transitions dangling, because one
-agent's behaviour files share their states between them.
+Two rows are measured rather than reasoned. The `.behavior` one: per-file namespacing left 766
+transitions dangling, because one agent's behaviour files share their states between them — there the
+file is the wrong scope. Markdown is the opposite case and the one that motivated this table's
+correction: the scope of a heading **is** its document, so with the corpus alone in the locator every
+`## Overview` in a tree minted one identifier. A code symbol needs no path for the same reason the
+`.behavior` state needs none — the language, or the agent, already supplies the scope.
 
 ## The specification file itself
 
