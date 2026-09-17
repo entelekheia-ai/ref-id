@@ -17,9 +17,46 @@ pub(crate) struct Validation {
     pub canonical: Option<String>,
 }
 
+/// Where a Package URL locator stops being the package and starts being a path inside it.
+///
+/// An `@` that opens a segment — preceded by `/`, or first in the string — belongs to a namespace and is
+/// part of the name. An `@` inside a segment closes the name: the version runs from it to the next `/`,
+/// and whatever follows that `/` is the subpath. Without a version there is no marker at all, so
+/// `npm/a/b/c` stays a namespaced package and carries no subpath — a file inside a corpus nobody
+/// versioned is named through `folder`.
+///
+/// The subpath leaves here as the Package URL's own `#subpath` component, which is what that component
+/// means; the scheme's `#` is the declared name one level below the file and has no purl equivalent.
+/// Ported from `packages/ref-id/src/validators.ts:52` (`splitSubpath`).
+fn split_subpath(delegated: &str) -> (&str, Option<&str>) {
+    let chars: Vec<(usize, char)> = delegated.char_indices().collect();
+    for i in 1..chars.len() {
+        let (byte_idx, c) = chars[i];
+        if c != '@' || chars[i - 1].1 == '/' {
+            continue;
+        }
+        return match delegated[byte_idx..].find('/') {
+            None => (delegated, None),
+            Some(rel) => {
+                let slash = byte_idx + rel;
+                (&delegated[..slash], Some(&delegated[slash + 1..]))
+            }
+        };
+    }
+    (delegated, None)
+}
+
 fn package_url(_spec: &Spec, _entry: &Value, delegated: &str) -> Result<Validation, RefIdError> {
-    Ok(match packageurl::PackageUrl::from_str(delegated) {
-        Ok(purl) => Validation { ok: true, canonical: Some(purl.to_string()) },
+    let (base, subpath) = split_subpath(delegated);
+    Ok(match packageurl::PackageUrl::from_str(base) {
+        Ok(mut purl) => {
+            if let Some(path) = subpath {
+                if purl.with_subpath(path).is_err() {
+                    return Ok(Validation { ok: false, canonical: None });
+                }
+            }
+            Validation { ok: true, canonical: Some(purl.to_string()) }
+        }
         Err(_) => Validation { ok: false, canonical: None },
     })
 }
