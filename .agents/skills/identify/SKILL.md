@@ -24,13 +24,32 @@ This step is judgement and runs before the script. Five rules decide it, and eac
 the grammar would otherwise accept.
 
 **Only what somebody declared receives an identifier.** A name declared inside a package, or a
-composition a package declares by name, is a node. A relation between two nodes is an edge. The
-conditions a reading was taken under are attributes. Neither an edge nor an attribute gets an identifier,
-and stopping here is a correct outcome of this skill — say so and stop.
+composition a package declares by name, is a node. A relation between two nodes is an edge. What a
+reading *found* — a verdict, a score, a count — is an attribute. Neither an edge nor an attribute gets an
+identifier, and stopping here is a correct outcome of this skill — say so and stop. The conditions a
+reading was taken under are a different thing and they belong in the name: `by=`, `over=` and `when=`
+are what tell two readings apart, so a store keyed by identifier would collapse them into one without.
 
-**Location never enters identity.** Identity is the type, the locator and the fragment path. A file path
-and a byte range are location, and a file path inside an identifier is the defect this separation exists
-to catch — a target that can only be described by where it sits has not been declared yet.
+**The `#` cuts exactly one level below what the locator names.** What that level is depends on the type
+of the item being cut — a folder's cut is a file, a file's cut is a declared name inside it, a sentence's
+cut is a word. Descending a level pushes the previous one into the locator, so an identifier carries
+exactly one cut, and **choosing where to cut is choosing what is being named**:
+
+```text
+ref:folder:acme-tools#docs/guide.md                 ← the item is the corpus, the cut is a file
+ref:folder:acme-tools/docs/guide.md#Setup           ← the item is the file, the cut is a heading
+ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20   ← a refinement narrows within the cut
+```
+
+All three are correct; they name three different things. What is *not* correct is skipping a level —
+cutting at the corpus and hanging a heading on it, which is what produces one identifier for every
+`## Overview` in the tree, and leaves `state=` with nowhere to go but the corpus it is not about.
+
+**A path in the locator is scope, not location.** The scope of a heading in a Markdown file *is* that
+file — unlike a code symbol, whose language gives it a qualified name and whose fragment grammar
+therefore says *"no path"*. Identity is where the cut was made; location is how a reader reached it from
+outside the identifier, and a byte offset stays outside. In `pkg`, the path follows the version and has
+no marker without one, so a file in a corpus nobody versioned is named through `folder`.
 
 **A released version belongs in the locator.** The ecosystem declared `x@1.0.0`, so the version is part
 of the name, and it goes wherever that type's grammar declares one — `pkg`, `url` and `unknown` carry it
@@ -62,10 +81,36 @@ when a rule above is disputed rather than applied.
 
 ```sh
 node .agents/skills/identify/scripts/identify.ts mint --path <path> --fragment '<declared name>'
+node .agents/skills/identify/scripts/identify.ts mint --path <path> --fragment '<name>' --root <dir>
 node .agents/skills/identify/scripts/identify.ts mint --path <path> --corpus
 node .agents/skills/identify/scripts/identify.ts mint --type <type> --locator <locator> \
   --fragment '<name>' --qualifier 'when=2026-01-01T00:00:00Z'
 ```
+
+### Which type a file gets, and why the answer is not a preference
+
+The locator reaches the file, so something has to say where it starts counting from. **One question
+decides it: does a clean install of the package contain this file?**
+
+| The package manager ships it | It does not |
+|---|---|
+| `ref:pkg:npm/x@1.0.0/README.md#Install` | `ref:folder:x/test/parse.test.ts#vectors` |
+| The version is part of the name, because that release is where the file is | The package directory is the root, and its **base name** is the corpus name |
+
+The question is answered by `npm pack --dry-run --json` — the list a publish would actually upload, so
+the `files` field, the ignore files and every npm default are npm's answer and not a re-implementation
+here. Getting that wrong fails in the direction that matters: a `pkg` identifier for a file the install
+does not contain resolves to nothing.
+
+Two consequences, both deliberate:
+
+- **The corpus name is the directory's base name, never the manifest's `name`.** A scoped package name
+  (`@acme/tools`) cannot be a declared corpus name, and cutting it to its last segment would put two
+  scopes under one corpus. `--root` overrides the root for a subtree no manifest describes.
+- **Nothing is written to disk to record the name, and nothing needs to be.** `ref:folder:xpto/etc`
+  matches inside `xpto` and nowhere else; a reader that wants the bytes has to locate `xpto` itself,
+  exactly as a reader of `ref:pkg:npm/x@1.0.0` has to reach a registry. The identifier names; resolving
+  is the reader's half, and the scheme promises nothing about it.
 
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.

@@ -28,17 +28,40 @@ struct Split {
 }
 
 /// The locator without its version, and the version it carried — only for a type whose dispatch entry
-/// declares `versionTail`. The version is the last `@`-introduced run with nothing but the end after it.
+/// declares `versionTail`.
+///
+/// **Whether a locator carries a version at all is the type's business**, read from `versionTail` rather
+/// than guessed from punctuation. Within a type that does carry one, an `@` that opens a segment —
+/// preceded by `/`, or first — belongs to a namespace (`npm/@acme/x` has no version). An `@` inside a
+/// segment closes the name: the version runs from it to the next `/`, and whatever follows that `/` is a
+/// path inside the named thing. **The path stays in the stem, and only the version leaves it** — a file
+/// at two releases is one file, so `npm/x@1.0.0/docs/guide.md` and `npm/x@2.0.0/docs/guide.md` share the
+/// stem `npm/x/docs/guide.md`. Ported from `packages/ref-id/src/relations.ts:30` (`split`).
 fn split(spec: &Spec, r#type: &str, locator: &str) -> Split {
     if !version_tail(spec, r#type) {
         return Split { stem: locator.to_string(), version: None };
     }
-    match locator.rfind('@') {
-        Some(at) if at > 0 && !locator[at + 1..].contains('/') => {
-            Split { stem: locator[..at].to_string(), version: Some(locator[at + 1..].to_string()) }
+    let chars: Vec<(usize, char)> = locator.char_indices().collect();
+    for i in 1..chars.len() {
+        let (byte_idx, c) = chars[i];
+        if c != '@' || chars[i - 1].1 == '/' {
+            continue;
         }
-        _ => Split { stem: locator.to_string(), version: None },
+        return match locator[byte_idx..].find('/') {
+            None => Split {
+                stem: locator[..byte_idx].to_string(),
+                version: Some(locator[byte_idx + 1..].to_string()),
+            },
+            Some(rel) => {
+                let slash = byte_idx + rel;
+                Split {
+                    stem: format!("{}{}", &locator[..byte_idx], &locator[slash..]),
+                    version: Some(locator[byte_idx + 1..slash].to_string()),
+                }
+            }
+        };
     }
+    Split { stem: locator.to_string(), version: None }
 }
 
 /// The identifier, when this crate vouches for how it was decomposed — `ok` or `uncovered` only.
@@ -52,6 +75,17 @@ fn read(spec: &Spec, identifier: &str) -> Option<ParseResult> {
     } else {
         None
     }
+}
+
+/// Whether the general identifier's stem reaches the specific one's.
+///
+/// Equal stems name one thing. Otherwise the general one covers the specific when its stem is a whole
+/// **segment** prefix of it — `acme-tools` reaching `acme-tools/docs/guide.md`. The segment boundary is
+/// the whole of the rule: a bare string prefix would make `acme-tools` cover `acme-tools-extra`, two
+/// corpora that share nothing but their first characters. Ported from
+/// `packages/ref-id/src/relations.ts:49` (`stemReaches`).
+fn stem_reaches(general: &str, specific: &str) -> bool {
+    general == specific || specific.starts_with(&format!("{general}/"))
 }
 
 /// Whether every pair the first declares appears identically in the second.
@@ -104,7 +138,7 @@ pub fn covers(general: &str, specific: &str) -> bool {
         return false;
     }
     let (gen, spe) = (split(spec, &x.r#type, &x.locator), split(spec, &y.r#type, &y.locator));
-    if gen.stem != spe.stem {
+    if !stem_reaches(&gen.stem, &spe.stem) {
         return false;
     }
     if let Some(gv) = &gen.version {

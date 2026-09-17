@@ -19,15 +19,35 @@ import type { Pair, ParseResult } from "./types.ts"
  * quantisation on a served model, and appears in neither a telephone number nor an article number.
  * Guessing reported two different mailboxes as one thing.
  *
- * Within a type that does carry one, the version is the last `@`-introduced run with nothing but the end
- * after it — so `npm/x@1.0.0` has one and `npm/@acme/x` does not, its `@` opening a namespace segment
- * rather than closing the name.
+ * Within a type that does carry one, an `@` that opens a segment — preceded by `/`, or first — belongs
+ * to a namespace, so `npm/@acme/x` has no version. An `@` inside a segment closes the name: the version
+ * runs from it to the next `/`, and whatever follows that `/` is a path inside the named thing.
+ *
+ * **The path stays in the stem, and only the version leaves it.** The stem answers *which thing*, and a
+ * file at two releases is one file — so `npm/x@1.0.0/docs/guide.md` and `npm/x@2.0.0/docs/guide.md`
+ * share the stem `npm/x/docs/guide.md` and are the same package, while two files in one release do not.
  */
 function split(spec: RefIdSpec, type: string, locator: string): { stem: string; version?: string } {
   if (!spec.dispatch[type]?.versionTail) return { stem: locator }
-  const at = locator.lastIndexOf("@")
-  if (at <= 0 || locator.slice(at + 1).includes("/")) return { stem: locator }
-  return { stem: locator.slice(0, at), version: locator.slice(at + 1) }
+  for (let index = 1; index < locator.length; index += 1) {
+    if (locator[index] !== "@" || locator[index - 1] === "/") continue
+    const slash = locator.indexOf("/", index)
+    if (slash < 0) return { stem: locator.slice(0, index), version: locator.slice(index + 1) }
+    return { stem: locator.slice(0, index) + locator.slice(slash), version: locator.slice(index + 1, slash) }
+  }
+  return { stem: locator }
+}
+
+/**
+ * Whether the general identifier's stem reaches the specific one's.
+ *
+ * Equal stems name one thing. Otherwise the general one covers the specific when its stem is a whole
+ * **segment** prefix of it — `acme-tools` reaching `acme-tools/docs/guide.md`. The segment boundary is
+ * the whole of the rule: a bare string prefix would make `acme-tools` cover `acme-tools-extra`, two
+ * corpora that share nothing but their first characters.
+ */
+function stemReaches(general: string, specific: string): boolean {
+  return general === specific || specific.startsWith(`${general}/`)
 }
 
 /**
@@ -101,7 +121,7 @@ export function covers(general: string | ParseResult, specific: string | ParseRe
   if (x.type !== y.type || x.version !== y.version) return false
 
   const [gen, spe] = [split(spec, x.type, x.locator), split(spec, y.type, y.locator)]
-  if (gen.stem !== spe.stem) return false
+  if (!stemReaches(gen.stem, spe.stem)) return false
   if (gen.version !== undefined && gen.version !== spe.version) return false
 
   const path = x.fragment?.path

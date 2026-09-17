@@ -18,8 +18,12 @@ type DispatchEntry = RefIdSpec["dispatch"][string]
 
 const validators: Record<string, (spec: RefIdSpec, entry: DispatchEntry, delegated: string) => Validation> = {
   "package-url": (_spec, _entry, delegated) => {
+    const { base, subpath } = splitSubpath(delegated)
     try {
-      return { ok: true, canonical: PackageURL.fromString(delegated).toString() }
+      const purl = PackageURL.fromString(base)
+      if (subpath === undefined) return { ok: true, canonical: purl.toString() }
+      const withPath = new PackageURL(purl.type, purl.namespace, purl.name, purl.version, purl.qualifiers, subpath)
+      return { ok: true, canonical: withPath.toString() }
     } catch {
       return { ok: false }
     }
@@ -31,6 +35,27 @@ const validators: Record<string, (spec: RefIdSpec, entry: DispatchEntry, delegat
   "check-digit": (spec, entry, delegated) => ({
     ok: pattern(spec, entry.pattern ?? "").test(delegated) && checkDigitHolds(delegated),
   }),
+}
+
+/**
+ * Where a Package URL locator stops being the package and starts being a path inside it.
+ *
+ * An `@` that opens a segment — preceded by `/`, or first in the string — belongs to a namespace and is
+ * part of the name. An `@` inside a segment closes the name: the version runs from it to the next `/`,
+ * and whatever follows that `/` is the subpath. Without a version there is no marker at all, so
+ * `npm/a/b/c` stays a namespaced package and carries no subpath — a file inside a corpus nobody
+ * versioned is named through `folder`, whose locator needs no such marker.
+ *
+ * The subpath leaves here as the Package URL's own `#subpath` component, which is what that component
+ * means; the scheme's `#` is the declared name one level below the file and has no purl equivalent.
+ */
+function splitSubpath(delegated: string): { base: string; subpath?: string } {
+  for (let index = 1; index < delegated.length; index += 1) {
+    if (delegated[index] !== "@" || delegated[index - 1] === "/") continue
+    const slash = delegated.indexOf("/", index)
+    return slash < 0 ? { base: delegated } : { base: delegated.slice(0, slash), subpath: delegated.slice(slash + 1) }
+  }
+  return { base: delegated }
 }
 
 /**

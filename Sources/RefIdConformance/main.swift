@@ -12,13 +12,19 @@ import RefId
 // `--parse`: read one identifier per line on stdin, print one canonical JSON result per line — the
 // surface the differential test against the TypeScript reference reads.
 if CommandLine.arguments.contains("--parse") {
+    // `--canonical` keeps the field the default protocol drops. The drop is deliberate: a locator's
+    // validity belongs to the format, and the three purl validators disagree at the edge, so the shared
+    // protocol compares every field except that verdict. Canonicalisation is a different question —
+    // two systems that compare identifiers by canonical form must agree on it — so it is measurable
+    // here rather than silently excluded with the verdict.
+    let withCanonical = CommandLine.arguments.contains("--canonical")
     var failures = 0
     while let line = readLine(strippingNewline: true) {
         let input = line.replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\r", with: "\r")
         do {
             let result = try parse(input)
             var json = result.asJSON()
-            json["canonical"] = nil
+            if !withCanonical { json["canonical"] = nil }
             if let serialised = try? serialise(result) { json["serialised"] = serialised }
             print(try canonicalJSON(json))
         } catch {

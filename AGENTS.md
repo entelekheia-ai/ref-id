@@ -48,8 +48,22 @@ is expected and is checked against the same vectors, never against this code.
   SWHID core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL
   core grammar (no maintained Swift library). The three purl validators differ at the edge — `packageurl-js`
   accepts an empty name after a namespace and a version ending in `/`; the `packageurl` crate and the Swift
-  validator refuse them — and a locator's validity is the format's, so a differential test compares every
+  validator refuse them — and a locator's validity is the format's, so the differential test compares every
   field except that verdict.
+- **Each suite proves its own implementation; only the differential proves they agree with each other.**
+  `npm run test:differential` runs all three over every input the specification names — drawn from the
+  vector groups themselves, so the corpus grows with the spec — and fails on the first disagreement. All
+  three speak one line protocol (`packages/ref-id/parse-lines.ts`, `cargo run --example parse_lines`,
+  `swift run ref-id-conformance --parse`), and all three are run the same way for a reason: calling the
+  reference in-process would judge it by a path the ports never take. It runs in CI on the macOS runner,
+  the only job where the three can coexist. A field no vector constrains can otherwise be decided three
+  ways with every suite green, which is what happened to Package URL canonicalisation.
+- **The three agree on every answer and not yet on every name.** The public surfaces are not at parity —
+  `sameIdentifier` exists only in TypeScript — and nothing verifies that they should be, because the
+  specification declares no surface: it has no `operations`, `api` or `exports` key. The seven vector
+  groups are seven operations and every runner asserts it executes all of them, which is half the
+  mechanism; the half that is missing is a declared mapping from operation to group, so an operation with
+  no group of its own cannot go missing quietly.
 
 ## Source of truth
 

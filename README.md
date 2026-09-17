@@ -49,8 +49,16 @@ against vectors, never a re-derivation from this one's source.
 | Package | Purpose | README |
 |---|---|---|
 | `@entelekheia/ref-id` | TypeScript reference: parse, serialise, build, digest and validate `ref:` identifiers and envelopes against `spec/ref-id.json`. | [`packages/ref-id/`](packages/ref-id/README.md) |
-| `ref-id` (Rust) | The same API as a crate under `crates/ref-id`, held to the same vectors; `cargo test --workspace` is its gate. | [`crates/ref-id/`](crates/ref-id/) |
-| `RefId` (Swift) | The same API as a Swift package at the repository root, held to the same vectors; `swift run ref-id-conformance` is its gate. | [`Sources/RefId/`](Sources/RefId/) |
+| `ref-id` (Rust) | A crate under `crates/ref-id`, held to the same vectors; `cargo test --workspace` is its gate. **Its public surface is still reaching parity with the reference** — see below. | [`crates/ref-id/`](crates/ref-id/) |
+| `RefId` (Swift) | A Swift package at the repository root, held to the same vectors; `swift run ref-id-conformance` is its gate. **Its public surface is still reaching parity with the reference** — see below. | [`Sources/RefId/`](Sources/RefId/) |
+
+**The three ports agree on every answer, and not yet on every name.** A differential test runs all three
+over every input the specification names and fails on the first disagreement (`npm run
+test:differential`), so a `ref:` identifier means the same thing in each. What is still under
+construction is the *surface*: the Rust and Swift ports do not yet expose every operation the TypeScript
+reference does — `sameIdentifier` is missing from both — and some operations are spelled differently
+across them. Treat the TypeScript package as the reference for what the API *is*; the other two are
+correct where they overlap it.
 
 ## Install
 

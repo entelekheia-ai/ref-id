@@ -5,20 +5,26 @@
 
 import { readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
+import { RefIdError } from "./errors.ts"
 
-/** Thrown when the loaded spec's bytes do not match its sidecar digest. */
-export class SpecIntegrityError extends Error {
+/**
+ * Thrown when the loaded spec's bytes do not match its sidecar digest.
+ *
+ * Both spec errors extend `RefIdError` so that one `instanceof` covers everything this package throws.
+ * They carry `part: "spec"` because the part that failed is the specification itself rather than any
+ * part of an identifier — the field stays meaningful instead of being left undefined for two of the
+ * five errors.
+ */
+export class SpecIntegrityError extends RefIdError {
   constructor(message: string) {
-    super(message)
-    this.name = "SpecIntegrityError"
+    super("SpecIntegrityError", "spec", message)
   }
 }
 
 /** Thrown when the loaded spec declares a specVersion major, or a vocabulary, this package does not support. */
-export class SpecVersionError extends Error {
+export class SpecVersionError extends RefIdError {
   constructor(message: string) {
-    super(message)
-    this.name = "SpecVersionError"
+    super("SpecVersionError", "spec", message)
   }
 }
 
@@ -54,7 +60,6 @@ export interface RefIdSpec {
   unknownRefinement: string
   resolutionStates: string[]
   stateLevels: string[]
-  fragmentGrammars: Record<string, { declaredName: string; tieBreak: string }>
   digest: {
     algorithm: string
     over: string

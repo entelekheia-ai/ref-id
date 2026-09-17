@@ -7,7 +7,7 @@
 
 import { execFileSync } from "node:child_process"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import { basename, dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -27,7 +27,7 @@ const refId = await import(join(ROOT, "packages/ref-id/src/index.ts"))
 const spec = refId.loadSpecFrom(join(ROOT, "spec"))
 
 type Refusal = { refusal: string; because: string; evidence: Record<string, unknown> }
-type Corpus = { type: string; locator: string; manifest: string }
+type Corpus = { type: string; locator: string; manifest: string; dir: string }
 
 function refuse(refusal: string, because: string, evidence: Record<string, unknown> = {}): Refusal {
   return { refusal, because, evidence }
@@ -86,7 +86,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
           continue
         }
         if (typeof manifest.name === "string") {
-          return { type: "pkg", locator: `npm/${manifest.name}`, manifest: rel(path) }
+          return { type: "pkg", locator: `npm/${manifest.name}`, manifest: rel(path), dir }
         }
         skipped.push(`${rel(path)} (declares no name)`)
         continue
@@ -94,7 +94,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
       if (name === "Cargo.toml") {
         const crate = cargoName(text)
         if (crate) {
-          return { type: "pkg", locator: `cargo/${crate}`, manifest: rel(path) }
+          return { type: "pkg", locator: `cargo/${crate}`, manifest: rel(path), dir }
         }
         skipped.push(`${rel(path)} (a workspace manifest, declaring no package)`)
         continue
@@ -117,7 +117,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
       return refuse("no-corpus", "no manifest reaching this path declares a name", {
         target: rel(target),
         skipped,
-        answer: "declare a folder corpus for the subtree, then pass --type folder --locator <declared name>",
+        answer: "pass --root <the directory whose name the corpus carries>, or --type folder --locator <corpus>/<path>",
       })
     }
     dir = parent
@@ -156,6 +156,63 @@ function candidates(target: string): { model: string; names: string[]; note?: st
   return { model: "unknown", names: [], note: `no fragment grammar covers ${target.split(".").pop()}` }
 }
 
+// ---------------------------------------------------------------- where a file is named from
+
+/**
+ * Whether the package manager ships this file, and at which version — asked of the manager itself.
+ *
+ * `npm pack --dry-run --json` lists exactly what a publish would upload, so the `files` field, the
+ * ignore files and every default npm applies are answered by npm rather than re-implemented here. A
+ * re-implementation is the drift this script exists to avoid, and it would be wrong in the direction
+ * that matters: a file this says is shipped, and is not, mints an identifier that resolves to nothing.
+ *
+ * Only npm is asked. A crate would need `cargo package --list` and a Swift package has no equivalent,
+ * so both fall through to the tree, which is correct rather than merely convenient — a file nobody
+ * publishes is named by where it was declared, never by a release it is absent from.
+ */
+function publishedAs(corpus: Corpus, target: string): { version: string; path: string } | undefined {
+  if (!corpus.locator.startsWith("npm/")) return undefined
+  const wanted = relative(corpus.dir, target)
+  try {
+    const out = execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: corpus.dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    const packed = (JSON.parse(out) as { version?: string; files?: { path: string }[] }[])[0]
+    if (!packed?.version || !packed.files?.some((file) => file.path === wanted)) return undefined
+    return { version: packed.version, path: wanted }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The corpus name a `folder` locator carries, for a file the package manager does not ship.
+ *
+ * **The root is the package's own directory**, and its base name is the corpus name — not the package
+ * name from the manifest, which carries a scope (`@acme/tools`) that no declared corpus name may hold.
+ * `--root` overrides it for a subtree no manifest describes.
+ *
+ * Nothing is written to disk to record this, and nothing needs to be: the name is not a lookup key the
+ * scheme resolves. `ref:folder:xpto/etc` matches inside `xpto` and nowhere else, and a reader that
+ * wants the bytes has to find `xpto` for itself — the same way a reader of `ref:pkg:npm/x@1.0.0` has
+ * to reach a registry. The identifier names; resolving is the reader's half.
+ */
+function folderCorpus(target: string, root: string): { locator: string } | Refusal {
+  const name = basename(root)
+  // The path runs from the root whose base name became the corpus name, never from somewhere else. A
+  // path measured from one directory while the name came from another drops the segments between them,
+  // and two files with the same name in two packages collide under one identifier — the collision this
+  // whole plan exists to remove.
+  const path = relative(root, target)
+  const candidate = `${name}/${path}`
+  return refId.parse(`ref:folder:${candidate}`).status === "ok"
+    ? { locator: candidate }
+    : refuse("corpus-name-unusable", "the root directory's name does not fit a declared corpus name", {
+        root: rel(root),
+        triedName: name,
+        pattern: spec.dispatch.folder.pattern,
+        answer: `pass --root <directory whose name the corpus carries>, or --type folder --locator <corpus>/${path}`,
+      })
+}
+
 // ---------------------------------------------------------------- modes
 
 function mint(args: Map<string, string[]>): never {
@@ -173,12 +230,39 @@ function mint(args: Map<string, string[]>): never {
     if (!existsSync(target)) {
       emit(refuse("no-such-path", "nothing is at that path", { target: path }))
     }
-    const corpus = nearestCorpus(target)
-    if ("refusal" in corpus) {
-      emit(corpus)
+    // A manifest is how a released artifact is found, not how a corpus is. A subtree that declares its
+    // own name is a corpus with no manifest anywhere above it — documentation beside a package, a
+    // repository that publishes nothing — so a manifest that reaches nothing is only fatal when no
+    // declaration reaches the file either.
+    // A manifest is how a released artifact is found, not how a corpus is. A subtree handed in with
+    // `--root` is a corpus with no manifest anywhere above it — documentation beside a package, a
+    // repository that publishes nothing — so a manifest that reaches nothing is only fatal when the
+    // caller named no root either.
+    const given = args.get("root")?.[0]
+    const resolved = nearestCorpus(target)
+    const corpus = "refusal" in resolved ? undefined : resolved
+    if (!corpus && !given) {
+      emit(resolved)
     }
-    type ??= corpus.type
-    locator ??= corpus.locator
+    type ??= corpus?.type ?? "folder"
+    locator ??= corpus?.locator ?? ""
+    // `--corpus` names the package itself and stays unversioned, so a record's identifier survives the
+    // releases it sits through. A file is the other act: the locator continues into the corpus and
+    // reaches the file, and where it continues from is what the two branches below decide.
+    if (!args.has("corpus") && !statSync(target).isDirectory() && !args.get("locator")) {
+      const shipped = corpus && publishedAs(corpus, target)
+      if (corpus && shipped) {
+        type = "pkg"
+        locator = `${corpus.locator}@${shipped.version}/${shipped.path}`
+      } else {
+        const named = folderCorpus(target, given ? resolve(ROOT, given) : (corpus?.dir ?? dirname(target)))
+        if ("refusal" in named) {
+          emit(named)
+        }
+        type = "folder"
+        locator = named.locator
+      }
+    }
     if (!fragment && !args.has("corpus")) {
       const found = candidates(target)
       emit(

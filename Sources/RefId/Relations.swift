@@ -20,16 +20,42 @@ private struct Split {
 }
 
 /// The locator without its version, and the version it carried — only for a type whose dispatch entry
-/// declares `versionTail`. The version is the last `@`-introduced run with nothing but the end after it.
+/// declares `versionTail`.
+///
+/// Whether a locator carries a version at all is the type's business, so this reads `versionTail` rather
+/// than guessing from punctuation. Within a type that does carry one, an `@` that opens a segment —
+/// preceded by `/`, or first in the string — belongs to a namespace, so `npm/@acme/x` has no version. An
+/// `@` inside a segment closes the name: the version runs from it to the next `/`, and whatever follows
+/// that `/` is a path inside the named thing. **The path stays in the stem, and only the version leaves
+/// it** — a file at two releases is one file, so `npm/x@1.0.0/docs/guide.md` and
+/// `npm/x@2.0.0/docs/guide.md` share the stem `npm/x/docs/guide.md`.
+///
+/// Walks `Array(locator)` rather than `String.Index` arithmetic — a slice of an `Array<Character>` keeps
+/// the original indices, which is what lets the found `@` and `/` positions be sliced back together.
 private func split(_ spec: Spec, _ type: String, _ locator: String) -> Split {
-    guard versionTail(spec, type), let at = locator.lastIndex(of: "@"), at > locator.startIndex else {
-        return Split(stem: locator, version: nil)
+    guard versionTail(spec, type) else { return Split(stem: locator, version: nil) }
+    let characters = Array(locator)
+    guard characters.count > 1 else { return Split(stem: locator, version: nil) }
+    for index in 1..<characters.count {
+        guard characters[index] == "@", characters[index - 1] != "/" else { continue }
+        guard let slash = characters[index...].firstIndex(of: "/") else {
+            return Split(stem: String(characters[..<index]), version: String(characters[(index + 1)...]))
+        }
+        let stem = String(characters[..<index]) + String(characters[slash...])
+        let version = String(characters[(index + 1)..<slash])
+        return Split(stem: stem, version: version)
     }
-    let tail = locator[locator.index(after: at)...]
-    if tail.contains("/") {
-        return Split(stem: locator, version: nil)
-    }
-    return Split(stem: String(locator[locator.startIndex..<at]), version: String(tail))
+    return Split(stem: locator, version: nil)
+}
+
+/// Whether the general stem reaches the specific one.
+///
+/// Equal stems name one thing. Otherwise the general one covers the specific only when its stem is a
+/// whole **segment** prefix of it — `acme-tools` reaching `acme-tools/docs/guide.md`. The segment
+/// boundary is the whole of the rule: a bare string prefix would make `acme-tools` cover
+/// `acme-tools-extra`, two corpora that share nothing but their first characters.
+private func stemReaches(_ general: String, _ specific: String) -> Bool {
+    general == specific || specific.hasPrefix(general + "/")
 }
 
 /// The identifier, when this package vouches for how it was decomposed — `ok` or `uncovered` only.
@@ -77,7 +103,7 @@ public func covers(_ general: String, _ specific: String) -> Bool {
     guard let spec = try? loadSpec(), let x = read(spec, general), let y = read(spec, specific) else { return false }
     if x.type != y.type || x.version != y.version { return false }
     let (gen, spe) = (split(spec, x.type, x.locator), split(spec, y.type, y.locator))
-    if gen.stem != spe.stem { return false }
+    if !stemReaches(gen.stem, spe.stem) { return false }
     if let gv = gen.version, gv != spe.version { return false }
     if let path = x.fragment?.path, path != y.fragment?.path { return false }
     if !subsumes(y.fragment?.refinements ?? [], x.fragment?.refinements ?? []) { return false }
