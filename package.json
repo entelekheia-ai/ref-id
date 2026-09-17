@@ -15,6 +15,7 @@
     "gen:spec": "node scripts/gen-spec.mjs",
     "release": "npm run build && changeset publish",
     "version": "changeset version && sh scripts/sync-versions.sh",
+    "pretest:differential": "npm run build --workspace @entelekheia/ref-id",
     "test:differential": "node --experimental-strip-types scripts/differential.mjs"
   },
   "engines": {
