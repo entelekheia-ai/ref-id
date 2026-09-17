@@ -4,7 +4,7 @@
 // no deduplication, and a refusal for a member that carries the join character — without it two
 // different sequences could share one digest, and the envelope invariant would admit both.
 
-import { createHash } from "node:crypto"
+import { hashHex } from "./hash.ts"
 import { DigestError } from "./errors.ts"
 import { FIELD } from "./grammar.ts"
 import { loadSpec, part } from "./spec.ts"
@@ -22,6 +22,6 @@ export function digest(members: readonly string[]): string {
     }
   }
   const joined = snapshot.join(spec.digest.join)
-  const hex = createHash(spec.digest.algorithm).update(joined, spec.digest.encoding as BufferEncoding).digest("hex")
+  const hex = hashHex(spec.digest.algorithm, spec.digest.encoding, joined)
   return `${spec.digest.algorithm}${FIELD}${hex}`
 }

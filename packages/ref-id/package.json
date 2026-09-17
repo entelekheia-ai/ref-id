@@ -1,11 +1,15 @@
 {
   "name": "@entelekheia/ref-id",
   "version": "0.3.0",
-  "description": "The ref: identifier scheme — a specification published as data with conformance vectors, and the package that consumes it.",
+  "description": "The ref: identifier scheme \u2014 a specification published as data with conformance vectors, and the package that consumes it.",
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
     ".": {
+      "browser": {
+        "types": "./dist/index.browser.d.ts",
+        "default": "./dist/index.browser.js"
+      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -20,7 +24,8 @@
     "pretest": "mkdir -p spec && cp ../../spec/ref-id.json ../../spec/ref-id.json.sha256 spec/",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build && npm test",
+    "postbuild": "node ../../scripts/check-browser-purity.mjs"
   },
   "engines": {
     "node": ">=22"
@@ -40,6 +45,7 @@
     "directory": "packages/ref-id"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
     "packageurl-js": "^2.0.1"
   }
 }

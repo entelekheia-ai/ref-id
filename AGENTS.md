@@ -11,7 +11,7 @@ is expected and is checked against the same vectors, never against this code.
 | Folder | Role |
 |---|---|
 | `spec/` | **The specification, as data.** `ref-id.json` is the only place the grammar, the dispatch and qualifier tables, the digest canonicalisation and the conformance vectors live. Prose in `docs/` explains it; nothing in `packages/` restates it. |
-| `packages/ref-id/` | `@entelekheia/ref-id` — the TypeScript reference: parse, serialise, build, digest, envelope validation. Reads `spec/ref-id.json`; its tests are the vectors. |
+| `packages/ref-id/` | `@entelekheia/ref-id` — the TypeScript reference: parse, serialise, build, digest, envelope validation. Its tests are the vectors. **Two builds of one source**, picked by `exports`: the default reads `spec/ref-id.json` from disk, the `browser` condition serves a build whose specification is a constant `scripts/gen-spec.mjs` compiled in. |
 | `Package.swift`, `Sources/RefId/` | The Swift port (`RefId`), at the root because SwiftPM resolves a git dependency's manifest only there. `Sources/RefId/Resources/` holds a byte-identical copy of `spec/` (the runner proves it). Gate: `swift run ref-id-conformance` — an executable, because Command Line Tools ship neither XCTest nor the Swift Testing macros. |
 | `Cargo.toml`, `crates/ref-id/` | The Rust port (`ref-id` crate, `ref_id` library) under a root Cargo workspace. Embeds `crates/ref-id/spec/`, a byte-identical copy of the root spec held by a test, so the crate packages on its own. Version synced from the npm package by `scripts/sync-versions.sh`. Gate: `cargo test --workspace`. Delegates the purl to the `packageurl` crate. |
 | `spec/conformance/` | Grammar-level runners in Python and Perl: the declared dialects, proven on every parse vector (`npm run test:grammar`). |
@@ -39,6 +39,17 @@ is expected and is checked against the same vectors, never against this code.
   envelope whose members recompute to it; the validator refuses the rest at ingestion.
 - **The package embeds the spec** and carries the digest of its canonical serialisation. A spec edit
   without the regenerated digest fails the build on purpose.
+- **The package runs in Node and in a browser, and the integrity guarantee changes hands between them.**
+  Node reads `spec/ref-id.json` and verifies it against the sidecar at load. A browser has no disk, so the
+  guarantee moves earlier: `scripts/gen-spec.mjs` refuses to emit `src/spec.browser.ts` from a spec that
+  fails its sidecar, and a staleness test regenerates and diffs the committed constant. The browser build
+  **does not** re-hash its own constant — it would compare a constant against a digest compiled from it in
+  the same build, a check that cannot fail and reads as one. It exports `SPEC_DIGEST` as a statement about
+  provenance instead. The entry points differ in two lines (which spec source and which sha256 they
+  install) and in one export (`loadSpecFrom`, which needs a directory); everything else is shared.
+  `npm run build` walks the emitted browser module graph and refuses any Node builtin surviving into it —
+  the whole closure, because `tsc` emits one module per file and grepping the entry point alone passes by
+  construction.
 - **Every change to a published package's contract carries a `.changeset/*.md`** (changesets, stable
   channel only until a beta branch exists). `changeset version` runs in CI and writes `packages/ref-id/CHANGELOG.md`. The package publishes to the public npm registry — `project/adr/0004` — from
   `.github/workflows/release.yml` through npm trusted publishing: a push to `main` opens the "Version
@@ -46,15 +57,21 @@ is expected and is checked against the same vectors, never against this code.
   publishing) and the `v<version>` tag Swift Package Manager resolves. No publishing token exists anywhere.
 - Every delegated validation goes to the library that owns the format. Two exceptions are declared: the
   SWHID core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL
-  core grammar (no maintained Swift library). The three purl validators differ at the edge — `packageurl-js`
+  core grammar (no maintained Swift library). **The purl exemption in the differential is per
+  implementation**: the browser build resolves the same `packageurl-js` the Node build does, so a purl
+  disagreement between those two is a defect rather than a known edge. The three purl validators differ at the edge — `packageurl-js`
   accepts an empty name after a namespace and a version ending in `/`; the `packageurl` crate and the Swift
   validator refuse them — and a locator's validity is the format's, so the differential test compares every
   field except that verdict.
 - **Each suite proves its own implementation; only the differential proves they agree with each other.**
-  `npm run test:differential` runs all three over every input the specification names — drawn from the
-  vector groups themselves, so the corpus grows with the spec — and fails on the first disagreement. All
-  three speak one line protocol (`packages/ref-id/parse-lines.ts`, `cargo run --example parse_lines`,
-  `swift run ref-id-conformance --parse`), and all three are run the same way for a reason: calling the
+  `npm run test:differential` runs **four implementations** — the Node build, the browser build, Rust and
+  Swift — over every input the specification names, drawn from the
+  vector groups themselves, so the corpus grows with the spec, and fails on the first disagreement. The
+  browser build is a row there rather than a suite of its own, because the failure it can reintroduce is
+  the one this harness exists for, one build apart instead of one language apart. All
+  four speak one line protocol (`packages/ref-id/parse-lines.ts`, with `--browser` selecting the browser
+  entry, `cargo run --example parse_lines`,
+  `swift run ref-id-conformance --parse`), and all are run the same way for a reason: calling the
   reference in-process would judge it by a path the ports never take. It runs in CI on the macOS runner,
   the only job where the three can coexist. A field no vector constrains can otherwise be decided three
   ways with every suite green, which is what happened to Package URL canonicalisation.

@@ -26,8 +26,9 @@ import { fileURLToPath } from 'node:url'
 // fresh clone has none, so reaching for it fails exactly when a stale spec.browser.ts told someone to
 // regenerate. Importing loadSpecFrom (rather than re-reading + re-hashing here) means the generator
 // verifies the spec exactly the way the package itself does — never a second idea of what "verified"
-// means.
-import { loadSpecFrom } from '../packages/ref-id/src/spec.ts'
+// means. It lives in spec.node.ts, which is the half of the old spec.ts that keeps the filesystem —
+// the half the browser build does not import (Plan-004, Track 2).
+import { loadSpecFrom } from '../packages/ref-id/src/spec.node.ts'
 
 const SPEC_DIR = fileURLToPath(new URL('../spec', import.meta.url))
 const OUT_FILE = fileURLToPath(new URL('../packages/ref-id/src/spec.browser.ts', import.meta.url))

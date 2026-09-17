@@ -18,4 +18,11 @@ trigger: always_on
 - **Never drop a qualifier key you do not recognise when re-serialising.** Carry it through byte for byte;
   the roundtrip vectors cover exactly this.
 - **Never add a dependency with a native runtime.** The package must stay portable by port, not by
-  binding; `packageurl-js` and Node's `crypto` are the whole runtime surface.
+  binding. The runtime surface is `packageurl-js`, `@noble/hashes`, and Node's `crypto` — the last of
+  which the browser build does not have, which is why the second one is there.
+- **Never let a Node builtin into the browser build's module graph.** A module the browser entry reaches,
+  directly or through any other module, may not import one — `spec.node.ts` and `hash.node.ts` exist so
+  that the two halves are separate files rather than one file with a branch. `npm run build` walks the
+  emitted closure and refuses it, and the walk follows `require()` as well as `import`: it once reported a
+  clean graph because it stopped at a CommonJS dependency's entry file, which is a pass produced by not
+  looking.

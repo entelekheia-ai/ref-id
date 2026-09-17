@@ -11,10 +11,23 @@
 // `--canonical` keeps the delegated locator's canonical spelling. The default drops it, because the
 // validity verdict of a Package URL belongs to the format and the three validators differ at the edge;
 // canonicalisation is a separate question, and the two are not excluded together.
-
-import { canonicalise, parse, serialise } from "./src/index.ts"
+//
+// `--browser` selects the browser entry point instead of the Node one — the same runner, the same
+// protocol, one import apart (Plan-004, Track 3). That single difference is the point: the browser
+// build gets its spec from a compiled-in constant and its sha256 from a different implementation, and
+// the differential harness is what holds the two answers against each other. A suite of its own would
+// compare each build against its own expectations, which is exactly the check that stayed green while
+// the three language ports canonicalised a Package URL three different ways.
 
 const withCanonical = process.argv.includes("--canonical")
+const asBrowser = process.argv.includes("--browser")
+
+// Dynamic, because the two entry points are the thing under test and a static import would pull both
+// module graphs into this process — including the Node one, whose filesystem loader is precisely what
+// the browser build does not have.
+const { canonicalise, parse, serialise } = asBrowser
+  ? await import("./src/index.browser.ts")
+  : await import("./src/index.ts")
 
 const stdin: string = await new Promise((resolve) => {
   let text = ""

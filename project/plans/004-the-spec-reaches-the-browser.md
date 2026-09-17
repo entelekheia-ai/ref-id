@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-17 |
 | Author | Danilo Borges |
 | Related | ADR-0001 (the specification is one data file the package consumes) |
@@ -154,12 +154,23 @@ through the default condition.
       writes. Two scripts with independent ideas of how the spec is read is the drift this whole plan is
       about.
 
-- [ ] **Track 2 — The browser entry point.** A second entry whose `loadSpec()` returns the constant, wired
+- [x] **Track 2 — The browser entry point.** A second entry whose `loadSpec()` returns the constant, wired
       into `exports` under the `browser` condition, with the build emitting both artifacts. At the end,
       `dist/index.browser.js` contains no `node:` specifier and no `import.meta.url`, checked
       mechanically rather than by reading.
+      **Landed differently in one respect, and the difference is the track's substance.** `loadSpec()` was
+      not the only way a filesystem reached the browser: `digest.ts` imported `node:crypto` too, so the
+      entry point alone could not have removed the dependency. The package now has two seams rather than
+      one — `spec.ts` holds the spec source, `hash.ts` holds the sha256 — and each entry installs one pair
+      (`spec.node.ts` + `hash.node.ts`, or `spec.browser.ts` + `hash.browser.ts`). The two entry points
+      differ in two lines and in one export. The mechanical check is
+      `scripts/check-browser-purity.mjs`, run at `postbuild`: it walks the emitted module graph — 35
+      modules, including into `node_modules` — rather than grepping the entry file, because `tsc` emits one
+      module per source file and that grep passes by construction. Proven in four directions: a builtin in
+      a deep module, `import.meta.url` in a deep module, the browser entry reaching `spec.node.js`, and a
+      computed `import()` the walk cannot follow all turn it red; the clean tree turns it green.
 
-- [ ] **Track 3 — The browser build becomes a fourth implementation.** `scripts/differential.mjs` already
+- [x] **Track 3 — The browser build becomes a fourth implementation.** `scripts/differential.mjs` already
       runs every implementation over the same inputs and fails on the first disagreement, and it exists
       because the ports canonicalised a Package URL three different ways for as long as no vector
       constrained the field. That is precisely the failure this plan could reintroduce, one build apart
@@ -167,9 +178,35 @@ through the default condition.
       rather than given a suite of its own. A suite of its own would compare each build against its own
       expectations, which is the check that stayed green while the three ports disagreed. At the end, a
       deliberate divergence introduced into one build fails `npm run test:differential`, demonstrated.
+      **Done:** `parse-lines.ts` gained `--browser`, which selects the browser entry through a dynamic
+      import — same runner, same protocol, same child process, one import apart — and `differential.mjs`
+      carries it as a fourth row. The purl-validity exemption was scoped per implementation at the same
+      time: it is bought by three validators being three different pieces of software, and the browser
+      build resolves the same `packageurl-js` the Node build does, so a purl disagreement between those
+      two is a defect rather than a known edge. **Demonstrated:** removing `:` from the `ai-model`
+      locator pattern in the compiled-in constant alone made `ref:ai-model:llama3:8b` diverge on `status`
+      and `serialised`; `npm run test:differential` exited 1 naming the row, and `npm test` exited 1
+      independently on the staleness guard. Regenerating returned both to 0. 157 inputs × 4
+      implementations, 0 disagreements.
+      **One gap the harness could not close, closed beside it.** The line protocol is shared with the
+      Rust and Swift ports and carries `parse` and `serialise` only, so `spec.vectors.build`, `digest`
+      and `envelope` stayed exercised against the Node build alone — and the browser build's sha256, a
+      different implementation rather than a different call to the same one, was exercised by nothing.
+      `test/browser-parity.test.ts` runs those three groups through both entry points and compares the
+      two builds, rather than giving the browser build expectations of its own. It spawns a child
+      process per entry, because both entries import one `spec.ts` module instance: importing them into
+      one process makes the second installation win, and the comparison becomes a build against itself,
+      reported as agreement. Proven by corrupting the browser sha256 — the test fails naming the vector.
 
-- [ ] **Track 4 — Say what it supports.** `README.md` and `AGENTS.md` state which environments the package
+- [x] **Track 4 — Say what it supports.** `README.md` and `AGENTS.md` state which environments the package
       runs in and what the browser build gives up, so that the next consumer learns this from the package.
+      **Done:** the package README's `Requirements` section became `Environments`, with a table of where
+      the spec comes from and when its integrity is established in each build, and four named things the
+      browser build gives up (no runtime integrity check, no `loadSpecFrom`, sha256 only, the bundle cost).
+      The root README points at it. `AGENTS.md` gained the guarantee-changes-hands paragraph and now says
+      four implementations rather than three. `.agents/rules/repo-guardrails.md` had a sentence that
+      stopped being true — `packageurl-js` and Node's `crypto` as the whole runtime surface — and gained a
+      second guardrail against a builtin reaching the browser graph.
 
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept.
@@ -238,9 +275,40 @@ sidecar, run the gate, and observe it fail on the stale generated module; regene
   conversation is summarised and dropped, and the agreement is then broken by the same agent that made it.
   Date / Author: 2026-09-17 / Danilo Borges
 
+- Decision: the browser build takes its sha256 from `@noble/hashes` rather than from a hand-written
+  implementation or an asynchronous API.
+  Rationale: this was not anticipated when the plan was written — the plan reasoned about `loadSpec()` and
+  missed that `digest.ts` imports `node:crypto` on its own, so the browser build needed a synchronous
+  sha256 before it needed anything else. WebCrypto is the only hash the web platform publishes and it is
+  asynchronous, so using it would turn `digest()` and `validateEnvelope()` into promises — a change to the
+  public API this plan puts out of scope, and one that would leave the two builds with different surfaces
+  to compare, defeating Goal 2. Blocking on it is not available: `Atomics.wait` throws on a browser's main
+  thread by specification, and the Worker + `SharedArrayBuffer` arrangement that would work needs the
+  consumer to serve two headers. Between a hand-written primitive and a dependency, the maintainer chose
+  the dependency: `@noble/hashes` is pure JavaScript with no dependencies of its own, so it does not
+  violate the guardrail against a native runtime, and it is audited where a sixty-line in-house sha256
+  would not be. The cost is real and recorded: it enters the manifest of every consumer, including the
+  Node ones that never reach it, and `AGENTS.md` and the guardrail rule were corrected because they both
+  declared a runtime surface that no longer holds.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: the mechanical proof walks the emitted module graph rather than grepping the entry file, and
+  follows `require()` as well as `import`.
+  Rationale: the criterion as written (`grep -c "node:" dist/index.browser.js` → 0) passes by
+  construction. `tsc` emits one module per source file, so the browser entry is a handful of re-export
+  lines whatever the rest of the graph imports; the builtin would sit in `dist/spec.node.js`, which that
+  grep never opens. The walk resolves the way a bundler does, with the `browser` condition ahead of
+  `import`, and reports an unresolvable specifier as a failure rather than skipping it. Following
+  CommonJS was bought by a measurement, not by foresight: the first version read only ESM syntax,
+  stopped at `packageurl-js`'s CJS entry file, and reported a clean closure of 21 modules while never
+  seeing the fourteen that entry requires. The plan's literal greps still run and still return 0 — they
+  are the floor, and the comments in the browser entry are worded to avoid both literals rather than
+  letting prose about their absence turn the criterion red.
+  Date / Author: 2026-09-17 / Danilo Borges
+
 ## Outcomes & Retrospective
 
-*Not yet written — no track has landed.*
+*Not yet written — Tracks 1 through 4 have landed; the retrospective belongs to `/vibe-ops:close-plan`.*
 
 <!-- ===== END LIVING SECTIONS ===== -->
 
@@ -254,10 +322,13 @@ sidecar, run the gate, and observe it fail on the stale generated module; regene
 - Should the browser build be the one a test-runner picks up? A runner that resolves `browser` would run
   the suite against the compiled-in spec and never exercise the disk path, which is the opposite of what
   the differential suite is for.
-- The spec is a substantial data file. Compiling it in costs every client-side consumer that many bytes,
+- ~~The spec is a substantial data file. Compiling it in costs every client-side consumer that many bytes,
   whether or not they use the parts of the spec that made it large. Nothing here measured the resulting
-  bundle size, and the number decides whether a trimmed spec — carrying only what the code reads — is
-  worth the second artifact it would create.
+  bundle size~~ — **measured 2026-09-17**: the emitted constant is 67 597 bytes and a whole consumer
+  bundled with esbuild (unminified, ESM, `platform=browser`) is 148 148 bytes, so the specification is
+  roughly 46 % of it. The question it was asked in service of stays open: whether a trimmed spec —
+  carrying only what the code reads — is worth the second artifact it would create. `declaredBy` and
+  `reference` are long prose fields the code never reads, and they are where most of that 67 KB is.
 
 ## Related
 
