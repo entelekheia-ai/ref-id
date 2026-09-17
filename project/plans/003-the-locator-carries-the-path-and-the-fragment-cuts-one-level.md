@@ -238,7 +238,7 @@ discriminant and not a description. The attribute is the *result*, and that stay
       inside it. At the end `declaredBy` says what is true, and a vector binds each of the three
       levels. Measured before deciding: the fragment on `email` was never barred —
       `ref:email:someone@mail.example#thread-abc` parses today; only the path was.
-- [ ] **Track 6 — The differential test that never ran.** *Opened, measured, and larger than this plan.*
+- [x] **Track 6 — The differential test that never ran.** *Opened, measured, and larger than this plan.*
       The `--parse` protocol exists in both ports and no script drove it. Instrumenting it was cheap and
       is done: `--canonical` now keeps the field both runners were deleting. What it exposed is not a
       scripting job. The three ports disagree on canonicalisation, measured over six cases — an already
@@ -355,6 +355,26 @@ entrance test is what will catch any hand-rolled parsing that creeps in behind t
 ## Outcomes & Retrospective
 
 <!-- Filled at each track completion. -->
+
+## What this plan opened and did not close
+
+**The specification declares no public surface.** It has no `operations`, `api`, `surface` or `exports`
+key, so "the three ports have the same API" is a claim the README makes and nothing verifies. Comparing
+the three by hand found the gaps, and every one of them was **in the reference**: `SpecIntegrityError`
+and `SpecVersionError` outside the `RefIdError` hierarchy, no guard that every declared vector group is
+executed, and no line-protocol runner — the last of which meant the differential judged the reference by
+a path the ports never take. All three are fixed here. What is *not* fixed is the direction: `covers`,
+`samePackage`, `digest`, `validateEnvelope` and `sameIdentifier` are missing or differently spelled
+across Rust and Swift, and `sameIdentifier` exists only in TypeScript.
+
+Half the mechanism already exists and nobody named it: **the seven vector groups are seven operations**,
+and all three ports now assert that every declared group is executed. The gap is that an operation may
+exist with no group of its own — `sameIdentifier` lives under `canonical` beside another operation, and
+it is precisely the one missing from two ports. A declared mapping from operation to vector group would
+have made that absence a failing check rather than a finding.
+
+That is the next record's subject, and the check it needs compares *names and signatures* where the
+differential compares *answers* — the two halves of "the same API".
 
 ## Open questions
 
