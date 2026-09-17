@@ -29,3 +29,8 @@ publishes no synchronous hash and making `digest()` asynchronous would have chan
 `npm run test:differential` now runs the browser build as a fourth implementation beside Node, Rust and
 Swift over every input the specification names, so the two builds are held to each other rather than each
 to its own expectations.
+
+One note for TypeScript consumers: under `"moduleResolution": "bundler"` without `customConditions`, the
+compiler resolves types through the default condition while your bundler takes the browser build, so
+`tsc` accepts an import of `loadSpecFrom` that the bundle then refuses. Adding
+`"customConditions": ["browser"]` makes the compiler see the same surface the bundler does.

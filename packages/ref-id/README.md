@@ -80,6 +80,12 @@ build, everything else takes the default. Nothing to configure, and the public A
   verification, and it is labelled as one.
 - **No `loadSpecFrom`.** It takes a directory to read a specification and its sidecar from. A browser has
   neither, so the browser build does not export it; every other export is present and identical.
+  **TypeScript will not warn you about that on the default configuration.** Under
+  `"moduleResolution": "bundler"` without `customConditions`, the compiler resolves types through the
+  default condition — which does declare `loadSpecFrom` — while the bundler picks the browser build at
+  build time. `tsc --noEmit` then passes on an import that fails when the bundle is produced. Add
+  `"customConditions": ["browser"]` to your `tsconfig.json` and the compiler sees the same surface your
+  bundler does.
 - **`digest()` is sha256 only.** The algorithm is specification data, and the browser implementation
   honours `sha256` alone: a specification naming another one throws a `SpecVersionError` naming it, where
   Node would honour whatever its own `crypto` honours.

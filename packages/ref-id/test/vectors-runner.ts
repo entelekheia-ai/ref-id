@@ -11,6 +11,8 @@
 //
 // Not a `*.test.ts`: `npm test` globs those, and this file is a subject, not a test.
 
+import { fileURLToPath } from "node:url"
+
 const asBrowser = process.argv.includes("--browser")
 
 const entry = asBrowser ? await import("../src/index.browser.ts") : await import("../src/index.ts")
@@ -19,7 +21,9 @@ const { build, canonicalise, digest, validateEnvelope } = entry
 // Read through the Node loader regardless of which entry is under test: the point is to feed both
 // entries the same vectors, not to ask each one what its own vectors are.
 const { loadSpecFrom } = await import("../src/spec.node.ts")
-const spec = loadSpecFrom(new URL("../spec", import.meta.url).pathname)
+// fileURLToPath, not .pathname: on Windows the latter yields a POSIX-shaped "/C:/…" that fs refuses,
+// and spec.node.ts already reads its own spec the correct way.
+const spec = loadSpecFrom(fileURLToPath(new URL("../spec", import.meta.url)))
 
 /** Every answer as a value, including a refusal — a throw is an answer the two builds must share. */
 function attempt(run: () => unknown): unknown {

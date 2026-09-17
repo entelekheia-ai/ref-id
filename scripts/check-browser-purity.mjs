@@ -102,9 +102,19 @@ function specifiers(code) {
   return { found: [...found], computed }
 }
 
-/** Picks the first matching condition out of an `exports` subtree, the way a bundler does. */
+/**
+ * Picks the first matching condition out of an `exports` subtree, the way a bundler does. An array is
+ * a fallback list: the first member that yields anything wins.
+ */
 function pickCondition(node) {
   if (typeof node === 'string') return node
+  if (Array.isArray(node)) {
+    for (const member of node) {
+      const picked = pickCondition(member)
+      if (picked) return picked
+    }
+    return undefined
+  }
   if (node === null || typeof node !== 'object') return undefined
   for (const condition of CONDITIONS) {
     if (Object.hasOwn(node, condition)) {
@@ -115,11 +125,53 @@ function pickCondition(node) {
   return undefined
 }
 
-/** Resolves a bare specifier through node_modules, honouring `exports` and the browser condition. */
+/**
+ * Finds the `exports` key that governs a subpath, including a pattern key such as `"./*"`.
+ *
+ * MEASURED, NOT ANTICIPATED. A literal property lookup was the first version, and it made this whole
+ * file capable of the exact false green it exists to prevent: against a package declaring
+ * `{".": "./index.js", "./*": "./real/*.js"}`, `exports["./foo.js"]` is undefined, the lookup fell
+ * through to a filesystem guess, and a decoy file sitting at the unsubstituted path resolved instead of
+ * the real target — which imported a Node builtin. Node's own resolver was asked the same question and
+ * answered `real/foo.js`. The walk would have reported a clean closure it never entered.
+ *
+ * The match is Node's: among the keys carrying a `*`, the one whose prefix is longest wins, and the
+ * text the `*` stood for is substituted into every `*` of the target.
+ */
+function matchExportsKey(map, subpath) {
+  if (Object.hasOwn(map, subpath)) {
+    return { target: map[subpath], star: undefined }
+  }
+  let best
+  for (const key of Object.keys(map)) {
+    const star = key.indexOf('*')
+    if (star === -1) continue
+    const prefix = key.slice(0, star)
+    const suffix = key.slice(star + 1)
+    if (!subpath.startsWith(prefix)) continue
+    if (suffix.length > 0 && !subpath.endsWith(suffix)) continue
+    if (subpath.length < prefix.length + suffix.length) continue
+    if (best === undefined || prefix.length > best.prefix.length) best = { key, prefix, suffix }
+  }
+  if (best === undefined) return undefined
+  return { target: map[best.key], star: subpath.slice(best.prefix.length, subpath.length - best.suffix.length) }
+}
+
+/**
+ * Resolves a bare specifier through node_modules, honouring `exports`, its pattern keys and the
+ * browser condition.
+ *
+ * WHEN A PACKAGE DECLARES `exports`, A SUBPATH IT DOES NOT LIST IS NOT EXPORTED — so this returns
+ * nothing rather than looking on disk, and the caller reports it as unresolvable, which fails the run.
+ * The old fallback did the opposite: it treated the specifier as a repo-relative path and resolved
+ * whatever happened to sit there. That is a guess dressed as a resolution, and a guess is how a walk
+ * reports a closure it did not take.
+ */
 function resolveBare(specifier, fromDir) {
   const parts = specifier.split('/')
   const name = specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
-  const subpath = `.${specifier.slice(name.length)}` === '.' ? '.' : `.${specifier.slice(name.length)}`
+  const tail = specifier.slice(name.length)
+  const subpath = tail === '' ? '.' : `.${tail}`
 
   let dir = fromDir
   for (;;) {
@@ -127,10 +179,15 @@ function resolveBare(specifier, fromDir) {
     if (existsSync(join(candidate, 'package.json'))) {
       const manifest = JSON.parse(readFileSync(join(candidate, 'package.json'), 'utf8'))
       if (manifest.exports) {
-        const entry = typeof manifest.exports === 'string' || !Object.keys(manifest.exports).some((key) => key.startsWith('.'))
-          ? (subpath === '.' ? pickCondition(manifest.exports) : undefined)
-          : pickCondition(manifest.exports[subpath])
-        if (entry) return join(candidate, entry)
+        // `exports` is sugar for the root subpath when it is a string, or when no key names a subpath.
+        const sugar = typeof manifest.exports === 'string'
+          || !Object.keys(manifest.exports).some((key) => key.startsWith('.'))
+        if (sugar) {
+          return subpath === '.' ? withStar(candidate, pickCondition(manifest.exports), undefined) : undefined
+        }
+        const matched = matchExportsKey(manifest.exports, subpath)
+        if (!matched) return undefined
+        return withStar(candidate, pickCondition(matched.target), matched.star)
       }
       if (subpath !== '.') return withExtension(join(candidate, subpath))
       if (typeof manifest.browser === 'string') return join(candidate, manifest.browser)
@@ -140,6 +197,12 @@ function resolveBare(specifier, fromDir) {
     if (parent === dir) return undefined
     dir = parent
   }
+}
+
+/** Joins a resolved `exports` target onto its package, substituting what a pattern key's `*` stood for. */
+function withStar(packageDir, target, star) {
+  if (typeof target !== 'string') return undefined
+  return join(packageDir, star === undefined ? target : target.split('*').join(star))
 }
 
 function withExtension(path) {

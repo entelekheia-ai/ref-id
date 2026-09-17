@@ -169,6 +169,14 @@ through the default condition.
       module per source file and that grep passes by construction. Proven in four directions: a builtin in
       a deep module, `import.meta.url` in a deep module, the browser entry reaching `spec.node.js`, and a
       computed `import()` the walk cannot follow all turn it red; the clean tree turns it green.
+      **A code review then found a fifth seeded defect the walk would have missed, and it was real.**
+      The resolver looked `exports` keys up literally, so a pattern key (`"./*": "./real/*.js"`) matched
+      nothing and the code fell through to resolving the specifier as a path on disk — against a package
+      with a decoy file at the unsubstituted path, it returned the decoy while Node's own resolver
+      returned the real target, which imported a builtin. The root cause was wider than the pattern key:
+      when a package declares `exports`, a subpath it does not list is *not exported*, and guessing on
+      disk is the opposite of that rule. Both are fixed — Node's longest-prefix pattern match, and
+      nothing on disk when `exports` governs — and verified against `import.meta.resolve` on five cases.
 
 - [x] **Track 3 — The browser build becomes a fourth implementation.** `scripts/differential.mjs` already
       runs every implementation over the same inputs and fails on the first disagreement, and it exists
