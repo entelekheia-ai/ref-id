@@ -73,7 +73,10 @@ See the package README: [`packages/ref-id/`](packages/ref-id/README.md). The spe
 
 ## Requirements
 
-Node.js 22 or later. No native dependencies.
+Node.js 22 or later, and — for `@entelekheia/ref-id` — any browser reached through a bundler: the package
+ships a second build whose specification is compiled in, served through the `browser` condition of its
+`exports`, with the same public API and nothing to configure. What that build gives up is stated in
+[its own README](packages/ref-id/README.md#environments). No native dependencies.
 
 ## License
 

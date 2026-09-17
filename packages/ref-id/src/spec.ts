@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Loads spec/ref-id.json, verifies its digest against the sidecar, and checks the specVersion
-// major. Behaviour only — the spec's own data is never restated here.
+// The specification's vocabulary and its canonical serialisation, plus the seam through which a spec
+// reaches this package. Behaviour only — the spec's own data is never restated here.
+//
+// THIS MODULE READS NOTHING. It used to open spec/ref-id.json itself through `node:fs` and hash it
+// through `node:crypto`, which made every module that touches the spec — which is all of them —
+// depend on a filesystem. Where the bytes come from is now the caller's decision, installed once by
+// an entry point: `index.ts` installs the disk loader (`spec.node.ts`), `index.browser.ts` installs
+// the generated constant (`spec.browser.ts`). That is the whole of Plan-004's browser build; nothing
+// below knows which one it got.
 
-import { readFileSync } from "node:fs"
-import { createHash } from "node:crypto"
 import { RefIdError } from "./errors.ts"
 
 /**
@@ -119,33 +124,6 @@ export function canonicalise(value: unknown): string {
   throw new Error(`value of type ${typeof value} has no canonical form`)
 }
 
-/** The major version this package was built against. Not spec data — the package's own contract. */
-const SUPPORTED_SPEC_MAJOR = "1"
-
-function readText(location: URL | string): string {
-  return readFileSync(location, "utf8")
-}
-
-function validate(rawJson: string, rawSidecar: string): RefIdSpec {
-  const parsed = JSON.parse(rawJson) as unknown
-  const canonical = canonicalise(parsed)
-  const computed = createHash("sha256").update(canonical, "utf8").digest("hex")
-  const expected = rawSidecar.trim()
-  if (computed !== expected) {
-    throw new SpecIntegrityError(
-      `spec/ref-id.json does not match its sidecar digest (expected ${expected}, computed ${computed})`,
-    )
-  }
-  const spec = parsed as RefIdSpec
-  const major = String(spec.specVersion).split(".")[0]
-  if (major !== SUPPORTED_SPEC_MAJOR) {
-    throw new SpecVersionError(
-      `spec/ref-id.json declares specVersion ${spec.specVersion}; this package supports major ${SUPPORTED_SPEC_MAJOR}`,
-    )
-  }
-  return spec
-}
-
 /**
  * A status name this code needs, checked against the vocabulary the spec declares. Code names a
  * status because it has to choose one; the spec owns the list, and naming one the spec lacks is a
@@ -170,27 +148,47 @@ export function part(spec: RefIdSpec, name: string): string {
   throw new SpecVersionError(`this package names the part "${name}", which spec ${spec.specVersion} does not declare`)
 }
 
-/**
- * Loads and validates a spec + sidecar pair from an arbitrary directory. Exposed for the
- * spec-integrity tests; `loadSpec()` is the entry point every other module uses.
- */
-export function loadSpecFrom(dir: string): RefIdSpec {
-  const raw = readText(`${dir}/ref-id.json`)
-  const sidecar = readText(`${dir}/ref-id.json.sha256`)
-  return validate(raw, sidecar)
-}
+/** The major version this package was built against. Not spec data — the package's own contract. */
+export const SUPPORTED_SPEC_MAJOR = "1"
 
+/**
+ * A source of the specification: a function an entry point installs, which returns a spec that has
+ * already been established as the published one.
+ *
+ * "Already established" is the contract, and it is deliberately not checkable from here. The disk
+ * source verifies bytes against the sidecar at the moment it reads them; the browser source carries a
+ * constant that `scripts/gen-spec.mjs` refused to emit until that same verification passed, and that
+ * the staleness guard re-establishes on every run. Re-hashing the constant here would compare a
+ * constant against a digest compiled from it in the same build — a check that cannot fail, which reads
+ * as a guarantee and is a tautology (Plan-004's Decision Log).
+ */
+export type SpecSource = () => RefIdSpec
+
+let source: SpecSource | undefined
 let cached: RefIdSpec | undefined
 
-/** The validated spec object, cached after the first successful load. */
+/**
+ * Installs the source `loadSpec()` reads from. Called exactly once, by an entry point, before any
+ * public function of this package runs — never by a consumer, because the entry point is what encodes
+ * which environment this build is for.
+ */
+export function installSpecSource(load: SpecSource): void {
+  source = load
+  cached = undefined
+}
+
+/** The spec object, cached after the first successful load. */
 export function loadSpec(): RefIdSpec {
   if (cached) {
     return cached
   }
-  const jsonUrl = new URL("../spec/ref-id.json", import.meta.url)
-  const sidecarUrl = new URL("../spec/ref-id.json.sha256", import.meta.url)
-  const raw = readText(jsonUrl)
-  const sidecar = readText(sidecarUrl)
-  cached = validate(raw, sidecar)
+  if (!source) {
+    // Reachable only by importing a module of this package directly rather than through one of its
+    // entry points — `exports` publishes no deep path, so a consumer cannot arrive here by accident.
+    throw new SpecVersionError(
+      "no specification source is installed; import this package through its entry point rather than a module inside it",
+    )
+  }
+  cached = source()
   return cached
 }

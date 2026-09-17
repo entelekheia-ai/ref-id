@@ -61,7 +61,14 @@ function port(command, args, inputs) {
  * namespace and a version ending in `/`, where the Rust crate and the in-house Swift validator refuse
  * them. So a row where the ports disagree only on `status` between `ok` and `malformed`, for a `pkg`
  * locator, is reported as a known edge rather than as a failure. Every other field must match.
+ *
+ * THE EXEMPTION IS PER IMPLEMENTATION, NOT BLANKET. It is bought by the three validators being three
+ * different pieces of software; the browser build resolves the same `packageurl-js` the Node build
+ * does, so there is no edge for it to land on, and a disagreement between those two on a purl verdict
+ * would be a defect in the browser build wearing the exemption as a disguise.
  */
+const SHARES_THE_REFERENCE_VALIDATOR = new Set(["typescript-browser"])
+
 function compare(name, mine, theirs, input) {
   const differences = []
   const keys = new Set([...Object.keys(mine), ...Object.keys(theirs)])
@@ -73,7 +80,7 @@ function compare(name, mine, theirs, input) {
   }
   const onlyVerdict = differences.length > 0 && differences.every((d) => d.key === "status" || d.key === "part")
   const isPkg = input.startsWith("ref:pkg:") || /^ref:[0-9]+:pkg:/.test(input)
-  return { differences, known: onlyVerdict && isPkg }
+  return { differences, known: onlyVerdict && isPkg && !SHARES_THE_REFERENCE_VALIDATOR.has(name) }
 }
 
 const inputs = corpus()
@@ -82,8 +89,21 @@ const inputs = corpus()
 // while spawning the other two would judge it by a path they never take, so a defect living only in the
 // protocol's own serialisation would be invisible in exactly the implementation the others are compared
 // against. The first row is the reference the other two are compared to; it is otherwise an ordinary port.
+//
+// **The browser build is a row here, not a suite of its own** (Plan-004, Track 3). It is a second
+// build of the same source, and the failure it can reintroduce is the one this harness was written
+// for — two implementations deciding an unconstrained field differently while both suites stay green.
+// One build apart instead of one language apart changes nothing about that shape, so it is compared
+// the same way: same corpus, same protocol, same child process, one import different.
+//
+// It runs the browser ENTRY POINT from source, exactly as the reference row runs its own — not the
+// emitted dist/. What distinguishes that build is which spec source and which hash its entry installs,
+// and both are installed identically from source. The property that belongs to the emitted artifact is
+// a different one (no Node builtin survives into the closure), and it is proven where it lives, by
+// scripts/check-browser-purity.mjs at postbuild.
 const ports = [
   ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical"]],
+  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical", "--browser"]],
   ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--canonical"]],
   ["swift", "swift", ["run", "-q", "ref-id-conformance", "--parse", "--canonical"]],
 ]
