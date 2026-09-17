@@ -238,7 +238,17 @@ discriminant and not a description. The attribute is the *result*, and that stay
       inside it. At the end `declaredBy` says what is true, and a vector binds each of the three
       levels. Measured before deciding: the fragment on `email` was never barred —
       `ref:email:someone@mail.example#thread-abc` parses today; only the path was.
-- [ ] **Track 6 — The differential test that never ran.** `Sources/RefIdConformance/main.swift:12-13`
+- [ ] **Track 6 — The differential test that never ran.** *Opened, measured, and larger than this plan.*
+      The `--parse` protocol exists in both ports and no script drove it. Instrumenting it was cheap and
+      is done: `--canonical` now keeps the field both runners were deleting. What it exposed is not a
+      scripting job. The three ports disagree on canonicalisation, measured over six cases — an already
+      percent-encoded name double-encodes in Swift (`%2540acme`), a type is not lower-cased there, and
+      qualifiers keep their input order. TypeScript and Rust agree byte for byte because both delegate
+      to a library; the Swift port validates the Package URL in-house because no maintained Swift
+      library exists. Closing this means **deciding the canonicalisation rule in the specification and
+      binding each case with a vector**, then implementing it in the Swift port, then writing the
+      driver and the CI step. That is a specification question, not the plumbing this track was written
+      as, and it belongs in its own record. `Sources/RefIdConformance/main.swift:12-13`
       and `crates/ref-id/examples/parse_lines.rs:3-4` both carry a `--parse` protocol described as
       *"the surface the differential test against the TypeScript reference reads"*, and no script or
       CI job drives it — `.github/workflows/gates.yml` runs the three suites in isolation. This plan
