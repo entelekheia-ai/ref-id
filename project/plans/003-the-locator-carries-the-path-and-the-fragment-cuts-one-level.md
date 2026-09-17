@@ -18,7 +18,7 @@ vibe-ops-template: plan@3
 Minting identifiers for a documentation corpus produced a set that is wrong in a way the parser
 cannot see. Every identifier named the same corpus with a different `state=`:
 
-```
+```text
 ref:folder:acme-tools;state=sha256:a2153e88…#docs/guide.md/Setup
 ref:folder:acme-tools;state=sha256:3d79736c…#README.md
 ref:folder:acme-tools;state=sha256:9bc1dff7…#docs/api.md/Overview;item=1
@@ -135,7 +135,7 @@ The Package URL conversion then becomes a written rule instead of an identity: t
 purl's own `#subpath`, which is what that component means, and the `ref:` fragment has nowhere to
 go and is declared lost.
 
-```
+```text
 ref:pkg:npm/x@1.0.0/docs/guide.md#Setup   →   pkg:npm/x@1.0.0#docs/guide.md   (fragment lost)
 ref:pkg:npm/x@1.0.0                       →   pkg:npm/x@1.0.0                 (identity, as today)
 ```
@@ -228,6 +228,16 @@ discriminant and not a description. The attribute is the *result*, and that stay
       level rule; teach `identify.ts mint --path` to put the file in the locator. At the end,
       re-minting a corpus produces one `state=` per file, and the same heading text in two documents
       produces two identifiers.
+- [ ] **Track 7 — A mailbox is a corpus.** `email` today refuses a path because its locator is an RFC
+      5322 addr-spec, and `dispatch.email.declaredBy` states the reason as a claim about the world:
+      *"a mailbox identifies a person or a role; nothing lives under it"*. That claim is false — what
+      sits under a mailbox is the person's own items, named by whoever serves them, and the scheme
+      verifies neither. The correction has the same shape as the `@` rule: the delegated format runs
+      to the first `/`, so the validator still receives an addr-spec and the `reference` to RFC 5322
+      stays true, while `alguem@dominio.com/<item>#<cut>` names an item under the mailbox and a cut
+      inside it. At the end `declaredBy` says what is true, and a vector binds each of the three
+      levels. Measured before deciding: the fragment on `email` was never barred —
+      `ref:email:someone@mail.example#thread-abc` parses today; only the path was.
 - [ ] **Track 6 — The differential test that never ran.** `Sources/RefIdConformance/main.swift:12-13`
       and `crates/ref-id/examples/parse_lines.rs:3-4` both carry a `--parse` protocol described as
       *"the surface the differential test against the TypeScript reference reads"*, and no script or
@@ -286,6 +296,20 @@ entrance test is what will catch any hand-rolled parsing that creeps in behind t
 - Decision: the prefix comparison is by segment, never by raw string.
   Rationale: a raw prefix makes a corpus cover a sibling corpus whose name merely starts with the
   same characters, and inverts the existing uncovered-type vector from false to true.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: in `pkg`, a subpath requires a declared version.
+  Rationale: found while implementing Track 1. Without an `@` there is no marker separating the name
+  from the path, and `npm/a/b/c` is a valid Package URL naming `c` in the namespace `a/b`. A file in a
+  corpus nobody versioned is named through `folder`, whose locator needs no marker.
+  Date / Author: 2026-09-17 / Danilo Borges
+
+- Decision: `email` carries a path, and `declaredBy` is rewritten rather than kept.
+  Rationale: the prohibition was stated as a claim about the world — *"nothing lives under a
+  mailbox"* — and the counterexample is replicable: what sits under it is the person's own items, and
+  whether an item's id was minted by a mail provider or by the person changes nothing the scheme can
+  check. The delegated addr-spec runs to the first `/`, so RFC 5322 still describes what the validator
+  receives.
   Date / Author: 2026-09-17 / Danilo Borges
 
 - Decision: `state=` stays a qualifier and gains no position on the fragment side.
