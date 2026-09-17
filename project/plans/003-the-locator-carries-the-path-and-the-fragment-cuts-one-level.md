@@ -354,7 +354,48 @@ entrance test is what will catch any hand-rolled parsing that creeps in behind t
 
 ## Outcomes & Retrospective
 
-<!-- Filled at each track completion. -->
+**Five of the six goals were met as written; the fourth was met in a smaller form than it promised, and
+the reason is a measurement rather than a compromise.** Goal 4 said *every rule true of one type only
+lives in that type's `dispatch` entry*, and the work found that most of what looked type-specific is not:
+`state=` freezes anything and `by=`/`over=`/`when=` describe a reading, so an `isbn` admits them as
+readily as a `pkg`. Moving them would have copied four entries into nine — the repetition the goal exists
+to remove, in the other direction. What was genuinely of a subset is `samePackage`, and only its stated
+purpose moved, not its name: the name is exported from a published package and renaming it would break
+the one production consumer for a cosmetic gain.
+
+The other five hold, each with a command that shows it. `folder` and `pkg` both carry a path and a
+per-file `state=`; `covers` reaches files under a corpus and not a sibling whose name merely starts the
+same way; the Package URL conversion is a written rule with the fragment named as its declared loss; the
+skill and `mint` mint at the file; and the scheme stayed at v1, because nothing here changed a separator
+or the shape.
+
+**One acceptance criterion was wrong, and in a direction worth recording.** It predicted
+`mint --path docs/guide.md --fragment 'Setup'` returning `ref:folder:acme-tools/docs/guide.md#Setup` with
+nothing else supplied. What it does is require `--root`, and derive the corpus name from that directory's
+base name — so the same file in a worktree named `ref-id-plan-003` mints under that name instead of
+`ref-id`. The criterion assumed a corpus name that comes from somewhere stable; the design chosen during
+the work derives it from the command, which is a real trade the criterion had not anticipated. The name
+now depends on what the directory is called on disk, and a clone, a worktree or a CI checkout under a
+different path mints differently.
+
+**Two vectors were revoked rather than added**, and both had the prohibition in their own name:
+*"corpus name with a path separator is malformed"* and *"nothing lives under a mailbox"*. The second is
+the sharper lesson — a rule justified by a claim about the world (*nothing lives under a mailbox*) was
+frozen into a conformance vector, so revoking the claim meant finding the vector that had outlived the
+argument for it.
+
+**The plan grew one track it did not plan and one it did not finish as written.** Track 7 (`email`
+carries a path) was added mid-flight from a real use — a browser extension naming a message under a
+mailbox — and cost only a pattern and a rewritten `declaredBy`, because all three ports read the pattern
+from the specification. Track 6 was written as plumbing and turned out to be a specification question:
+instrumenting the protocol exposed that the three ports canonicalised a Package URL three ways, invisible
+for as long as both runners deleted that field. It was closed by deciding the rule, binding each case
+with a vector, and fixing the Swift port — not by writing the driver first.
+
+**Work landed that no track named.** Comparing the three public surfaces found three gaps, all of them in
+the *reference* implementation: two error classes outside the `RefIdError` hierarchy, no guard that every
+declared vector group is executed, and no line-protocol runner. The third had a consequence for this
+plan's own Track 6 — the differential was judging the reference by a path the other two never take.
 
 ## What this plan opened and did not close
 
