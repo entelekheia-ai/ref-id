@@ -26,7 +26,41 @@ enum Validators {
             let pattern = entry["pattern"] as? String ?? ""
             return Validation(ok: try Grammar.of(spec).pattern(pattern).matches(delegated), canonical: nil)
         },
+        // A number whose shape is right and whose check digit is wrong is a typo, not an identifier —
+        // and it is the one error a pattern cannot see. Both registered schemes reduce to the same
+        // weighted sum, so one function serves them; neither adds a dependency, which the portability
+        // guardrail requires.
+        "check-digit": { spec, entry, delegated in
+            let pattern = entry["pattern"] as? String ?? ""
+            let matches = try Grammar.of(spec).pattern(pattern).matches(delegated)
+            return Validation(ok: matches && checkDigitHolds(delegated), canonical: nil)
+        },
     ]
+
+    /// The check digit of a registered article number.
+    ///
+    /// A ten-character book number weights its digits 10..1 and is correct when the sum is divisible by
+    /// eleven, which is why its last character may be `X` for the value ten. Every other length is a GS1
+    /// trade item number: the digits before the last are weighted 3 and 1 alternately from the right, and
+    /// the last is whatever brings the total up to a multiple of ten.
+    static func checkDigitHolds(_ value: String) -> Bool {
+        let characters = Array(value)
+        if characters.count == 10 {
+            let weighted = characters.enumerated().reduce(0) { sum, pair in
+                let (index, char) = pair
+                let digit = char == "X" ? 10 : (char.wholeNumberValue ?? 0)
+                return sum + digit * (10 - index)
+            }
+            return weighted % 11 == 0
+        }
+        let digits = characters.map { $0.wholeNumberValue ?? 0 }
+        guard let declared = digits.last else { return false }
+        let weighted = digits.dropLast().reversed().enumerated().reduce(0) { sum, pair in
+            let (index, digit) = pair
+            return sum + digit * (index % 2 == 0 ? 3 : 1)
+        }
+        return (10 - (weighted % 10)) % 10 == declared
+    }
 
     struct Delegator {
         let form: (String, String) -> String

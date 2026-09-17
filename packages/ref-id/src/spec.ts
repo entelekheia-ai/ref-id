@@ -42,7 +42,7 @@ export interface RefIdSpec {
   }
   version: { default: number; supported: number[]; mints: string[]; note: string }
   encoding: Record<string, { reserved: string[]; table?: Record<string, string>; note?: string }>
-  dispatch: Record<string, { locator: string; validator: string; delegate: string; pattern?: string; reference?: string; declaredBy?: string }>
+  dispatch: Record<string, { locator: string; validator: string; delegate: string; pattern?: string; versionTail?: boolean; reference?: string; declaredBy?: string }>
   delegation: Record<string, string>
   statuses: string[]
   parts: string[]

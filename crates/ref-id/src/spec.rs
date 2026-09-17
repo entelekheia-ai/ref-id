@@ -107,6 +107,12 @@ impl Spec {
         self.value(&["vectors", class]).and_then(Value::as_array).cloned().unwrap_or_default()
     }
 
+    /// Every vector group name `spec.vectors` declares — so a runner can prove it executes all of them,
+    /// not just the ones it happened to name by hand.
+    pub fn vector_classes(&self) -> Vec<String> {
+        self.object(&["vectors"]).map(|m| m.keys().cloned().collect()).unwrap_or_default()
+    }
+
     /// The canonical grammar expression, for a dialect measurement.
     pub fn grammar_expression(&self) -> &str {
         self.string(&["grammar", "expression"])

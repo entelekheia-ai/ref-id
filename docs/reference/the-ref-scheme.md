@@ -200,16 +200,20 @@ When the status is `malformed`, the reported part is one of:
 |---|---|---|---|
 | `pkg` | a Package URL, versioned or not | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | the nearest manifest declares a name; unversioned, the Package URL names the living package and `state=` carries the frozen one |
 | `folder` | a declared corpus name | `^[A-Za-z0-9][A-Za-z0-9._-]*$` | no manifest declares a name anywhere above the file |
-| `domain` | `host[/segment…][@version]` — a host under the owner's control, then names the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; segments `[a-z0-9][a-z0-9._~-]*`; an optional `@version` on the last segment | the thing exists *as* a domain — a site, a portfolio, a case published under it: `ref:domain:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
+| `url` | `host(/segment)*(@version)?` — a host under the owner's control, then each path segment a name the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; a segment admits every character except `/`, `@`, `;`, `#` and `:` — the colon is excluded so an identifier spelled in another format's own convention (a version after a colon, a digest after a tilde) is refused rather than absorbed silently, with the version and digest inert inside a name; `~` is admitted alone, because a digest never appears without the colon that precedes it; an optional `@version` on the last segment | the thing exists *as* a host — a site, a portfolio, a case published under it: `ref:url:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
 | `email` | an addr-spec, `local@host` | RFC 5322 dot-atom local part, host as above | a mailbox identifies a person or a role. Nothing lives under it: `ref:email:someone@mail.example/doctor` is malformed at the locator, because what a mailbox publishes belongs to the ecosystem that publishes it |
-| `dot-agent` | an agent identifier, `namespace/name[:version]` | the agent-id grammar of that ecosystem: the namespace is a domain, a `platform/user` under a domain, a mailbox, or the literal `unknown`; the `~digest` of its full form travels as `state=` instead | an agent bundle: `ref:dot-agent:unknown/MentorUniversitario:1.4.1`, `ref:dot-agent:acme.example/doctor:v1.0;state=git:a1b2c3d4` |
-| `ai-model` | the id the model is served under, verbatim | `^[A-Za-z0-9][A-Za-z0-9._:/-]*$` — declared-name, deliberately permissive: no published grammar names a hosted API model (Package URL registers only artifact-registry namespaces such as `huggingface` and `mlflow`; CycloneDX and SPDX 3.0's `AIPackage` both delegate identity to an ordinary purl or free text; OpenTelemetry's `gen_ai.request.model` is explicitly free text), and coercing a served name breaks the round-trip that makes it an identifier at all. `:` and `/` are both admitted — an Ollama tag (`llama3:8b`) and a hub-style name (`mlx-community/Qwen3-1.7B-4bit`) are both ids a real serving process accepts today | a served model, named exactly as its serving process names it: `ref:ai-model:Qwen3-4B-Instruct-2507-4bit`, `ref:ai-model:llama3:8b`, `ref:ai-model:mlx-community/Qwen3-1.7B-4bit` |
+| `unknown` | a deferred species, `species:name(@version)?` | a declared-name pattern, deliberately permissive | an authority this registry does not cover, named precisely instead of opaquely: `ref:unknown:doi:10.1000/182`, `ref:unknown:orcid:0000-0002-1825-0097`. Promoting the species to a type of its own later leaves the written identifier unchanged and moves only its status, from `uncovered` to `ok` |
+| `tel` | a global number, `+` and up to 15 digits | ITU-T E.164, written as RFC 3966's `global-number-digits` — the leading `+` is required, so one number has one spelling | a telephone number: `ref:tel:+15551234567`. A visually separated spelling is refused, not repaired |
+| `isbn` | 10 or 13 digits, no hyphens | ISO 2108, pattern and check digit | a book number: `ref:isbn:9780306406157`. A 13-digit ISBN is also a GTIN-13 under the 978/979 prefixes; the two types overlap there deliberately and diverge at the 10-digit form |
+| `gtin` | 8, 12, 13 or 14 digits | GS1, pattern and the GS1 weighted-sum check digit | a trade item number, the number a retail barcode carries: `ref:gtin:00012345678905` (GTIN-8, GTIN-12/UPC-A, GTIN-13/EAN-13 and GTIN-14/ITF-14 are all admitted) |
+| `ai-model` | the id the model is served under, verbatim | `^[A-Za-z0-9][A-Za-z0-9._:@-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$` — declared-name, deliberately permissive: no published grammar names a hosted API model (Package URL registers only artifact-registry namespaces such as `huggingface` and `mlflow`; CycloneDX and SPDX 3.0's `AIPackage` both delegate identity to an ordinary purl or free text; OpenTelemetry's `gen_ai.request.model` is explicitly free text), and coercing a served name breaks the round-trip that makes it an identifier at all. `:` (an Ollama tag), `/` (a hub-style namespace) and `@` (a quantisation key or revision pin) are all admitted, because a real serving process accepts each of them today | a served model, named exactly as its serving process names it: `ref:ai-model:Qwen3-4B-Instruct-2507-4bit`, `ref:ai-model:llama3:8b`, `ref:ai-model:mlx-community/Qwen3-1.7B-4bit` |
 
 **The type names the naming system that owns the locator's grammar, and this table is the registry of
 types.** A type absent from it — `ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC` — parses to `uncovered`,
 never to `malformed`: the identifier is carried whole and validated by nobody. Registering its validator
-here is what promotes it to `ok`. A dotted namespace under `dot-agent` reads as the domain tier whether or
-not the domain exists; whether it exists is the ecosystem's check, never the grammar's.
+here is what promotes it to `ok`. A type name is admissible only when an unrelated party solving the same
+problem would have chosen it identically — see
+[`what-earns-a-type.md`](../explanation/what-earns-a-type.md) for the test and for what was rejected.
 
 A Package URL's own `#subpath` cannot be represented as a `pkg` locator: the locator excludes both `;` and
 `#`, so there is no encoding that lets a subpath through. A builder asked to build one **MUST** refuse,
@@ -351,7 +355,6 @@ Three things this does **not** change:
 
 **Refinements are not qualifiers here.** They sit on the fragment side and are positional — `lines=1,20`
 names a range — so `canonical` leaves them in the order they were written.
-
 
 ### Refinements
 

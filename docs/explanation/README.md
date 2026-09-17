@@ -7,3 +7,6 @@ map, trade-offs, and how the pieces fit. Discursive, not step-by-step. Settled d
 - [`why-a-declared-name.md`](why-a-declared-name.md) — why identity is a declared name inside a declared
   scope rather than a path or a content hash, why each rule of the scheme is shaped that way, and every
   alternative that was ruled out with what would reopen it.
+- [`what-earns-a-type.md`](what-earns-a-type.md) — the admissibility test a type name must pass, why the
+  nine registered types read as nine ways an authority can exist, what `unknown` is for, and what was
+  rejected.

@@ -33,8 +33,10 @@ and a byte range are location, and a file path inside an identifier is the defec
 to catch — a target that can only be described by where it sits has not been declared yet.
 
 **A released version belongs in the locator.** The ecosystem declared `x@1.0.0`, so the version is part
-of the name, and it goes wherever that type's grammar carries one — `pkg` and `domain` on `@`,
-`dot-agent` on `:`, `ai-model` on `@` for a quantisation key. `state=` freezes content that was released
+of the name, and it goes wherever that type's grammar declares one — `pkg`, `url` and `unknown` carry it
+after `@`, the three types whose `versionTail` the specification sets to `true`. `ai-model`'s `@` is not
+one of them: `versionTail` is `false` there, because that character is a quantisation key on a served
+model id, never a version. `state=` freezes content that was released
 under no version — a commit, a SWHID, a content hash — so the two compose:
 `ref:pkg:npm/x@1.0.0;state=swh:1:rev:…` is a conformance vector, and 25 of the 27 `pkg` vectors in the
 specification carry a version. A version placed in `state=` is refused on arrival, because every `state=`
@@ -147,22 +149,30 @@ fields the registered entries carry.
 that a later extension never becomes data loss for whoever already stored identifiers. Register a type
 when a validator should own its locator grammar — not merely because the type is in use.
 
-Registering one is four things, in this order:
+Registering one is five things, in this order:
 
-1. **Check the proposal against what was already rejected.** Eight alternatives were considered and
+1. **State the admissibility test against the proposal, before anything else.** A type name must be one
+   an unrelated party solving the same problem would have chosen identically. Ask two questions of the
+   proposed name: would a second, unrelated implementer reach for this exact word — a product name fails,
+   because claiming it is the point of proposing it — and does the word already belong to several
+   unrelated activities rather than to one grammar — a short desirable word naming a general activity
+   fails for that opposite reason. Either failure refuses the proposal outright, before the checks below
+   run. The reasoning behind both failure shapes, and the types that already passed this test, are in
+   [`docs/explanation/what-earns-a-type.md`](../../../docs/explanation/what-earns-a-type.md).
+2. **Check the proposal against what was already rejected.** Eight alternatives were considered and
    turned down, each recorded with the condition that would reopen it, in
    [`docs/explanation/why-a-declared-name.md`](../../../docs/explanation/why-a-declared-name.md) under
    "Rejected, and what would reopen each". A proposal matching one of them is refused unless its reopen
    condition now holds.
-2. **Add the `dispatch.<type>` entry** to `spec/ref-id.json`. The registered entries draw on seven fields
+3. **Add the `dispatch.<type>` entry** to `spec/ref-id.json`. The registered entries draw on seven fields
    in total, and `cover` prints that list from the live specification rather than from this page. Three
    are carried by every entry: `locator`, `validator` and `delegate`. A `verbatim` delegate also carries
    `pattern`, and a delegating one carries neither `pattern` nor `declaredBy`, because the owning format
    holds both. `declaredBy` says who declares the name, `corpus` says what lives under the type, and
    `reference` points at the grammar the validator delegates to — or, where none is published, at the
-   survey that established there is none. Five of the six registered entries carry `reference`.
-3. **Add conformance vectors** that bind the new grammar, including the inputs it must refuse.
-4. **Reseal the specification** with `node scripts/seal-spec.mjs`. The package embeds the digest of the
+   survey that established there is none. Seven of the nine registered entries carry `reference`.
+4. **Add conformance vectors** that bind the new grammar, including the inputs it must refuse.
+5. **Reseal the specification** with `node scripts/seal-spec.mjs`. The package embeds the digest of the
    canonical serialisation and refuses a specification whose bytes disagree, so an edit without this step
    is a build failure.
 
@@ -176,8 +186,8 @@ Registering one is four things, in this order:
 - [ ] The script ran, and any refusal was answered by its own row in Step 3 rather than worked around
 - [ ] A sweep excluded the files that teach the scheme, and every remaining finding was judged by opening
       the file it names
-- [ ] A newly registered type was checked against the eight rejected alternatives, carries vectors that
-      bind its grammar, and was followed by a reseal
+- [ ] A newly registered type passed the admissibility test and was checked against the eight rejected
+      alternatives, carries vectors that bind its grammar, and was followed by a reseal
 
 ## ⟳ After every use: review this skill
 
@@ -208,5 +218,5 @@ alone reports a pass either way.
 parses. A locator legitimately ending in one of those characters would be cut, and the tell is a
 `malformed` finding whose `part` is the locator on a string that looks correct in its source file.
 
-Verified against: `@entelekheia/ref-id` 0.3.0 and `spec/ref-id.json` as of 2026-09-15, six registered
+Verified against: `@entelekheia/ref-id` 0.3.0 and `spec/ref-id.json` as of 2026-09-16, nine registered
 types; Node 26.6.0, which strips types from the script without a flag.

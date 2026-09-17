@@ -3,7 +3,7 @@
 // One assertion per conformance vector; the specification is the oracle, nothing here is hardcoded.
 // A field is compared through the canonical JSON serialisation of both sides.
 
-use ref_id::{build, canonicalise, digest, load_spec, load_spec_from, parse, serialise, validate_envelope, BuildParts, FragmentParts, Pair, QualifierValue, RefIdError};
+use ref_id::{build, canonical_identifier, canonicalise, covers, digest, load_spec, load_spec_from, parse, same_package, serialise, validate_envelope, BuildParts, FragmentParts, Pair, QualifierValue, RefIdError};
 use serde_json::Value;
 
 fn build_parts(json: &Value) -> BuildParts {
@@ -33,6 +33,38 @@ fn build_parts(json: &Value) -> BuildParts {
         locator: json.get("locator").and_then(Value::as_str).unwrap_or("").to_string(),
         qualifiers,
         fragment,
+    }
+}
+
+/// Every group `spec.vectors` declares must be one this runner actually executes by name below — a
+/// group nobody names never runs, in every implementation at once (measured: `comparison` shipped and
+/// both runners stayed green without running it). Failing loudly here is the point: a group this runner
+/// cannot yet run must say so, not stay silent.
+#[test]
+fn every_vector_group_runs() {
+    let spec = load_spec().unwrap();
+    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison"];
+    let mut missing: Vec<String> = spec.vector_classes().into_iter().filter(|c| !executed.contains(&c.as_str())).collect();
+    missing.sort();
+    assert!(missing.is_empty(), "spec/ref-id.json declares vector groups this runner does not execute: {missing:?}");
+}
+
+/// An `expect` of shape `{ "error": <part> }` means the identifier has no canonical form and
+/// canonicalising it must refuse, naming that part.
+#[test]
+fn canonical_vectors() {
+    let spec = load_spec().unwrap();
+    for vector in spec.vectors("canonical") {
+        let name = vector["name"].as_str().unwrap_or("?");
+        let got = canonical_identifier(vector["input"].as_str().unwrap());
+        match vector["expect"].as_str() {
+            Some(wanted) => assert_eq!(got.unwrap(), wanted, "canonical: {name}"),
+            None => {
+                let part = vector["expect"]["error"].as_str().unwrap_or("?");
+                let err = got.expect_err(&format!("canonical: {name} — expected a refusal"));
+                assert!(format!("{err:?}").contains(part), "canonical: {name} — refusal did not name {part}");
+            }
+        }
     }
 }
 
@@ -103,6 +135,20 @@ fn envelope_vectors() {
         let name = vector["name"].as_str().unwrap_or("?");
         let result = validate_envelope(vector["requestedId"].as_str().unwrap(), &vector["envelope"]).unwrap();
         assert_eq!(result.admissible, vector["expect"].as_str() == Some("admissible"), "envelope: {name} — {:?}", result.reason);
+    }
+}
+
+#[test]
+fn comparison_vectors() {
+    let spec = load_spec().unwrap();
+    for vector in spec.vectors("comparison") {
+        let name = vector["name"].as_str().unwrap_or("?");
+        let a = vector["a"].as_str().unwrap();
+        let b = vector["b"].as_str().unwrap();
+        let expect = &vector["expect"];
+        assert_eq!(same_package(a, b), expect["samePackage"].as_bool().unwrap(), "comparison: {name} — samePackage");
+        assert_eq!(covers(a, b), expect["covers"].as_bool().unwrap(), "comparison: {name} — covers");
+        assert_eq!(covers(b, a), expect["coversReversed"].as_bool().unwrap(), "comparison: {name} — coversReversed");
     }
 }
 

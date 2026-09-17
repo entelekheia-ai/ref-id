@@ -62,7 +62,19 @@ func buildParts(_ json: [String: Any]) -> BuildParts {
     return BuildParts(type: json["type"] as? String ?? "", locator: json["locator"] as? String ?? "", qualifiers: qualifiers, fragment: fragment, location: json["location"])
 }
 
+/// Every group `spec.vectors` declares must be one this runner actually executes by name below — a
+/// group nobody names never runs, in every implementation at once (measured: `comparison` shipped and
+/// both runners stayed green without running it). Failing loudly here is the point: a group this
+/// runner cannot yet run must say so, not stay silent.
+func checkEveryVectorGroupRuns() throws {
+    let spec = try loadSpec()
+    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison"]
+    let missing = spec.vectorClasses().filter { !executed.contains($0) }.sorted()
+    check(missing.isEmpty, "every-vector-group-runs: spec/ref-id.json declares vector groups this runner does not execute: \(missing)")
+}
+
 func run() throws {
+    try checkEveryVectorGroupRuns()
     // parse
     for vector in try vectors("parse") {
         let name = vector["name"] as? String ?? "?"
@@ -71,6 +83,20 @@ func run() throws {
             let got = try canonical(result[key] ?? NSNull())
             let expected = try canonical(wanted)
             check(got == expected, "parse: \(name) — field \(key): got \(got), wanted \(expected)")
+        }
+    }
+    // canonical — an `expect` that is not a string carries `{ error: <part> }`: the identifier has no
+    // canonical form and canonicalising it must refuse, naming that part.
+    for vector in try vectors("canonical") {
+        let name = vector["name"] as? String ?? "?"
+        let input = vector["input"] as! String
+        if let wanted = vector["expect"] as? String {
+            check((try? canonicalIdentifier(input)) == wanted, "canonical: \(name)")
+        } else {
+            let part = (vector["expect"] as? [String: Any])?["error"] as? String ?? "?"
+            var refused = false
+            do { _ = try canonicalIdentifier(input) } catch { refused = "\(error)".contains(part) }
+            check(refused, "canonical: \(name) — expected a refusal naming \(part)")
         }
     }
     // roundtrip
@@ -106,6 +132,16 @@ func run() throws {
         let name = vector["name"] as? String ?? "?"
         let result = try validateEnvelope(requestedId: vector["requestedId"] as! String, envelope: vector["envelope"])
         check(result.admissible == ((vector["expect"] as? String) == "admissible"), "envelope: \(name) — \(result.reason ?? "")")
+    }
+    // comparison
+    for vector in try vectors("comparison") {
+        let name = vector["name"] as? String ?? "?"
+        let a = vector["a"] as! String
+        let b = vector["b"] as! String
+        let expect = vector["expect"] as! [String: Any]
+        check(samePackage(a, b) == (expect["samePackage"] as! Bool), "comparison: \(name) — samePackage")
+        check(covers(a, b) == (expect["covers"] as! Bool), "comparison: \(name) — covers")
+        check(covers(b, a) == (expect["coversReversed"] as! Bool), "comparison: \(name) — coversReversed")
     }
 
     // integrity: the embedded copy is the repository's spec (when run from the repository)

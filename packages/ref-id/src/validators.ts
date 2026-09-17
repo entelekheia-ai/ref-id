@@ -25,6 +25,34 @@ const validators: Record<string, (spec: RefIdSpec, entry: DispatchEntry, delegat
     }
   },
   "declared-name": (spec, entry, delegated) => ({ ok: pattern(spec, entry.pattern ?? "").test(delegated) }),
+  // A number whose shape is right and whose check digit is wrong is a typo, not an identifier — and it
+  // is the one error a pattern cannot see. Both registered schemes reduce to the same weighted sum, so
+  // one function serves them; neither adds a dependency, which the portability guardrail requires.
+  "check-digit": (spec, entry, delegated) => ({
+    ok: pattern(spec, entry.pattern ?? "").test(delegated) && checkDigitHolds(delegated),
+  }),
+}
+
+/**
+ * The check digit of a registered article number.
+ *
+ * A ten-character book number weights its digits 10..1 and is correct when the sum is divisible by
+ * eleven, which is why its last character may be `X` for the value ten. Every other length is a GS1
+ * trade item number: the digits before the last are weighted 3 and 1 alternately from the right, and the
+ * last is whatever brings the total up to a multiple of ten.
+ */
+function checkDigitHolds(value: string): boolean {
+  if (value.length === 10) {
+    const weighted = [...value].reduce((sum, char, index) => sum + (char === "X" ? 10 : Number(char)) * (10 - index), 0)
+    return weighted % 11 === 0
+  }
+  const digits = [...value].map(Number)
+  const declared = digits.at(-1)
+  const weighted = digits
+    .slice(0, -1)
+    .reverse()
+    .reduce((sum, digit, index) => sum + digit * (index % 2 === 0 ? 3 : 1), 0)
+  return (10 - (weighted % 10)) % 10 === declared
 }
 
 /** How `dispatch.<type>.delegate` forms the delegated string, and whether a producer may pass the format's own scheme back in. */

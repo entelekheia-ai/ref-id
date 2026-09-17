@@ -29,12 +29,53 @@ fn declared_name(spec: &Spec, entry: &Value, delegated: &str) -> Result<Validati
     Ok(Validation { ok: Grammar::of(spec)?.matches(spec, pattern, delegated)?, canonical: None })
 }
 
+/// The check digit of a registered article number.
+///
+/// A ten-character book number weights its digits 10..1 and is correct when the sum is divisible by
+/// eleven, which is why its last character may be `X` for the value ten. Every other length is a GS1
+/// trade item number: the digits before the last are weighted 3 and 1 alternately from the right, and the
+/// last is whatever brings the total up to a multiple of ten. Ported from
+/// `packages/ref-id/src/validators.ts:44` (`checkDigitHolds`).
+fn check_digit_holds(value: &str) -> bool {
+    let chars: Vec<char> = value.chars().collect();
+    if chars.len() == 10 {
+        let weighted: u64 = chars
+            .iter()
+            .enumerate()
+            .map(|(index, &c)| {
+                let digit = if c == 'X' { 10 } else { c.to_digit(10).unwrap_or(0) as u64 };
+                digit * (10 - index as u64)
+            })
+            .sum();
+        return weighted % 11 == 0;
+    }
+    let digits: Vec<u64> = chars.iter().map(|c| c.to_digit(10).unwrap_or(0) as u64).collect();
+    let declared = match digits.last() {
+        Some(&d) => d,
+        None => return false,
+    };
+    let weighted: u64 = digits[..digits.len() - 1]
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(index, &digit)| digit * if index % 2 == 0 { 3 } else { 1 })
+        .sum();
+    (10 - (weighted % 10)) % 10 == declared
+}
+
+fn check_digit(spec: &Spec, entry: &Value, delegated: &str) -> Result<Validation, RefIdError> {
+    let pattern = entry.get("pattern").and_then(Value::as_str).unwrap_or("");
+    let matches = Grammar::of(spec)?.matches(spec, pattern, delegated)?;
+    Ok(Validation { ok: matches && check_digit_holds(delegated), canonical: None })
+}
+
 type Validator = fn(&Spec, &Value, &str) -> Result<Validation, RefIdError>;
 
 fn validator(name: &str) -> Option<Validator> {
     match name {
         "package-url" => Some(package_url),
         "declared-name" => Some(declared_name),
+        "check-digit" => Some(check_digit),
         _ => None,
     }
 }
