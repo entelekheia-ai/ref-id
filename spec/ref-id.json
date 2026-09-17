@@ -120,9 +120,9 @@
    "validator": "declared-name",
    "delegate": "verbatim",
    "versionTail": false,
-   "pattern": "^[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$",
-   "declaredBy": "a mailbox identifies a person or a role; nothing lives under it — what a mailbox publishes belongs to the ecosystem that publishes it",
-   "reference": "RFC 5322 addr-spec, dot-atom local part"
+   "pattern": "^[A-Za-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/[A-Za-z0-9._%+@-]+)*$",
+   "declaredBy": "a mailbox identifies a person or a role, and the items served under it are declared by whoever serves them — a message by its RFC 5322 Message-ID, a thread by the id its provider minted. The scheme checks neither who minted an id nor that the item exists, so the locator continues into the mailbox one segment per item. The first segment is the addr-spec and nothing else: an item id carrying an @, which a Message-ID does, sits after the first / and is never mistaken for the mailbox. A Message-ID is carried without the angle brackets RFC 5322 writes it between, which is the form a mail API hands over.",
+   "reference": "RFC 5322 addr-spec, dot-atom local part — describing the first segment of the locator; RFC 5322 msg-id for an item, angle brackets stripped"
   },
   "unknown": {
    "locator": "deferred-species-name",
@@ -1256,11 +1256,15 @@
     }
    },
    {
-    "name": "nothing lives under a mailbox",
+    "name": "an item under a mailbox is named by whoever serves it",
     "input": "ref:email:someone@mail.example/doctor",
     "expect": {
-     "status": "malformed",
-     "part": "locator"
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "email",
+     "locator": "someone@mail.example/doctor"
     }
    },
    {
@@ -1714,6 +1718,61 @@
      "type": "pkg",
      "locator": "npm/@acme/x",
      "canonical": "pkg:npm/%40acme/x"
+    }
+   },
+   {
+    "name": "a mailbox carries the items served under it",
+    "input": "ref:email:alguem@dominio.com/CADx9v7abc123@mail.gmail.com",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "email",
+     "locator": "alguem@dominio.com/CADx9v7abc123@mail.gmail.com"
+    }
+   },
+   {
+    "name": "a message is the item, and the fragment cuts inside it",
+    "input": "ref:email:alguem@dominio.com/CADx9v7abc123@mail.gmail.com#Assunto;para=3",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": {
+      "path": "Assunto",
+      "refinements": [
+       [
+        "para",
+        "3"
+       ]
+      ]
+     },
+     "type": "email",
+     "locator": "alguem@dominio.com/CADx9v7abc123@mail.gmail.com"
+    }
+   },
+   {
+    "name": "a message is the cut when the mailbox is the item",
+    "input": "ref:email:alguem@dominio.com#CADx9v7abc123@mail.gmail.com",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": {
+      "path": "CADx9v7abc123@mail.gmail.com",
+      "refinements": []
+     },
+     "type": "email",
+     "locator": "alguem@dominio.com"
+    }
+   },
+   {
+    "name": "a trailing separator under a mailbox names no item",
+    "input": "ref:email:alguem@dominio.com/",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
     }
    }
   ],
@@ -2389,6 +2448,26 @@
     "name": "two files in one release are neither",
     "a": "ref:pkg:npm/x@1.0.0/docs/guide.md",
     "b": "ref:pkg:npm/x@1.0.0/docs/api.md",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a mailbox covers an item served under it",
+    "a": "ref:email:alguem@dominio.com",
+    "b": "ref:email:alguem@dominio.com/CADx9v7abc123@mail.gmail.com",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "two mailboxes sharing a prefix cover nothing",
+    "a": "ref:email:alguem@dominio.com",
+    "b": "ref:email:alguemx@dominio.com",
     "expect": {
      "samePackage": false,
      "covers": false,

@@ -18,3 +18,13 @@ segment prefix** of it, so a corpus covers the files under it. The segment bound
 it, so one file at two releases is one package and two files in one release are not.
 
 One conformance vector is revoked: a corpus name may now contain a path separator.
+
+A mailbox carries the items served under it. `email` refused a path because its locator is an RFC 5322
+addr-spec, and the dispatch entry stated the reason as a claim about the world — *"nothing lives under
+it"*. What sits under a mailbox is the person's own items, named by whoever serves them, and the scheme
+checks neither who minted an id nor that the item exists. The addr-spec is now the **first segment** of
+the locator and nothing else, so an item id carrying an `@` — which an RFC 5322 Message-ID does — sits
+after the first `/` and is never mistaken for the mailbox. A Message-ID is carried without the angle
+brackets the RFC writes it between, which is the form a mail API hands over.
+
+A second conformance vector is revoked: the one named *"nothing lives under a mailbox"*.
