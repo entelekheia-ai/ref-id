@@ -27,7 +27,7 @@ const refId = await import(join(ROOT, "packages/ref-id/src/index.ts"))
 const spec = refId.loadSpecFrom(join(ROOT, "spec"))
 
 type Refusal = { refusal: string; because: string; evidence: Record<string, unknown> }
-type Corpus = { type: string; locator: string; manifest: string }
+type Corpus = { type: string; locator: string; manifest: string; dir: string }
 
 function refuse(refusal: string, because: string, evidence: Record<string, unknown> = {}): Refusal {
   return { refusal, because, evidence }
@@ -86,7 +86,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
           continue
         }
         if (typeof manifest.name === "string") {
-          return { type: "pkg", locator: `npm/${manifest.name}`, manifest: rel(path) }
+          return { type: "pkg", locator: `npm/${manifest.name}`, manifest: rel(path), dir }
         }
         skipped.push(`${rel(path)} (declares no name)`)
         continue
@@ -94,7 +94,7 @@ function nearestCorpus(target: string): Corpus | Refusal {
       if (name === "Cargo.toml") {
         const crate = cargoName(text)
         if (crate) {
-          return { type: "pkg", locator: `cargo/${crate}`, manifest: rel(path) }
+          return { type: "pkg", locator: `cargo/${crate}`, manifest: rel(path), dir }
         }
         skipped.push(`${rel(path)} (a workspace manifest, declaring no package)`)
         continue
@@ -156,6 +156,54 @@ function candidates(target: string): { model: string; names: string[]; note?: st
   return { model: "unknown", names: [], note: `no fragment grammar covers ${target.split(".").pop()}` }
 }
 
+// ---------------------------------------------------------------- where a file is named from
+
+/**
+ * Whether the package manager ships this file, and at which version — asked of the manager itself.
+ *
+ * `npm pack --dry-run --json` lists exactly what a publish would upload, so the `files` field, the
+ * ignore files and every default npm applies are answered by npm rather than re-implemented here. A
+ * re-implementation is the drift this script exists to avoid, and it would be wrong in the direction
+ * that matters: a file this says is shipped, and is not, mints an identifier that resolves to nothing.
+ *
+ * Only npm is asked. A crate would need `cargo package --list` and a Swift package has no equivalent,
+ * so both fall through to the tree, which is correct rather than merely convenient — a file nobody
+ * publishes is named by where it was declared, never by a release it is absent from.
+ */
+function publishedAs(corpus: Corpus, target: string): { version: string; path: string } | undefined {
+  if (!corpus.locator.startsWith("npm/")) return undefined
+  const wanted = relative(corpus.dir, target)
+  try {
+    const out = execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: corpus.dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    const packed = (JSON.parse(out) as { version?: string; files?: { path: string }[] }[])[0]
+    if (!packed?.version || !packed.files?.some((file) => file.path === wanted)) return undefined
+    return { version: packed.version, path: wanted }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The corpus name a `folder` locator carries, for a file nobody publishes.
+ *
+ * A scoped package name (`@acme/tools`) does not fit the declared-name pattern, and shortening it to
+ * its last segment would make two scopes collide under one corpus. So this refuses and says which
+ * locator to pass, rather than choosing between two wrong names.
+ */
+function folderCorpus(corpus: Corpus, target: string): { locator: string } | Refusal {
+  const name = corpus.locator.replace(/^(npm|cargo)\//, "")
+  const path = relative(corpus.dir, target)
+  const candidate = `${name}/${path}`
+  return refId.parse(`ref:folder:${candidate}`).status === "ok"
+    ? { locator: candidate }
+    : refuse("corpus-name-unusable", "the manifest's name does not fit a declared corpus name", {
+        manifest: corpus.manifest,
+        declaredName: name,
+        pattern: spec.dispatch.folder.pattern,
+        answer: `pass --type folder --locator <corpus>/${path}`,
+      })
+}
+
 // ---------------------------------------------------------------- modes
 
 function mint(args: Map<string, string[]>): never {
@@ -179,6 +227,23 @@ function mint(args: Map<string, string[]>): never {
     }
     type ??= corpus.type
     locator ??= corpus.locator
+    // `--corpus` names the package itself and stays unversioned, so a record's identifier survives the
+    // releases it sits through. A file is the other act: the locator continues into the corpus and
+    // reaches the file, and where it continues from is what the two branches below decide.
+    if (!args.has("corpus") && !statSync(target).isDirectory() && !args.get("locator")) {
+      const shipped = publishedAs(corpus, target)
+      if (shipped) {
+        type = "pkg"
+        locator = `${corpus.locator}@${shipped.version}/${shipped.path}`
+      } else {
+        const named = folderCorpus(corpus, target)
+        if ("refusal" in named) {
+          emit(named)
+        }
+        type = "folder"
+        locator = named.locator
+      }
+    }
     if (!fragment && !args.has("corpus")) {
       const found = candidates(target)
       emit(

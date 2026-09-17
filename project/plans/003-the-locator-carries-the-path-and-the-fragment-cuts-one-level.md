@@ -6,7 +6,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-17 |
 | Author | Danilo Borges |
 | Related | Plan-001 (shipped), Plan-002 (shipped), ADR-0001 |
