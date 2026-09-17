@@ -184,23 +184,52 @@ function publishedAs(corpus: Corpus, target: string): { version: string; path: s
 }
 
 /**
- * The corpus name a `folder` locator carries, for a file nobody publishes.
+ * The name a subtree declares for itself, nearest ancestor winning — the one line
+ * `dispatch.folder.declaredBy` has always described and nothing has ever read.
  *
- * A scoped package name (`@acme/tools`) does not fit the declared-name pattern, and shortening it to
- * its last segment would make two scopes collide under one corpus. So this refuses and says which
- * locator to pass, rather than choosing between two wrong names.
+ * A `.ref-id` file holds that name and nothing else. It is a declaration rather than a derivation, so
+ * moving the subtree does not rename what is inside it, which is the whole reason identity is not a
+ * path. Blank lines and `#` comments are skipped; the first remaining line is the name.
  */
-function folderCorpus(corpus: Corpus, target: string): { locator: string } | Refusal {
-  const name = corpus.locator.replace(/^(npm|cargo)\//, "")
-  const path = relative(corpus.dir, target)
+function declaredCorpus(from: string): { name: string; root: string; declaredIn: string } | undefined {
+  for (let dir = from; ; dir = dirname(dir)) {
+    const path = join(dir, ".ref-id")
+    if (existsSync(path)) {
+      const name = readFileSync(path, "utf8")
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0 && !line.startsWith("#"))
+      if (name) return { name, root: dir, declaredIn: rel(path) }
+    }
+    if (dir === ROOT || dirname(dir) === dir) return undefined
+  }
+}
+
+/**
+ * The corpus name a `folder` locator carries, for a file the package manager does not ship.
+ *
+ * A declaration wins over a derivation, so `.ref-id` is consulted before the manifest. A scoped package
+ * name (`@acme/tools`) does not fit the declared-name pattern, and shortening it to its last segment
+ * would make two scopes collide under one corpus — so with no declaration to fall back on, this refuses
+ * and names the file to write, rather than choosing between two wrong names.
+ */
+function folderCorpus(target: string, corpus?: Corpus): { locator: string } | Refusal {
+  const declared = declaredCorpus(corpus?.dir ?? dirname(target))
+  const name = declared?.name ?? corpus?.locator.replace(/^(npm|cargo)\//, "") ?? ""
+  // The path runs from whatever declared the name, never from somewhere else — a path measured from the
+  // manifest while the name came from an ancestor drops the segments between them, and two files with
+  // the same name in two packages collide under one identifier. That collision is what this plan exists
+  // to remove, so it is worth the extra line here.
+  const path = relative(declared?.root ?? corpus?.dir ?? dirname(target), target)
   const candidate = `${name}/${path}`
   return refId.parse(`ref:folder:${candidate}`).status === "ok"
     ? { locator: candidate }
-    : refuse("corpus-name-unusable", "the manifest's name does not fit a declared corpus name", {
-        manifest: corpus.manifest,
-        declaredName: name,
+    : refuse("corpus-undeclared", "no subtree reaching this file declares a name a corpus can carry", {
+        manifest: corpus?.manifest,
+        triedName: name,
+        declaredIn: declared?.declaredIn,
         pattern: spec.dispatch.folder.pattern,
-        answer: `pass --type folder --locator <corpus>/${path}`,
+        answer: `write the corpus name into a .ref-id file at the subtree root, or pass --type folder --locator <corpus>/${path}`,
       })
 }
 
@@ -221,22 +250,27 @@ function mint(args: Map<string, string[]>): never {
     if (!existsSync(target)) {
       emit(refuse("no-such-path", "nothing is at that path", { target: path }))
     }
-    const corpus = nearestCorpus(target)
-    if ("refusal" in corpus) {
-      emit(corpus)
+    // A manifest is how a released artifact is found, not how a corpus is. A subtree that declares its
+    // own name is a corpus with no manifest anywhere above it — documentation beside a package, a
+    // repository that publishes nothing — so a manifest that reaches nothing is only fatal when no
+    // declaration reaches the file either.
+    const resolved = nearestCorpus(target)
+    const corpus = "refusal" in resolved ? undefined : resolved
+    if (!corpus && !declaredCorpus(dirname(target))) {
+      emit(resolved)
     }
-    type ??= corpus.type
-    locator ??= corpus.locator
+    type ??= corpus?.type ?? "folder"
+    locator ??= corpus?.locator ?? ""
     // `--corpus` names the package itself and stays unversioned, so a record's identifier survives the
     // releases it sits through. A file is the other act: the locator continues into the corpus and
     // reaches the file, and where it continues from is what the two branches below decide.
     if (!args.has("corpus") && !statSync(target).isDirectory() && !args.get("locator")) {
-      const shipped = publishedAs(corpus, target)
-      if (shipped) {
+      const shipped = corpus && publishedAs(corpus, target)
+      if (corpus && shipped) {
         type = "pkg"
         locator = `${corpus.locator}@${shipped.version}/${shipped.path}`
       } else {
-        const named = folderCorpus(corpus, target)
+        const named = folderCorpus(target, corpus)
         if ("refusal" in named) {
           emit(named)
         }
