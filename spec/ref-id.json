@@ -161,13 +161,13 @@
    "reference": "GS1 General Specifications, GTIN and its check digit calculation"
   },
   "ai-model": {
-   "locator": "served-model-id",
+   "locator": "provider-served-model-id",
    "validator": "declared-name",
    "delegate": "verbatim",
    "versionTail": false,
-   "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
-   "declaredBy": "the id the model is served under — the exact string a caller sends to the serving process to select it, verbatim. Deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2.",
-   "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation."
+   "pattern": "^[a-z0-9][a-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
+   "declaredBy": "the provider serving the model as the first segment, then the id the model is served under — the exact string a caller sends to that provider to select it, verbatim. The provider is an OpenTelemetry gen_ai.provider.name well-known value where one applies (anthropic, aws.bedrock, azure.ai.inference, azure.ai.openai, gcp.vertex_ai, openai, …) and the name of the serving runtime otherwise (omlx, ollama, lm-studio); its segment admits lowercase letters, digits, '.', '_' and '-', so every well-known value fits and no served id's ':' tag or '@' key can open the locator. A locator of one segment names the provider alone and covers every model it serves. The served id is deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant in the served id and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2. The machine a local runtime runs on is not part of the identity; it travels as a qualifier.",
+   "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation. The provider axis follows OpenTelemetry, which keeps gen_ai.provider.name apart from the model name and requires a well-known value when one applies: https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/"
   }
  },
  "typeRegistry": "a type names the naming system that owns the locator grammar; an unregistered type parses to uncovered, never to malformed, and registering its validator here is what promotes it — the registry is this table. A type name MUST be one an unrelated party solving the same problem would have chosen identically: a product name fails, because claiming it is the point of it, and a short desirable word naming a general activity fails for the opposite reason, because several parties would choose it and none owns a grammar. The test refuses the fight before it starts — a registry that admits a contested name is settled by whoever is larger rather than by whoever is right. An authority the registry does not cover is named through 'unknown' with its species declared, which costs nothing and stays precise.",
@@ -1366,175 +1366,175 @@
    },
    {
     "name": "ai-model served id is admitted: Qwen3-4B-Instruct-2507-4bit",
-    "input": "ref:ai-model:Qwen3-4B-Instruct-2507-4bit",
+    "input": "ref:ai-model:omlx/Qwen3-4B-Instruct-2507-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "Qwen3-4B-Instruct-2507-4bit"
+     "locator": "omlx/Qwen3-4B-Instruct-2507-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: gemma-4-26b-a4b-it-4bit",
-    "input": "ref:ai-model:gemma-4-26b-a4b-it-4bit",
+    "input": "ref:ai-model:omlx/gemma-4-26b-a4b-it-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "gemma-4-26b-a4b-it-4bit"
+     "locator": "omlx/gemma-4-26b-a4b-it-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: Qwen3.5-9B-OptiQ-4bit",
-    "input": "ref:ai-model:Qwen3.5-9B-OptiQ-4bit",
+    "input": "ref:ai-model:omlx/Qwen3.5-9B-OptiQ-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "Qwen3.5-9B-OptiQ-4bit"
+     "locator": "omlx/Qwen3.5-9B-OptiQ-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: gpt-oss-20b-MXFP4-Q8",
-    "input": "ref:ai-model:gpt-oss-20b-MXFP4-Q8",
+    "input": "ref:ai-model:omlx/gpt-oss-20b-MXFP4-Q8",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "gpt-oss-20b-MXFP4-Q8"
+     "locator": "omlx/gpt-oss-20b-MXFP4-Q8"
     }
    },
    {
     "name": "ai-model served id is admitted: Llama-3.2-1B-Instruct-4bit",
-    "input": "ref:ai-model:Llama-3.2-1B-Instruct-4bit",
+    "input": "ref:ai-model:omlx/Llama-3.2-1B-Instruct-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "Llama-3.2-1B-Instruct-4bit"
+     "locator": "omlx/Llama-3.2-1B-Instruct-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
-    "input": "ref:ai-model:Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
+    "input": "ref:ai-model:omlx/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"
+     "locator": "omlx/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: SmolLM3-3B-4bit",
-    "input": "ref:ai-model:SmolLM3-3B-4bit",
+    "input": "ref:ai-model:omlx/SmolLM3-3B-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "SmolLM3-3B-4bit"
+     "locator": "omlx/SmolLM3-3B-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: T-mixed-gemma-4-12B-it-OptiQ-4bit",
-    "input": "ref:ai-model:T-mixed-gemma-4-12B-it-OptiQ-4bit",
+    "input": "ref:ai-model:omlx/T-mixed-gemma-4-12B-it-OptiQ-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "T-mixed-gemma-4-12B-it-OptiQ-4bit"
+     "locator": "omlx/T-mixed-gemma-4-12B-it-OptiQ-4bit"
     }
    },
    {
     "name": "ai-model served id is admitted: claude-opus-5",
-    "input": "ref:ai-model:claude-opus-5",
+    "input": "ref:ai-model:anthropic/claude-opus-5",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "claude-opus-5"
+     "locator": "anthropic/claude-opus-5"
     }
    },
    {
     "name": "ai-model served id is admitted: Ternary-Bonsai-27B-mlx-2bit",
-    "input": "ref:ai-model:Ternary-Bonsai-27B-mlx-2bit",
+    "input": "ref:ai-model:omlx/Ternary-Bonsai-27B-mlx-2bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "Ternary-Bonsai-27B-mlx-2bit"
+     "locator": "omlx/Ternary-Bonsai-27B-mlx-2bit"
     }
    },
    {
     "name": "ai-model served id is admitted: gemini-2.5-flash",
-    "input": "ref:ai-model:gemini-2.5-flash",
+    "input": "ref:ai-model:gcp.gemini/gemini-2.5-flash",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "gemini-2.5-flash"
+     "locator": "gcp.gemini/gemini-2.5-flash"
     }
    },
    {
     "name": "ai-model served id is admitted: llama3:8b",
-    "input": "ref:ai-model:llama3:8b",
+    "input": "ref:ai-model:ollama/llama3:8b",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "llama3:8b"
+     "locator": "ollama/llama3:8b"
     }
    },
    {
     "name": "ai-model served id is admitted: gpt-4o-2024-08-06",
-    "input": "ref:ai-model:gpt-4o-2024-08-06",
+    "input": "ref:ai-model:openai/gpt-4o-2024-08-06",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "gpt-4o-2024-08-06"
+     "locator": "openai/gpt-4o-2024-08-06"
     }
    },
    {
     "name": "ai-model served id is admitted: mlx-community/Qwen3-1.7B-4bit",
-    "input": "ref:ai-model:mlx-community/Qwen3-1.7B-4bit",
+    "input": "ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": null,
      "type": "ai-model",
-     "locator": "mlx-community/Qwen3-1.7B-4bit"
+     "locator": "omlx/mlx-community/Qwen3-1.7B-4bit"
     }
    },
    {
     "name": "an ai-model id cannot open on a separator",
-    "input": "ref:ai-model:-Qwen3-4B",
+    "input": "ref:ai-model:omlx/-Qwen3-4B",
     "expect": {
      "status": "malformed",
      "part": "locator"
@@ -1583,7 +1583,7 @@
    },
    {
     "name": "an ai-model id cannot carry a character outside its declared class",
-    "input": "ref:ai-model:a b",
+    "input": "ref:ai-model:omlx/a b",
     "expect": {
      "status": "malformed",
      "part": "locator"
@@ -1591,19 +1591,19 @@
    },
    {
     "name": "an ai-model id carries a quantisation key after @",
-    "input": "ref:ai-model:qwen2.5-7b-instruct@q4_k_m",
+    "input": "ref:ai-model:lm-studio/qwen2.5-7b-instruct@q4_k_m",
     "expect": {
      "status": "ok",
      "version": 1,
      "type": "ai-model",
-     "locator": "qwen2.5-7b-instruct@q4_k_m",
+     "locator": "lm-studio/qwen2.5-7b-instruct@q4_k_m",
      "qualifiers": [],
      "fragment": null
     }
    },
    {
     "name": "an ai-model id cannot traverse — every segment opens on an alphanumeric",
-    "input": "ref:ai-model:a/../../etc/passwd",
+    "input": "ref:ai-model:omlx/../../etc/passwd",
     "expect": {
      "status": "malformed",
      "part": "locator"
@@ -1611,10 +1611,87 @@
    },
    {
     "name": "an ai-model id cannot carry an empty segment",
-    "input": "ref:ai-model:a//b",
+    "input": "ref:ai-model:omlx//b",
     "expect": {
      "status": "malformed",
      "part": "locator"
+    }
+   },
+   {
+    "name": "an ai-model locator of one segment names the provider alone",
+    "input": "ref:ai-model:anthropic",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "ai-model",
+     "locator": "anthropic"
+    }
+   },
+   {
+    "name": "an ai-model provider may be any OpenTelemetry well-known value: azure.ai.inference",
+    "input": "ref:ai-model:azure.ai.inference/claude-opus-5-5",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "ai-model",
+     "locator": "azure.ai.inference/claude-opus-5-5"
+    }
+   },
+   {
+    "name": "an ai-model provider may carry an underscore: mistral_ai",
+    "input": "ref:ai-model:mistral_ai/mistral-large-latest",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "ai-model",
+     "locator": "mistral_ai/mistral-large-latest"
+    }
+   },
+   {
+    "name": "an ai-model provider is lowercase — a served id written without its provider is refused",
+    "input": "ref:ai-model:Qwen3-4B-Instruct-2507-4bit",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
+    "name": "an ai-model provider carries no ':' — an Ollama tag cannot open the locator",
+    "input": "ref:ai-model:llama3:8b",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
+    "name": "an ai-model provider carries no '@' — a quantisation key cannot open the locator",
+    "input": "ref:ai-model:mymodel@q4_k_m",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
+    "name": "an ai-model locator carries qualifiers after the served id",
+    "input": "ref:ai-model:anthropic/claude-opus-5-5;effort=low",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "type": "ai-model",
+     "locator": "anthropic/claude-opus-5-5",
+     "qualifiers": [
+      [
+       "effort",
+       "low"
+      ]
+     ],
+     "fragment": null
     }
    },
    {
@@ -1825,8 +1902,8 @@
    },
    {
     "name": "a nested value is not decoded by canonicalisation",
-    "input": "ref:eita:t@1/o;when=2026-08-02T18:31:31.870Z;over=ref:ai-model:Qwen3-4B-Instruct-2507-4bit",
-    "expect": "ref:eita:t@1/o;over=ref:ai-model:Qwen3-4B-Instruct-2507-4bit;when=2026-08-02T18:31:31.870Z"
+    "input": "ref:eita:t@1/o;when=2026-08-02T18:31:31.870Z;over=ref:ai-model:omlx/Qwen3-4B-Instruct-2507-4bit",
+    "expect": "ref:eita:t@1/o;over=ref:ai-model:omlx/Qwen3-4B-Instruct-2507-4bit;when=2026-08-02T18:31:31.870Z"
    },
    {
     "name": "no qualifiers, nothing to sort",
@@ -1877,8 +1954,8 @@
    "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
    "ref:doi:10.1000/182;state=swh:1:rev:7e29bb6000000000000000000000000000000000#S",
    "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%2523src/y",
-   "ref:ai-model:mlx-community/Qwen3-1.7B-4bit",
-   "ref:ai-model:llama3:8b",
+   "ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit",
+   "ref:ai-model:ollama/llama3:8b",
    "ref:folder:acme-tools;over=unknown"
   ],
   "build": [
@@ -2035,17 +2112,17 @@
     "name": "an ai-model locator with a hub-style separator builds as is",
     "parts": {
      "type": "ai-model",
-     "locator": "mlx-community/Qwen3-1.7B-4bit"
+     "locator": "omlx/mlx-community/Qwen3-1.7B-4bit"
     },
-    "expect": "ref:ai-model:mlx-community/Qwen3-1.7B-4bit"
+    "expect": "ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit"
    },
    {
     "name": "an ai-model locator with an Ollama tag builds as is",
     "parts": {
      "type": "ai-model",
-     "locator": "llama3:8b"
+     "locator": "ollama/llama3:8b"
     },
-    "expect": "ref:ai-model:llama3:8b"
+    "expect": "ref:ai-model:ollama/llama3:8b"
    },
    {
     "name": "over=unknown builds as the declared level for an unestablished population",
@@ -2297,11 +2374,31 @@
    },
    {
     "name": "a served model's '@' keys a quantisation, never a version",
-    "a": "ref:ai-model:mymodel@q4_k_m",
-    "b": "ref:ai-model:mymodel@q8_0",
+    "a": "ref:ai-model:lm-studio/mymodel@q4_k_m",
+    "b": "ref:ai-model:lm-studio/mymodel@q8_0",
     "expect": {
      "samePackage": false,
      "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "one served id through two providers is two models",
+    "a": "ref:ai-model:anthropic/claude-opus-5-5",
+    "b": "ref:ai-model:azure.ai.inference/claude-opus-5-5",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a provider covers every model it serves",
+    "a": "ref:ai-model:omlx",
+    "b": "ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
      "coversReversed": false
     }
    },
