@@ -69,6 +69,15 @@ ref:ai-model:anthropic/claude-opus-5-5;effort=low
   set of weights executed by two runtimes is two models — `mlx/…` and `omlx/…` differ even when the
   weights are the same. The segment admits lowercase letters, digits, `.`, `_` and `-` — every well-known
   value fits, and no served id's `:` tag or `@` key can open the locator.
+- An application that embeds a runtime and configures it — its own sampling, context and template
+  defaults — is itself the provider, for the same reason `omlx` is the provider over the `mlx` it wraps:
+  configuration shapes what the model answers. The embedded engine is recorded with the registered `by`
+  qualifier (role *instrument*), whose value is a nested identifier, never a bare name:
+  `;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4`. A versioned package is preferred, because
+  an engine release can change the output. When the version linked is not known, the nested identifier
+  says so with `state=none` — `;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none` — which keeps *unknown*
+  apart from *not declared* (the nested identifier with no version and no state, naming the living
+  package). A known commit without a release is `state=git:<sha>`.
 - The served id is the string the caller hands the provider to select the model, which keeps the
   round-trip that makes it an identifier. For a hosted API or a local server it is the model id in the
   request. For a runtime linked in-process it is the name the weights' source declares — the hub
@@ -130,6 +139,11 @@ id had three candidates:
   and its vectors.
 - **"The same model on any provider" is a query on the locator's tail, not an operation.** Neither
   `samePackage` nor `covers` expresses it; a store that needs it compares the segments after the first.
+- **"Everything any version of this engine produced" is not answered by `covers` today.** A qualifier the
+  first identifier declares must be declared identically by the second, so `;by=…/llama.cpp` does not
+  cover `;by=…/llama.cpp@b10931` even though the two nested identifiers stand in that relation. Until the
+  comparison descends into nested identifiers, a consumer answers it by comparing the nested `by` values
+  itself.
 - **A model and its weights are two identifiers.** `ref:ai-model:` names what answered; the weights are
   `ref:pkg:huggingface/<org>/<repo>@<revision>` (with `#<file>` for a single-file format). The served id
   carries no revision, so a store that must tell two revisions apart records the weights beside the model.

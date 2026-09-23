@@ -10,6 +10,8 @@ is an OpenTelemetry `gen_ai.provider.name` well-known value where one applies, a
 that executes the model otherwise — a server or a library linked in-process (`mlx`, `llama.cpp`); its
 segment is lowercase and admits no `:` or `@`. With no server, the served id is the name the weights'
 source declares (`ref:ai-model:llama.cpp/<org>/<repo>/<file>.gguf`), never a filesystem path.
+An application that embeds and configures a runtime is itself the provider; the engine is recorded as
+`;by=` with a nested identifier, and `state=none` on it marks a linked version nobody captured.
 
 **An identifier written under the previous grammar changes meaning.** An uppercase served id or an Ollama
 tag (`ref:ai-model:llama3:8b`) is now `malformed`; a lowercase served id without a colon
