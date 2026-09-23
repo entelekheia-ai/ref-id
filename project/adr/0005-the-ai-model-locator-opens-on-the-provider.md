@@ -49,23 +49,36 @@ cut inside the item.
 
 ## Decision
 
-We will make the first segment of an `ai-model` locator **the provider serving the model**, and every
-following segment **the id the model is served under, verbatim**:
+We will make the first segment of an `ai-model` locator **the provider that executes the model**, and
+every following segment **the id the caller hands that provider to select it, verbatim**:
 
 ```text
 ref:ai-model:anthropic/claude-opus-5-5
 ref:ai-model:azure.ai.inference/claude-opus-5-5
 ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit
 ref:ai-model:ollama/llama3:8b
+ref:ai-model:mlx/mlx-community/Qwen3.5-4B-4bit
+ref:ai-model:llama.cpp/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf
 ref:ai-model:anthropic/claude-opus-5-5;effort=low
 ```
 
 - The provider is an OpenTelemetry `gen_ai.provider.name` well-known value where one applies, and the name
-  of the serving runtime otherwise (`omlx`, `ollama`, `lm-studio`). Its segment admits lowercase letters,
-  digits, `.`, `_` and `-` — every well-known value fits, and no served id's `:` tag or `@` key can open
-  the locator.
+  of the runtime that executes the model otherwise. That runtime may be a server the caller reaches
+  (`omlx`, `ollama`, `lm-studio`) or a library linked into the caller's own process (`mlx`, `llama.cpp`):
+  the provider answers *what executed the model*, and a process boundary is not part of that answer. One
+  set of weights executed by two runtimes is two models — `mlx/…` and `omlx/…` differ even when the
+  weights are the same. The segment admits lowercase letters, digits, `.`, `_` and `-` — every well-known
+  value fits, and no served id's `:` tag or `@` key can open the locator.
+- The served id is the string the caller hands the provider to select the model, which keeps the
+  round-trip that makes it an identifier. For a hosted API or a local server it is the model id in the
+  request. For a runtime linked in-process it is the name the weights' source declares — the hub
+  repository the runtime loads (`mlx-community/Qwen3.5-4B-4bit`), and for a single-file format the
+  repository followed by the file (`<org>/<repo>/<file>.gguf`). **A filesystem path is never a served id**:
+  it names where a machine keeps the file, not the model, and an absolute path opens on an empty segment,
+  which the pattern refuses.
 - The served id keeps the grammar it had: every segment opens on an alphanumeric and admits `.`, `_`, `:`,
-  `@` and `-`.
+  `@` and `-`. It carries no revision; the weights are a separate identity (`ref:pkg:huggingface/…@<rev>`),
+  and a store that needs both records both.
 - A locator of one segment names the provider alone, so `ref:ai-model:omlx` covers every model served by
   that runtime.
 - The machine a local runtime runs on is not part of the identity. It travels as a qualifier (for example
@@ -89,6 +102,21 @@ ref:ai-model:anthropic/claude-opus-5-5;effort=low
   and `covers` selects a provider with no new operation / changes what an identifier already written
   means, accepted below.
 
+For a model no server serves — weights loaded from disk by a library in the caller's process — the served
+id had three candidates:
+
+- **Option E (chosen) — the name the weights' source declares** (`<org>/<repo>`, and `<org>/<repo>/<file>`
+  for a single-file format) — it is what the caller hands the runtime to load, so the round-trip holds; it
+  is stable across machines; it lines up with the weights' own `pkg:huggingface` identity / it names the
+  source rather than a running process, which is exactly what an in-process runtime has.
+- **Option F — the name the runtime reports** (a GGUF file's `general.name` metadata) — needs nothing from
+  outside the file / it is written by whoever converted the weights, is shared by every quantisation of
+  one model, and selects nothing, so two different files mint one identifier. Rejected.
+- **Option G — `ai-model` applies only where a serving process exists; an in-process model is named by its
+  weights alone** — keeps the served id literal / the weights identity carries no executor, so the same
+  file run by two runtimes compares as one model, and a store holding local and hosted replies needs two
+  identity schemes for one question. Rejected.
+
 ## Consequences
 
 - **An identifier written under the old grammar changes meaning without failing.** `ref:ai-model:claude-opus-5`
@@ -102,6 +130,9 @@ ref:ai-model:anthropic/claude-opus-5-5;effort=low
   and its vectors.
 - **"The same model on any provider" is a query on the locator's tail, not an operation.** Neither
   `samePackage` nor `covers` expresses it; a store that needs it compares the segments after the first.
+- **A model and its weights are two identifiers.** `ref:ai-model:` names what answered; the weights are
+  `ref:pkg:huggingface/<org>/<repo>@<revision>` (with `#<file>` for a single-file format). The served id
+  carries no revision, so a store that must tell two revisions apart records the weights beside the model.
 - **The provider list is not copied into the specification.** OpenTelemetry owns it and marks it
   `development`; the specification names the source and the fallback rule, and a value it does not list is
   admitted by the pattern like any runtime name.

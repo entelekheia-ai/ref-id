@@ -52,6 +52,12 @@ next to a folder. Reading them as nine ways an authority can exist makes the set
 | Nobody — the subtree is local | `folder` | no manifest reaches this subtree, so the declared name is the only claim there is |
 | None at all, named honestly | `unknown` | this registry does not cover the authority, and the locator says which one instead of hiding that |
 
+One local model is two claims by two authorities, and so two identifiers. The registry that publishes the
+weights says *this file is this revision* — `ref:pkg:huggingface/<org>/<repo>@<revision>`, with `#<file>` for
+a single-file format. The runtime that executes them says *this is what answered* —
+`ref:ai-model:<runtime>/<org>/<repo>`. Neither can stand in for the other: the weights carry no executor, so
+the same file under two runtimes would compare as one model, and the served id carries no revision.
+
 Three types share one authority — a standards body — because three different bodies (ITU-T, ISO, GS1) each
 own one number format outright, and none of the three grammars would survive being merged into the others:
 `isbn` and `gtin` overlap exactly at the 13-digit form and diverge at the 10-digit one, which is the

@@ -166,7 +166,7 @@
    "delegate": "verbatim",
    "versionTail": false,
    "pattern": "^[a-z0-9][a-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
-   "declaredBy": "the provider serving the model as the first segment, then the id the model is served under — the exact string a caller sends to that provider to select it, verbatim. The provider is an OpenTelemetry gen_ai.provider.name well-known value where one applies (anthropic, aws.bedrock, azure.ai.inference, azure.ai.openai, gcp.vertex_ai, openai, …) and the name of the serving runtime otherwise (omlx, ollama, lm-studio); its segment admits lowercase letters, digits, '.', '_' and '-', so every well-known value fits and no served id's ':' tag or '@' key can open the locator. A locator of one segment names the provider alone and covers every model it serves. The served id is deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant in the served id and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2. The machine a local runtime runs on is not part of the identity; it travels as a qualifier.",
+   "declaredBy": "the provider that executes the model as the first segment, then the id the caller hands that provider to select it, verbatim. The provider is an OpenTelemetry gen_ai.provider.name well-known value where one applies (anthropic, aws.bedrock, azure.ai.inference, azure.ai.openai, gcp.vertex_ai, openai, …) and the name of the runtime that executes the model otherwise — a server the caller reaches (omlx, ollama, lm-studio) or a library linked into the caller's own process (mlx, llama.cpp), because the provider answers what executed the model and a process boundary is not part of that answer; one set of weights executed by two runtimes is two models. For a runtime linked in-process the served id is the name the weights' source declares — the hub repository it loads, and for a single-file format the repository followed by the file (org/repo/file.gguf) — never a filesystem path, which names where a machine keeps the file rather than the model, and whose leading '/' opens an empty segment the pattern refuses. The served id carries no revision: the weights are a separate identity (pkg:huggingface/…@revision). The provider segment admits lowercase letters, digits, '.', '_' and '-', so every well-known value fits and no served id's ':' tag or '@' key can open the locator. A locator of one segment names the provider alone and covers every model it serves. The served id is deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant in the served id and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2. The machine a local runtime runs on is not part of the identity; it travels as a qualifier.",
    "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation. The provider axis follows OpenTelemetry, which keeps gen_ai.provider.name apart from the model name and requires a well-known value when one applies: https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/"
   }
  },
@@ -1654,6 +1654,38 @@
     }
    },
    {
+    "name": "an ai-model provider may be a runtime linked in-process: mlx",
+    "input": "ref:ai-model:mlx/mlx-community/Qwen3.5-4B-4bit",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "ai-model",
+     "locator": "mlx/mlx-community/Qwen3.5-4B-4bit"
+    }
+   },
+   {
+    "name": "an in-process single-file model is served as repository then file: llama.cpp",
+    "input": "ref:ai-model:llama.cpp/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "ai-model",
+     "locator": "llama.cpp/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf"
+    }
+   },
+   {
+    "name": "an ai-model served id is never a filesystem path — an absolute path opens an empty segment",
+    "input": "ref:ai-model:llama.cpp//Users/someone/models/SmolLM2-1.7B-Instruct-Q4_K_M.gguf",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
     "name": "an ai-model provider is lowercase — a served id written without its provider is refused",
     "input": "ref:ai-model:Qwen3-4B-Instruct-2507-4bit",
     "expect": {
@@ -2399,6 +2431,16 @@
     "expect": {
      "samePackage": false,
      "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "one set of weights executed by two runtimes is two models",
+    "a": "ref:ai-model:mlx/mlx-community/Qwen3.5-4B-4bit",
+    "b": "ref:ai-model:omlx/mlx-community/Qwen3.5-4B-4bit",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
      "coversReversed": false
     }
    },

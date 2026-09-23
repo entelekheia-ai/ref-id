@@ -6,8 +6,10 @@ An `ai-model` locator opens on the provider serving the model, then carries the 
 `ref:ai-model:anthropic/claude-opus-5-5`, `ref:ai-model:azure.ai.inference/claude-opus-5-5`,
 `ref:ai-model:ollama/llama3:8b`. One served id through two providers is now two models, and a locator of
 one segment — `ref:ai-model:omlx` — names the provider alone and covers every model it serves. The provider
-is an OpenTelemetry `gen_ai.provider.name` well-known value where one applies, and the serving runtime's
-name otherwise; its segment is lowercase and admits no `:` or `@`.
+is an OpenTelemetry `gen_ai.provider.name` well-known value where one applies, and the name of the runtime
+that executes the model otherwise — a server or a library linked in-process (`mlx`, `llama.cpp`); its
+segment is lowercase and admits no `:` or `@`. With no server, the served id is the name the weights'
+source declares (`ref:ai-model:llama.cpp/<org>/<repo>/<file>.gguf`), never a filesystem path.
 
 **An identifier written under the previous grammar changes meaning.** An uppercase served id or an Ollama
 tag (`ref:ai-model:llama3:8b`) is now `malformed`; a lowercase served id without a colon
