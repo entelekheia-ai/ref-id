@@ -50,6 +50,10 @@ in line at once.
 - A vector group binds every rule above, so an implementation that disagrees fails its own suite and the
   differential.
 - `main` never holds a specification that one of its implementations cannot run.
+- The specification declares the public surface — each operation's name, parameters, result and the
+  vector group that binds it — and each implementation's suite fails when its surface departs from that
+  declaration, in either direction. The three implementations expose the same operations under the same
+  names, spelled by each language's convention.
 
 ## Scope
 
@@ -61,6 +65,7 @@ in line at once.
 - The TypeScript reference, the Rust crate and the Swift port, including their runners' lists of executed
   groups and the differential in `scripts/differential.mjs`.
 - `docs/reference/the-ref-scheme.md` and a changeset.
+- A new `api` block in `spec/ref-id.json`, and one surface check per implementation that reads it.
 
 ### Out of scope
 
@@ -117,7 +122,7 @@ Three consequences are part of the design, not side effects:
 **Ordering constraint.** The Rust and Swift runners declare the groups they execute
 (`crates/ref-id/tests/conformance.rs`, `Sources/RefIdConformance/main.swift`) and refuse any group the
 specification declares beyond them. A changed `comparison` vector also fails every implementation until
-that implementation changes. So Tracks 1 and 3 land on this plan's branch and **merge together with
+that implementation changes. So Tracks 1, 3 and 4 land on this plan's branch and **merge together with
 Track 2**, never before it.
 
 **One branch, one pull request.** Every track commits onto the branch `plan-comparison-descends-into-nested`,
@@ -142,6 +147,18 @@ criteria exits `0`.
   against the `comparison` group on the same pairs. Document it in `docs/reference/the-ref-scheme.md`.
   Acceptance: every `relate` vector's reductions agree with the `comparison` group's expectations for the
   same pair, checked by a script, not by eye.
+- [ ] **Track 4 — The surface is declared.** Add an `api` block to `spec/ref-id.json`: one entry per public
+  operation and public type, with its camelCase name, parameters in order, result, whether it can fail,
+  and the vector group that binds it (or a stated reason it has none). `relate` from Track 3 and
+  `sameIdentifier` are declared; `canonical` is declared as `canonicalIdentifier`, and the JSON
+  canonicalisation as `canonicalise`. An identifier parameter accepts a string or a `ParseResult`, mixed
+  freely, in all three. Each implementation gains a surface check that fails on a missing or extra
+  operation and on a changed name, arity or type: in TypeScript a test importing each entry point in a
+  child process plus a type file checked by `tsc`, in Rust a test that fails to compile when a signature
+  moves, in Swift the conformance runner referencing each declared function by its full name. The two
+  TypeScript tests that import `covers`, `samePackage`, `canonical` and `sameIdentifier` from internal
+  modules import them from the entry point instead. Acceptance: the block validates against the vectors'
+  group list, and each surface check fails today on exactly the divergences the survey found.
 - [ ] **Track 2 — The three implementations follow.** In one realignment pass over TypeScript, Rust and
   Swift, bring the drifted code back into agreement, implement the descent and `relate`, add `relate` to
   each runner's executed groups and to `scripts/differential.mjs`, and write the changeset. Acceptance:
@@ -230,6 +247,20 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   strict; Rust fails at the first of those five, because its comparison test stops at its first assertion.
   Rationale: the Rust harness cannot list the rest until the first passes, so its full list is Track 2's
   first reading rather than this track's.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: Track 4 declares the public surface in the specification, and the tracks now run 1, 3, 4, 2.
+  The declaration completes Rust and Swift up to TypeScript rather than trimming TypeScript down:
+  `sameIdentifier` is added to both, and both accept a `ParseResult` wherever an identifier is taken — a
+  trait in Rust, a protocol or overloads in Swift, so every call written with a string still compiles.
+  Renames that change a published name (`canonical` → `canonicalIdentifier` in TypeScript,
+  `canonicalJSON` → `canonicalise` in Swift) keep the old name as a deprecated alias for one minor.
+  Rationale: a survey of the three surfaces found `covers` already agrees everywhere, and seven real
+  divergences elsewhere — two names, one operation present only in TypeScript, identifier parameters that
+  accept a parse result only in TypeScript, an error class outside the package's own hierarchy, a type
+  name, and three spellings of loading a specification. Nothing detects any of them: the specification
+  declares no surface, and the TypeScript tests for `canonical` and `comparison` import from internal
+  modules, so an operation dropped from the entry point leaves its vectors green. Declaring before Track 2
+  lets the realignment pass implement against the declaration once instead of twice.
   Date / Author: 2026-09-23 / Danilo Borges
 
 ## Outcomes & Retrospective
