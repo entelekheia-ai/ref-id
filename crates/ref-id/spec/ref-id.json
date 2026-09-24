@@ -2832,9 +2832,9 @@
     "expect": "ref:pkg:npm/x@1.0.0;by=sha256:0000000000000000000000000000000000000000000000000000000000000000;state=none"
    },
    {
-    "name": "refinements are positional and keep the order they were written",
+    "name": "the order inside a refinement value is content, the order between refinement keys is not",
     "input": "ref:folder:acme-governance;state=none#AGENTS.md;lines=1,20;item=3",
-    "expect": "ref:folder:acme-governance;state=none#AGENTS.md;lines=1,20;item=3"
+    "expect": "ref:folder:acme-governance;state=none#AGENTS.md;item=3;lines=1,20"
    },
    {
     "name": "qualifiers sort while the fragment beside them is untouched",
