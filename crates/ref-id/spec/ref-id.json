@@ -396,7 +396,7 @@
   "info": {
    "title": "ref: identifier operations",
    "version": "1.3.0",
-   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, x-extensions lists what a language exposes beyond this surface; x-error-type names the one error type every language raises, whose kinds are components.errors; x-argument-labels on a method means Swift uses its parameter names as argument labels, where every other method takes unlabelled arguments; x-kind \"directory\" on a string schema means a filesystem path, which each language takes as its own path type; x-result-cached means the result is one shared instance for the process, which Rust returns as a 'static reference."
+   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, x-extensions lists what a language exposes beyond this surface; x-error-type names the one error type every language raises, whose kinds are components.errors; x-argument-labels on a method means Swift uses its parameter names as argument labels, where every other method takes unlabelled arguments; x-deprecated-aliases lists, per language, an earlier name a method is still exposed under for one minor release, spelled as that language spells it (with Swift argument labels); x-kind \"directory\" on a string schema means a filesystem path, which each language takes as its own path type; x-result-cached means the result is one shared instance for the process, which Rust returns as a 'static reference."
   },
   "x-casing": {
    "typescript": "camelCase",
@@ -521,7 +521,12 @@
      }
     ],
     "x-rule": "/identifierEquivalence/canonicalForm",
-    "x-vectors": "canonical"
+    "x-vectors": "canonical",
+    "x-deprecated-aliases": {
+     "typescript": [
+      "canonical"
+     ]
+    }
    },
    {
     "name": "sameIdentifier",
@@ -730,7 +735,12 @@
     ],
     "x-rule": "/canonicalisation",
     "x-vectors": null,
-    "x-vectors-reason": "exercised by every implementation's specification-integrity test, which recomputes the sidecar digest through it"
+    "x-vectors-reason": "exercised by every implementation's specification-integrity test, which recomputes the sidecar digest through it",
+    "x-deprecated-aliases": {
+     "swift": [
+      "canonicalJSON(_:)"
+     ]
+    }
    },
    {
     "name": "loadSpec",
@@ -788,7 +798,12 @@
     "x-absent-from": [
      "typescript-browser"
     ],
-    "x-absent-reason": "a browser has no directory to read"
+    "x-absent-reason": "a browser has no directory to read",
+    "x-deprecated-aliases": {
+     "swift": [
+      "loadSpec(from:)"
+     ]
+    }
    }
   ],
   "components": {

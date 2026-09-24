@@ -16,7 +16,8 @@
  *   swift  the symbol graph the compiler emits for the `RefId` target, its list of every public symbol. Needs macOS and
  *          a build, so it runs where the Swift toolchain is.
  *
- * A public function no method declares, and that `x-extensions` does not list for the language, fails. A
+ * A public function no method declares, that `x-extensions` does not list for the language, and that no
+ * method names among its `x-deprecated-aliases`, fails. A
  * declared method no function spells fails too, as a second witness beside the compile-time check. Types
  * are listed for reading and never fail: a language's types do not map one-to-one onto the value schemas.
  *
@@ -39,7 +40,10 @@ const CASING = { camelCase: (name) => name, snake_case: (name) => name.replace(/
 const declaredFor = (language) => {
   const spell = CASING[doc["x-casing"][language]]
   const methods = doc.methods.filter((method) => !(method["x-absent-from"] ?? []).includes(language)).map((method) => spell(method.name))
-  return { methods: new Set(methods), extensions: new Set(doc["x-extensions"][language] ?? []) }
+  // A deprecated alias is declared per method, spelled as the language spells it — with Swift argument
+  // labels — and a surface is compared by base name, so the labels are dropped here.
+  const aliases = doc.methods.flatMap((method) => method["x-deprecated-aliases"]?.[language] ?? []).map((alias) => alias.replace(/\(.*$/, ""))
+  return { methods: new Set(methods), extensions: new Set([...(doc["x-extensions"][language] ?? []), ...aliases]) }
 }
 
 async function rustSurface() {
