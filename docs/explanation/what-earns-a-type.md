@@ -47,10 +47,16 @@ next to a folder. Reading them as nine ways an authority can exist makes the set
 | A package registry | `pkg` | this name inside this ecosystem resolves to this package |
 | The owner of a host | `url` | this owner controls what lives under each path segment |
 | Whoever runs a mailbox | `email` | this mailbox belongs to the person or role it addresses |
-| A serving process | `ai-model` | this exact id selects this model, on the process that serves it today |
+| A provider serving a model | `ai-model` | this provider serves this model under this exact id, today |
 | A standards body | `tel`, `isbn`, `gtin` | ITU-T (E.164), ISO (2108) and GS1 each say a number of the right shape and check digit is theirs to validate |
 | Nobody — the subtree is local | `folder` | no manifest reaches this subtree, so the declared name is the only claim there is |
 | None at all, named honestly | `unknown` | this registry does not cover the authority, and the locator says which one instead of hiding that |
+
+One local model is two claims by two authorities, and so two identifiers. The registry that publishes the
+weights says *this file is this revision* — `ref:pkg:huggingface/<org>/<repo>@<revision>`, with `#<file>` for
+a single-file format. The runtime that executes them says *this is what answered* —
+`ref:ai-model:<runtime>/<org>/<repo>`. Neither can stand in for the other: the weights carry no executor, so
+the same file under two runtimes would compare as one model, and the served id carries no revision.
 
 Three types share one authority — a standards body — because three different bodies (ITU-T, ISO, GS1) each
 own one number format outright, and none of the three grammars would survive being merged into the others:
