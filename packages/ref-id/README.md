@@ -30,20 +30,6 @@ declared corpus name when nothing does — and keeps state (`;state=`), instrume
 (`;over=`) as qualifiers rather than folding them into the name. One regular expression decomposes an
 identifier; each captured part is handed to the validator that already owns that format.
 
-**An identifier is a reference, not a copy of the record.** Read it as
-`search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)`: the first two are the pointer,
-and a qualifier is enrichment, added only where it tells two records apart. A nested identifier stays a
-bare pointer, with no qualifiers of its own; what does not fit goes in a column beside the identifier.
-
-```text
-ref:ai-model:example-app/org/repo;thinking=no;by=ref:pkg:github/ggml-org/llama.cpp   ← a pointer
-ref:ai-model:example-app/org/repo;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none;latency-ms=812
-                                                                                     ← a copy of the record
-```
-
-Both parse; only the first is what to write. The rules and their reasons are in
-[What an identifier carries](https://github.com/entelekheia-ai/ref-id/blob/main/docs/reference/the-ref-scheme.md#what-an-identifier-carries).
-
 ## Install
 
 ```sh
@@ -72,6 +58,21 @@ symmetric and ignores the locator's version, and only where the type declares it
 `@` and a served model's quantisation key are not versions. `covers` is **asymmetric**: what the first
 identifier leaves undeclared, the second may declare freely; what the first declares, the second must
 declare identically. That is what makes a partial identifier a query over a store keyed by identifier.
+
+**An identifier is a reference, not a copy of the record.** Read it as
+`search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)`: the first two are the pointer,
+and a qualifier is enrichment, added where it tells two records apart. A nested identifier is a bare
+pointer — a type, a locator and at most a fragment. Every other attribute goes in a column beside the
+identifier.
+
+```text
+ref:ai-model:example-app/org/repo;thinking=no;by=ref:pkg:github/ggml-org/llama.cpp   ← a pointer
+ref:ai-model:example-app/org/repo;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none;latency-ms=812
+                                                                                     ← a copy of the record
+```
+
+Both parse `ok`; write the first shape. The rules and their reasons are in
+[What an identifier carries](https://github.com/entelekheia-ai/ref-id/blob/main/docs/reference/the-ref-scheme.md#what-an-identifier-carries).
 
 ## Environments
 

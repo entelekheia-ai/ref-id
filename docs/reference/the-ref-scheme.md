@@ -283,8 +283,8 @@ ref:folder:acme-governance;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conform
 ref:folder:acme-governance;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S
 ```
 
-The second line shows what the encoding admits, not what a producer should write: a nested identifier
-is advised to stay a bare pointer (see [What an identifier carries](#what-an-identifier-carries)).
+The second line shows what the encoding admits. A producer writes the first shape, because a nested
+identifier **SHOULD** stay a bare pointer (see [What an identifier carries](#what-an-identifier-carries)).
 
 **Nesting is exactly one level deep.** Depth is fixed by the specification; width is not (see
 [Qualifiers](#qualifiers)). A nested value that itself nests another level is `malformed`, reported at the
@@ -328,9 +328,9 @@ search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)
 ```
 
 `in` says where to look and `for` says which declared name — those two are the identifier. `with` is
-enrichment: it is added when two records would otherwise share one identifier, and not by default. A
-`by=` naming the instrument is enrichment too, and what `covers` does with it is a bonus on top of a
-pointer that already works without it.
+enrichment, added only when two records would otherwise share one identifier. A `by=` naming the
+instrument is enrichment too: it sits on top of a pointer that already works without it, and what
+`covers` does with it is a bonus.
 
 Three rules keep every identifier that short and every one shaped the same way:
 
@@ -353,7 +353,7 @@ columns (`engine_build = null`, `latency_ms = 812`), and "everything an unrecord
 query on those columns. Every qualifier a producer adds by habit is one more place where two producers
 naming the same record write two different identifiers.
 
-**These rules are guidance, not grammar.** The third line parses `ok` under this `specVersion`, and a
+**These rules are guidance; the grammar is unchanged.** The third line parses `ok` under this `specVersion`, and a
 consumer that already stored one keeps it. Whether the nested rule becomes a grammar rule — which would
 make such an identifier `malformed`, a new major — is decided on how the guidance holds up in use.
 
