@@ -9,6 +9,38 @@ import Foundation
 import RefId
 
 
+/// `--parse` and `--pairs` both escape `\n`/`\r` on the way in, the same way `--parse` always has.
+func unescapeLine(_ line: String) -> String {
+    line.replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\r", with: "\r")
+}
+
+/// A `QualifierRelation` as the JSON shape a `relate` vector describes: `relation`, plus `nested` only
+/// when there is one — the key is omitted, never `null`, when the qualifier has no nested result.
+func qualifierRelationToJSON(_ relation: QualifierRelation) -> [String: Any] {
+    var out: [String: Any] = ["relation": relation.relation.rawValue]
+    if let nested = relation.nested { out["nested"] = relateResultToJSONObject(nested) }
+    return out
+}
+
+/// A `RelateResult` as the JSON object `spec.vectors.relate`'s `expect.relate` describes.
+func relateResultToJSONObject(_ result: RelateResult) -> [String: Any] {
+    [
+        "type": result.type.rawValue,
+        "version": result.version.rawValue,
+        "locatorStem": result.locatorStem.rawValue,
+        "locatorVersion": result.locatorVersion.rawValue,
+        "fragmentPath": result.fragmentPath.rawValue,
+        "fragmentRefinements": result.fragmentRefinements.mapValues { $0.rawValue },
+        "qualifiers": result.qualifiers.mapValues(qualifierRelationToJSON),
+    ]
+}
+
+/// `relate`'s return as `--pairs`' protocol wants it on the wire: the object above, or JSON `null` for a
+/// pair `relate` refuses.
+func relateResultToJSON(_ result: RelateResult?) -> Any {
+    result.map(relateResultToJSONObject) ?? NSNull()
+}
+
 // `--parse`: read one identifier per line on stdin, print one canonical JSON result per line — the
 // surface the differential test against the TypeScript reference reads.
 if CommandLine.arguments.contains("--parse") {
@@ -20,7 +52,7 @@ if CommandLine.arguments.contains("--parse") {
     let withCanonical = CommandLine.arguments.contains("--canonical")
     var failures = 0
     while let line = readLine(strippingNewline: true) {
-        let input = line.replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\r", with: "\r")
+        let input = unescapeLine(line)
         do {
             let result = try parse(input)
             var json = result.asJSON()
@@ -33,6 +65,35 @@ if CommandLine.arguments.contains("--parse") {
         }
     }
     exit(failures == 0 ? 0 : 1)
+}
+
+// `--pairs` (Plan-005, Track 5): stdin carries two lines per pair — `a`, then `b`, escaped the same way
+// `--parse` escapes a line — and stdout carries one canonical-JSON line per pair: `covers`,
+// `coversReversed` (`covers(b, a)`), `samePackage`, `sameIdentifier` and `relate` (the full result, or
+// `null`). Two lines per pair rather than one line with a separator, because the grammar admits a tab
+// inside a locator.
+if CommandLine.arguments.contains("--pairs") {
+    var lines: [String] = []
+    while let line = readLine(strippingNewline: true) { lines.append(line) }
+    guard lines.count % 2 == 0 else {
+        FileHandle.standardError.write(Data("ref-id-conformance --pairs: \(lines.count) lines is not an even number of lines (two per pair)\n".utf8))
+        exit(1)
+    }
+    var index = 0
+    while index < lines.count {
+        let a = unescapeLine(lines[index])
+        let b = unescapeLine(lines[index + 1])
+        let row: [String: Any] = [
+            "covers": covers(a, b),
+            "coversReversed": covers(b, a),
+            "samePackage": samePackage(a, b),
+            "sameIdentifier": sameIdentifier(a, b),
+            "relate": relateResultToJSON(relate(a, b)),
+        ]
+        print(try canonicalise(row))
+        index += 2
+    }
+    exit(0)
 }
 
 var passed = 0

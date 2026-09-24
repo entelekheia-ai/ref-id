@@ -108,7 +108,7 @@ changed in response (commits `a4fe3c0`, `757e720`), and the Swift port fails the
       `swift run ref-id-conformance`, `node scripts/gen-surface-swift.mjs --check` and
       `node scripts/check-surface.mjs --only swift`; returns files changed, the gate output, and anything
       in this dossier found wrong with `file:line`
-- [ ] P0 — items 6–10 — same contract as above
+- [x] P0 — items 6–10 — same contract as above
 - [ ] Orchestrator — the pair pass of `scripts/differential.mjs`
 
 ## Surprises & Discoveries
@@ -148,6 +148,54 @@ changed in response (commits `a4fe3c0`, `757e720`), and the Swift port fails the
   two variants (`String`, `ParseResult`) only, never a mixed pair — so the "mixed freely" wording in
   Plan-005's Design section is satisfied by adding the two cross overloads
   (`(String, ParseResult)`/`(ParseResult, String)`) beyond what the generated surface itself exercises.
+
+- Observation: item 7's own byte-for-byte requirement reaches further than `Relations.swift`. Two more
+  Character-based `@`-then-`/` segment walks exist in this package with the identical bug shape
+  (a combining mark right after `/` merges into one grapheme, hiding the boundary from a `Character`
+  scan): `PackageURL.splitSubpath` (`Sources/RefId/Validators.swift`) splits a delegated `pkg:` string's
+  subpath the same way `Relations.split` splits a locator's version, and its own doc comment already says
+  so ("The same `@`-opens-a-segment rule as `Relations.split`"). No vector exercises it with a combining
+  mark today, but it feeds `ParseResult.canonical`, which the differential's `--canonical` mode compares
+  against implementations that delegate to a real purl library — so a latent divergence there is exactly
+  the shape the adversarial review already found once. Fixed alongside the vectored sites rather than left
+  for a future review to rediscover.
+  Evidence: `Sources/RefId/Validators.swift`'s `splitSubpath` now walks `utf8` bytes; `swift run
+  ref-id-conformance` stays at 929 passed after the change (no vector regressed, none newly covers it).
+- Observation: `Envelope.swift`'s `id == requestedId` (envelope self-reference match) is a genuine
+  identifier-equality decision the dossier's item 7 wording covers ("any `==` ... over a stem, path, key
+  or value decides equivalence") even though no `envelope` vector exercises a Unicode-equivalent pair.
+  Fixed to `id.utf8.elementsEqual(requestedId.utf8)` for the same reason as the rest: two Unicode
+  spellings of one requested id should not admit an envelope written for the other spelling.
+  Evidence: `Sources/RefId/Envelope.swift:16` (was `id == requestedId`, an ordinary Swift `String`
+  comparison, i.e. Unicode canonical equivalence).
+- Observation: dictionary keys built from a qualifier or refinement key (`Relations.swift`'s
+  `subsumes`/`qualifiersCover`/`qualifiersSamePackage`/`relateKeyedPairs`/`relateQualifiers`, and
+  `Parse.swift`'s duplicate-key `Set<String>`) were deliberately left on ordinary `String` keys rather than
+  converted to byte-keyed maps. `grammar.state.pair` and `grammar.fragment.pair` both anchor the key group
+  to `[a-z][a-z0-9-]*` (spec/ref-id.json's `grammar.state`/`grammar.fragment`) — plain ASCII has no second
+  Unicode spelling, so `String`'s canonical-equivalence `==`/`Hashable` and byte equality agree exactly for
+  every key this grammar can produce. Only qualifier/refinement **values** (`[^\r\n]*`, unrestricted) and
+  locators/paths needed the `bytesEqual` fix. Confirmed by reading the grammar rather than assuming.
+  Evidence: `spec/ref-id.json`'s `grammar.state.pair` / `grammar.fragment.pair` regexes; `swift run
+  ref-id-conformance` green with keys left as `String`.
+- Observation: `PackageURL.parse`'s own internal delimiter searches (`firstIndex(of: "?")`, `"/"`, `"="`,
+  and `hasPrefix("pkg:")`) were audited and left unchanged, unlike `splitSubpath` above. They are grammar
+  *decomposition* (finding where the purl's own punctuation falls), the same category as `Grammar.swift`'s
+  regex-based parsing, not an *equivalence decision* between two identifiers — item 7's examples are all
+  about deciding whether two things are the same, which decomposition does not do. No vector or plan text
+  asks for this, and Package URL is this repo's own declared exception (no maintained Swift library) rather
+  than spec-declared grammar, so widening it further risked scope creep against a part the repo already
+  treats as special-cased. Left as a documented gap rather than silently expanded.
+  Evidence: `Sources/RefId/Validators.swift`'s `PackageURL.parse` (unchanged); `AGENTS.md`'s "Package URL
+  core grammar (no maintained Swift library)" exception.
+- Observation: `sameIdentifier`'s status gate could not be built on top of the existing public
+  `canonicalIdentifier(_:)` entry points, because those take a `String`/`ParseResult` and re-parse
+  internally with no way to inject the "refuse unless `ok` or `uncovered`" check — the same shape problem
+  item 6 describes for `covers`/`samePackage` reusing their own public entry points. `sameIdentifierCore`
+  therefore takes the already-`read`-gated `ParseResult?` pair and calls the private `canonicalIdentifierCore(spec:_:)`
+  directly, mirroring `coversCore`/`samePackageCore`'s shape exactly.
+  Evidence: `Sources/RefId/Relations.swift`'s `sameIdentifierCore(_:_:_:)` and the four public
+  `sameIdentifier` overloads.
 
 ## Closure
 

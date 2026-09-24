@@ -148,7 +148,7 @@ public func canonicalise(_ value: Any?) throws -> String { try Canonical.seriali
 
 /// Deprecated spelling of `canonicalise(_:)`, kept so a call written against it still compiles.
 @available(*, deprecated, renamed: "canonicalise(_:)")
-public func canonicalJSON(_ value: Any) throws -> String { try Canonical.serialise(value) }
+public func canonicalJSON(_ value: Any?) throws -> String { try Canonical.serialise(value ?? NSNull()) }
 
 /// SHA-256 of a UTF-8 string, lowercase hex — the digest the sidecar carries.
 public func sha256Hex(_ text: String) -> String { SHA256.hex(Array(text.utf8)) }

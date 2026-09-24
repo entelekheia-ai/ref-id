@@ -29,6 +29,23 @@ private struct Split {
     let version: String?
 }
 
+/// Whether two strings are one identifier part, byte for byte — never Swift's default `String ==`,
+/// which is Unicode canonical equivalence and would call `café` (NFC) and `café` (NFD, `e` + a combining
+/// acute) the same value. Every comparison in this file that decides whether two stems, paths, keys or
+/// values are the same identifier goes through this, or through `Array(_:).starts(with:)` on the same
+/// `utf8` view for a prefix test — never `==` or `hasPrefix` on a `String` directly.
+private func bytesEqual(_ a: String, _ b: String) -> Bool {
+    a.utf8.elementsEqual(b.utf8)
+}
+
+private func bytesEqual(_ a: String?, _ b: String?) -> Bool {
+    switch (a, b) {
+    case (nil, nil): return true
+    case let (x?, y?): return bytesEqual(x, y)
+    default: return false
+    }
+}
+
 /// The locator without its version, and the version it carried — only for a type whose dispatch entry
 /// declares `versionTail`.
 ///
@@ -40,19 +57,28 @@ private struct Split {
 /// it** — a file at two releases is one file, so `npm/x@1.0.0/docs/guide.md` and
 /// `npm/x@2.0.0/docs/guide.md` share the stem `npm/x/docs/guide.md`.
 ///
-/// Walks `Array(locator)` rather than `String.Index` arithmetic — a slice of an `Array<Character>` keeps
-/// the original indices, which is what lets the found `@` and `/` positions be sliced back together.
+/// Walks the locator's `utf8` bytes rather than its `Character`s: `@` and `/` are each one ASCII byte
+/// that never occurs as a continuation byte of another code point, so a byte scan cannot mistake a
+/// combining mark for a boundary the way a grapheme-cluster walk can — `a/` followed by a combining
+/// accent forms one `Character` in Swift, which would silently swallow the `/` boundary. A slice of
+/// `Array<UInt8>` keeps the original indices, which is what lets the found `@` and `/` positions be
+/// sliced back together.
 private func split(_ spec: Spec, _ type: String, _ locator: String) -> Split {
     guard versionTail(spec, type) else { return Split(stem: locator, version: nil) }
-    let characters = Array(locator)
-    guard characters.count > 1 else { return Split(stem: locator, version: nil) }
-    for index in 1..<characters.count {
-        guard characters[index] == "@", characters[index - 1] != "/" else { continue }
-        guard let slash = characters[index...].firstIndex(of: "/") else {
-            return Split(stem: String(characters[..<index]), version: String(characters[(index + 1)...]))
+    let bytes = Array(locator.utf8)
+    let at = UInt8(ascii: "@")
+    let slash = UInt8(ascii: "/")
+    guard bytes.count > 1 else { return Split(stem: locator, version: nil) }
+    for index in 1..<bytes.count {
+        guard bytes[index] == at, bytes[index - 1] != slash else { continue }
+        guard let slashIndex = bytes[index...].firstIndex(of: slash) else {
+            return Split(
+                stem: String(decoding: bytes[..<index], as: UTF8.self),
+                version: String(decoding: bytes[(index + 1)...], as: UTF8.self)
+            )
         }
-        let stem = String(characters[..<index]) + String(characters[slash...])
-        let version = String(characters[(index + 1)..<slash])
+        let stem = String(decoding: bytes[..<index], as: UTF8.self) + String(decoding: bytes[slashIndex...], as: UTF8.self)
+        let version = String(decoding: bytes[(index + 1)..<slashIndex], as: UTF8.self)
         return Split(stem: stem, version: version)
     }
     return Split(stem: locator, version: nil)
@@ -63,9 +89,13 @@ private func split(_ spec: Spec, _ type: String, _ locator: String) -> Split {
 /// Equal stems name one thing. Otherwise the general one covers the specific only when its stem is a
 /// whole **segment** prefix of it — `acme-tools` reaching `acme-tools/docs/guide.md`. The segment
 /// boundary is the whole of the rule: a bare string prefix would make `acme-tools` cover
-/// `acme-tools-extra`, two corpora that share nothing but their first characters.
+/// `acme-tools-extra`, two corpora that share nothing but their first characters. Both the equality and
+/// the prefix test are byte for byte (see `bytesEqual`): a segment boundary is the byte `/`, whatever
+/// combining mark a grapheme-cluster walk would have folded into it.
 private func stemReaches(_ general: String, _ specific: String) -> Bool {
-    general == specific || specific.hasPrefix(general + "/")
+    if bytesEqual(general, specific) { return true }
+    let prefix = Array(general.utf8) + [UInt8(ascii: "/")]
+    return Array(specific.utf8).starts(with: prefix)
 }
 
 /// The identifier, when this package vouches for how it was decomposed — `ok` or `uncovered` only.
@@ -81,11 +111,17 @@ private func read(_ spec: Spec, _ parsed: ParseResult) -> ParseResult? {
     return (parsed.status == ok || parsed.status == uncovered) ? parsed : nil
 }
 
-/// Whether every pair the first declares appears identically in the second.
+/// Whether every pair the first declares appears identically in the second. The keys are safe to hold in
+/// a `String`-keyed dictionary as written — `grammar.state.pair` and `grammar.fragment.pair` restrict a
+/// key to `[a-z][a-z0-9-]*`, plain ASCII with no Unicode-equivalence ambiguity — but a value is
+/// unrestricted, so it is compared with `bytesEqual`, never `==`.
 private func subsumes(_ theirs: [Pair], _ mine: [Pair]) -> Bool {
     var map: [String: String] = [:]
     for pair in theirs { map[pair.key] = pair.value }
-    return mine.allSatisfy { map[$0.key] == $0.value }
+    return mine.allSatisfy { pair in
+        guard let value = map[pair.key] else { return false }
+        return bytesEqual(value, pair.value)
+    }
 }
 
 /// Whether two pair lists hold the same pairs, order aside.
@@ -116,7 +152,7 @@ private func qualifiersCover(_ spec: Spec, _ general: [Pair], _ specific: [Pair]
             if !coversCore(spec, gx, sy) { return false }
             continue
         }
-        if pair.value != specificValue { return false }
+        if !bytesEqual(pair.value, specificValue) { return false }
     }
     return true
 }
@@ -126,8 +162,8 @@ private func coversCore(_ spec: Spec, _ x: ParseResult?, _ y: ParseResult?) -> B
     if x.type != y.type || x.version != y.version { return false }
     let (gen, spe) = (split(spec, x.type, x.locator), split(spec, y.type, y.locator))
     if !stemReaches(gen.stem, spe.stem) { return false }
-    if let gv = gen.version, gv != spe.version { return false }
-    if let path = x.fragment?.path, path != y.fragment?.path { return false }
+    if let gv = gen.version, !bytesEqual(gv, spe.version) { return false }
+    if let path = x.fragment?.path, !bytesEqual(path, y.fragment?.path) { return false }
     if !subsumes(y.fragment?.refinements ?? [], x.fragment?.refinements ?? []) { return false }
     return qualifiersCover(spec, x.qualifiers, y.qualifiers, x.nested, y.nested)
 }
@@ -174,7 +210,7 @@ private func qualifiersSamePackage(_ spec: Spec, _ a: [Pair], _ b: [Pair], _ aNe
             if !samePackageCore(spec, ax, bx) { return false }
             continue
         }
-        if pair.value != bValue { return false }
+        if !bytesEqual(pair.value, bValue) { return false }
     }
     return true
 }
@@ -182,8 +218,8 @@ private func qualifiersSamePackage(_ spec: Spec, _ a: [Pair], _ b: [Pair], _ aNe
 private func samePackageCore(_ spec: Spec, _ x: ParseResult?, _ y: ParseResult?) -> Bool {
     guard let x, let y else { return false }
     if x.type != y.type || x.version != y.version { return false }
-    if split(spec, x.type, x.locator).stem != split(spec, y.type, y.locator).stem { return false }
-    if (x.fragment?.path) != (y.fragment?.path) { return false }
+    if !bytesEqual(split(spec, x.type, x.locator).stem, split(spec, y.type, y.locator).stem) { return false }
+    if !bytesEqual(x.fragment?.path, y.fragment?.path) { return false }
     if !equalPairs(x.fragment?.refinements ?? [], y.fragment?.refinements ?? []) { return false }
     return qualifiersSamePackage(spec, x.qualifiers, y.qualifiers, x.nested, y.nested)
 }
@@ -217,51 +253,90 @@ public func samePackage(_ a: ParseResult, _ b: ParseResult) -> Bool {
 
 // MARK: - canonicalIdentifier / sameIdentifier
 
-private func canonicalIdentifierCore(_ parsed: ParseResult) throws -> String {
+/// UTF-16 code unit order — the order `identifierEquivalence.canonicalForm` declares for both qualifier
+/// and refinement keys.
+private func precedesByUTF16(_ a: String, _ b: String) -> Bool {
+    Array(a.utf16).lexicographicallyPrecedes(Array(b.utf16))
+}
+
+/// A qualifier value, written in its own canonical form when it nests a `ref:` identifier this operation
+/// accepts — decode, canonicalise, re-encode with the same form's table — and left verbatim otherwise:
+/// no declared nesting form for the key, or a nested value this operation refuses (a scheme version it
+/// does not implement). `nestedDecoded` is `parsed.nested[key]`, already decoded by `Parse.swift`.
+private func canonicalQualifierValue(_ spec: Spec, key: String, value: String, nestedDecoded: String?) throws -> String {
+    guard let nestedDecoded, let form = nestingForm(spec, key: key) else { return value }
+    let nestedCanonical = try canonicalIdentifierCore(spec, try parse(nestedDecoded))
+    return Encoding.encode(nestedCanonical, table: Encoding.table(spec, form: form))
+}
+
+/// `identifierEquivalence.canonicalForm`: re-serialise with qualifiers and refinements each sorted by
+/// key (UTF-16 code unit order), a nested identifier in a qualifier value written in its own canonical
+/// form, and the version slot omitted when it holds `version.default` — `ref:1:` and `ref:` are one
+/// version. Every other part verbatim, including the order inside one refinement value (`lines=1,20` is
+/// a range, not a set). A malformed identifier has no canonical form: `serialise` refuses it, naming the
+/// part that failed.
+private func canonicalIdentifierCore(_ spec: Spec, _ parsed: ParseResult) throws -> String {
     var parsed = parsed
-    parsed.qualifiers.sort { Array($0.key.utf16).lexicographicallyPrecedes(Array($1.key.utf16)) }
+    parsed.qualifiers = try parsed.qualifiers.map { pair in
+        Pair(pair.key, try canonicalQualifierValue(spec, key: pair.key, value: pair.value, nestedDecoded: parsed.nested?[pair.key]))
+    }
+    parsed.qualifiers.sort { precedesByUTF16($0.key, $1.key) }
+    if let fragment = parsed.fragment {
+        var refinements = fragment.refinements
+        refinements.sort { precedesByUTF16($0.key, $1.key) }
+        parsed.fragment = Fragment(path: fragment.path, refinements: refinements)
+    }
+    if parsed.explicitVersion && parsed.version == spec.int("version", "default") {
+        parsed.explicitVersion = false
+        parsed.versionText = nil
+    }
     return try serialise(parsed)
 }
 
-/// The canonical form of an identifier: the same identifier with its qualifiers sorted by key.
-///
-/// Sorting is by UTF-16 code unit, the order this specification already uses for its own file. What is
-/// load-bearing is that one deterministic order exists, so any two implementations reach the same answer
-/// about whether two identifiers are one. Every other part is left exactly as parsed — refinements sit on
-/// the fragment side and are positional, so reordering them would change what is named.
-///
-/// A malformed identifier has no canonical form: `serialise` refuses it, naming the part that failed.
+/// The canonical form of an identifier — see `identifierEquivalence.canonicalForm` and
+/// `canonicalIdentifierCore` above for exactly what it does.
 public func canonicalIdentifier(_ identifier: String) throws -> String {
-    try canonicalIdentifierCore(try parse(identifier))
+    let spec = try loadSpec()
+    return try canonicalIdentifierCore(spec, try parse(identifier))
 }
 
 public func canonicalIdentifier(_ identifier: ParseResult) throws -> String {
-    try canonicalIdentifierCore(identifier)
+    try canonicalIdentifierCore(try loadSpec(), identifier)
 }
 
-private func sameIdentifierCore(_ a: String?, _ b: String?) -> Bool {
-    guard let a, let b else { return false }
-    return a == b
+private func sameIdentifierCore(_ spec: Spec, _ x: ParseResult?, _ y: ParseResult?) -> Bool {
+    guard let x, let y, let a = try? canonicalIdentifierCore(spec, x), let b = try? canonicalIdentifierCore(spec, y) else { return false }
+    return bytesEqual(a, b)
 }
 
-/// Whether two identifiers name one thing: their canonical spellings are equal byte for byte. Order of
-/// qualifiers does not distinguish; everything else does. Never throws — an identifier with no canonical
-/// form names nothing, so it is the same as nothing, including itself, exactly like `covers` and
-/// `samePackage` on a malformed identifier.
+/// Whether two identifiers name one thing: their canonical spellings are equal byte for byte
+/// (`identifierEquivalence.comparison`). Order of qualifiers and of refinement keys does not distinguish;
+/// everything else does, compared with `bytesEqual` rather than `==` so that two Unicode spellings of one
+/// text (`café`, NFC vs. NFD) are never mistaken for one identifier.
+///
+/// Gated on the same status check `covers` and `samePackage` use — `ok` or `uncovered` only. A malformed
+/// identifier has no canonical form and refuses at `canonicalIdentifierCore`'s call to `serialise`; an
+/// **unsupported** one *would* serialise (it round-trips its own unparsed parts), so without this gate it
+/// would wrongly compare equal to itself. Never throws: an identifier with no usable decomposition names
+/// nothing, so it is the same as nothing, including itself, exactly like `covers` and `samePackage`.
 public func sameIdentifier(_ a: String, _ b: String) -> Bool {
-    sameIdentifierCore(try? canonicalIdentifier(a), try? canonicalIdentifier(b))
+    guard let spec = try? loadSpec() else { return false }
+    return sameIdentifierCore(spec, read(spec, a), read(spec, b))
 }
 
 public func sameIdentifier(_ a: String, _ b: ParseResult) -> Bool {
-    sameIdentifierCore(try? canonicalIdentifier(a), try? canonicalIdentifier(b))
+    guard let spec = try? loadSpec() else { return false }
+    return sameIdentifierCore(spec, read(spec, a), read(spec, b))
 }
 
 public func sameIdentifier(_ a: ParseResult, _ b: String) -> Bool {
-    sameIdentifierCore(try? canonicalIdentifier(a), try? canonicalIdentifier(b))
+    guard let spec = try? loadSpec() else { return false }
+    return sameIdentifierCore(spec, read(spec, a), read(spec, b))
 }
 
 public func sameIdentifier(_ a: ParseResult, _ b: ParseResult) -> Bool {
-    sameIdentifierCore(try? canonicalIdentifier(a), try? canonicalIdentifier(b))
+    guard let spec = try? loadSpec() else { return false }
+    return sameIdentifierCore(spec, read(spec, a), read(spec, b))
 }
 
 // MARK: - relate
@@ -272,7 +347,7 @@ public func sameIdentifier(_ a: ParseResult, _ b: ParseResult) -> Bool {
 private func declaredRelation(_ a: String?, _ b: String?) -> Relation {
     switch (a, b) {
     case (nil, nil): return .equal
-    case let (x?, y?): return x == y ? .equal : .differ
+    case let (x?, y?): return bytesEqual(x, y) ? .equal : .differ
     case (nil, _?): return .covers
     case (_?, nil): return .coveredBy
     }
@@ -281,7 +356,7 @@ private func declaredRelation(_ a: String?, _ b: String?) -> Relation {
 /// The locator stem relation: `equal`, `covers` when the first is a whole-segment prefix of the second,
 /// `coveredBy` for the mirror, `differ` otherwise.
 private func stemRelation(_ a: String, _ b: String) -> Relation {
-    if a == b { return .equal }
+    if bytesEqual(a, b) { return .equal }
     if stemReaches(a, b) { return .covers }
     if stemReaches(b, a) { return .coveredBy }
     return .differ

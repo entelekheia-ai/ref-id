@@ -6,7 +6,10 @@
 
 import Foundation
 
-private func nestingForm(_ spec: Spec, key: String) -> [String: Any]? {
+/// The declared nesting form of a qualifier key — the form `canonicalIdentifierCore` (`Relations.swift`)
+/// re-encodes a nested identifier's own canonical form into. Internal, not `private`: shared across files
+/// in this module rather than restated.
+func nestingForm(_ spec: Spec, key: String) -> [String: Any]? {
     guard let declared = spec.dictionary("qualifiers")[key] as? [String: Any], let forms = declared["forms"] as? [String] else { return nil }
     for name in forms {
         if let form = spec.dictionary("forms")[name] as? [String: Any], (form["nested"] as? NSNumber)?.boolValue == true { return form }

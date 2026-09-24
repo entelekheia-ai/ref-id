@@ -151,14 +151,20 @@ enum PackageURL {
     /// namespace segment and is part of the name; an `@` inside a segment closes the name and starts the
     /// version, which runs to the next `/` — everything after that `/` is the subpath. No such `@`, or
     /// one with nothing after it but the version, leaves the whole string as the base with no subpath.
+    ///
+    /// Walks `utf8` bytes, not `Character`s, for the same reason `Relations.split` does: `@` and `/` are
+    /// each one ASCII byte that never occurs as a continuation byte of another code point, so a byte scan
+    /// cannot mistake a combining mark for a boundary the way a grapheme-cluster walk can.
     private static func splitSubpath(_ delegated: String) -> (base: String, subpath: String?) {
-        let characters = Array(delegated)
-        guard characters.count > 1 else { return (delegated, nil) }
-        for index in 1..<characters.count {
-            guard characters[index] == "@", characters[index - 1] != "/" else { continue }
-            guard let slash = characters[index...].firstIndex(of: "/") else { return (delegated, nil) }
-            let base = String(characters[..<slash])
-            let subpath = String(characters[(slash + 1)...])
+        let bytes = Array(delegated.utf8)
+        let at = UInt8(ascii: "@")
+        let slash = UInt8(ascii: "/")
+        guard bytes.count > 1 else { return (delegated, nil) }
+        for index in 1..<bytes.count {
+            guard bytes[index] == at, bytes[index - 1] != slash else { continue }
+            guard let slashIndex = bytes[index...].firstIndex(of: slash) else { return (delegated, nil) }
+            let base = String(decoding: bytes[..<slashIndex], as: UTF8.self)
+            let subpath = String(decoding: bytes[(slashIndex + 1)...], as: UTF8.self)
             return (base, subpath.isEmpty ? nil : subpath)
         }
         return (delegated, nil)
