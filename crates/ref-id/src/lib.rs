@@ -23,7 +23,7 @@ pub use canonical::canonicalise;
 pub use digest::digest;
 pub use envelope::validate_envelope;
 pub use parse::parse;
-pub use relations::{canonical_identifier, covers, relate, same_identifier, same_package, QualifierRelation, Relation, RelateResult};
+pub use relations::{canonical_identifier, covers, relate, same_identifier, same_package, IdentifierArg, QualifierRelation, Relation, RelateResult};
 pub use serialise::serialise;
 pub use spec::{embedded_spec_text, load_spec, load_spec_from, Spec};
 pub use types::{BuildParts, EnvelopeResult, Fragment, FragmentParts, Pair, ParseResult, QualifierValue, RefIdError};

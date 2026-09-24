@@ -9,6 +9,7 @@
 // Ported from packages/ref-id/src/relations.ts and packages/ref-id/src/canonical.ts — read those files'
 // comments for the full rationale; this restates none of the spec's own tables.
 
+use crate::encoding::{encode, table_for};
 use crate::parse::parse;
 use crate::serialise::serialise;
 use crate::spec::{load_spec, Spec};
@@ -36,6 +37,22 @@ impl IdentifierArg for str {
 impl IdentifierArg for ParseResult {
     fn resolve(&self) -> Result<ParseResult, RefIdError> {
         Ok(self.clone())
+    }
+}
+
+/// `String` deref-coerces to `&str` when a function's parameter type IS `&str`, but not when it is `&T`
+/// for a generic `T: IdentifierArg + ?Sized` — the coercion the bare-`str` impl above does not reach on
+/// its own. Measured: `covers(&a, &b)` with `a, b: String` is `E0277` without this impl.
+impl IdentifierArg for String {
+    fn resolve(&self) -> Result<ParseResult, RefIdError> {
+        self.as_str().resolve()
+    }
+}
+
+/// Costs nothing beyond the impl itself: a `Box<str>` derefs to `str` for free.
+impl IdentifierArg for Box<str> {
+    fn resolve(&self) -> Result<ParseResult, RefIdError> {
+        (**self).resolve()
     }
 }
 
@@ -311,29 +328,74 @@ fn same_package_reduces(result: &RelateResult) -> bool {
     })
 }
 
-/// The canonical form of an identifier: the same identifier with its qualifiers sorted by key.
-///
-/// Sorting is by UTF-16 code unit, the order this specification already uses for its own file. What is
-/// load-bearing is that one deterministic order exists, so any two implementations reach the same answer
-/// about whether two identifiers are one. Every other part is left exactly as parsed — refinements sit on
-/// the fragment side and are positional, so reordering them would change what is named.
+fn by_key(a: &str, b: &str) -> std::cmp::Ordering {
+    a.encode_utf16().cmp(b.encode_utf16())
+}
+
+/// The qualifier's declared form that nests an identifier, if it declares one — ported from
+/// `packages/ref-id/src/build.ts`'s `nestingForm`: the qualifier's `forms` list, resolved against
+/// `spec.forms`, the first entry whose own `nested` is `true`.
+fn nesting_form(spec: &Spec, key: &str) -> Option<Value> {
+    let declared = spec.object(&["qualifiers"])?.get(key)?;
+    let names = declared.get("forms")?.as_array()?;
+    let forms = spec.object(&["forms"])?;
+    names.iter().filter_map(Value::as_str).find_map(|name| {
+        let form = forms.get(name)?;
+        (form.get("nested").and_then(Value::as_bool) == Some(true)).then(|| form.clone())
+    })
+}
+
+/// `identifierEquivalence.canonicalForm`: qualifiers and the fragment's refinements sorted by key (UTF-16
+/// code unit order, the order this specification already uses for its own file); a nested `ref:`
+/// identifier inside a qualifier value re-written in its own canonical form (decode, canonicalise,
+/// re-encode); the version slot omitted when it holds `version.default` — `ref:1:` and `ref:` are one
+/// version, so writing it or not must not distinguish. Every other part is left exactly as parsed.
 ///
 /// A malformed identifier has no canonical form: `serialise` refuses it, naming the part that failed.
+/// Ported from `packages/ref-id/src/canonical.ts`'s `canonicalIdentifier`.
+fn canonical_form(spec: &Spec, parsed: &ParseResult) -> Result<String, RefIdError> {
+    let mut out = parsed.clone();
+    out.qualifiers.sort_by(|a, b| by_key(&a.key, &b.key));
+    if let Some(fragment) = &mut out.fragment {
+        fragment.refinements.sort_by(|a, b| by_key(&a.key, &b.key));
+    }
+    if let Some(nested) = &parsed.nested {
+        for (key, raw) in nested {
+            let Some(form) = nesting_form(spec, key) else { continue };
+            let inner = parse(raw)?;
+            let canonical_inner = canonical_form(spec, &inner)?;
+            let encoded = encode(&canonical_inner, &table_for(spec, &form));
+            if let Some(pair) = out.qualifiers.iter_mut().find(|p| &p.key == key) {
+                pair.value = encoded;
+            }
+        }
+    }
+    if out.version == spec.int(&["version", "default"]) {
+        out.explicit_version = false;
+    }
+    serialise(&out)
+}
+
+/// The canonical form of an identifier — `identifierEquivalence.canonicalForm`, computed by
+/// [`canonical_form`].
 pub fn canonical_identifier<T: IdentifierArg + ?Sized>(identifier: &T) -> Result<String, RefIdError> {
-    let mut parsed = identifier.resolve()?;
-    parsed
-        .qualifiers
-        .sort_by(|a, b| a.key.encode_utf16().cmp(b.key.encode_utf16()));
-    serialise(&parsed)
+    let parsed = identifier.resolve()?;
+    let spec = load_spec()?;
+    canonical_form(spec, &parsed)
 }
 
 /// Whether two identifiers name one thing: their canonical spellings are equal byte for byte
-/// (`identifierEquivalence.comparison`). An identifier with no canonical form — malformed, or refused by
-/// `canonical_identifier` for any other reason — names nothing here, so it is never the same as anything,
-/// including itself; this mirrors how `covers` and `same_package` treat such an identifier below.
+/// (`identifierEquivalence.comparison`). An identifier with no canonical form — malformed, or at a
+/// scheme version this crate does not support — names nothing here, so it is never the same as anything,
+/// including itself; the same status check `read` uses (`ok` or `uncovered` only) gates this before
+/// `canonical_form` ever runs, so an unsupported-version identifier cannot reach it by accident (a
+/// `canonical_form` call alone would not refuse one: `serialise` only refuses `malformed`). This mirrors
+/// how `covers` and `same_package` treat such an identifier below.
 pub fn same_identifier<A: IdentifierArg + ?Sized, B: IdentifierArg + ?Sized>(a: &A, b: &B) -> bool {
-    match (canonical_identifier(a), canonical_identifier(b)) {
-        (Ok(x), Ok(y)) => x == y,
+    let Ok(spec) = load_spec() else { return false };
+    let (Some(x), Some(y)) = (read(spec, a), read(spec, b)) else { return false };
+    match (canonical_form(spec, &x), canonical_form(spec, &y)) {
+        (Ok(cx), Ok(cy)) => cx == cy,
         _ => false,
     }
 }

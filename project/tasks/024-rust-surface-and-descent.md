@@ -99,7 +99,7 @@ changed in response (commits `a4fe3c0`, `757e720`), and the crate fails the new 
       `node scripts/check-surface.mjs --only rust`; returns files changed, the gate output, and anything
       in this dossier found wrong with `file:line`. Done: gate green (`cargo test --workspace` 14/14,
       `gen-surface-rust.mjs --check` up to date, `check-surface.mjs --only rust` no divergence).
-- [ ] P0 — items 5–8 — same contract as above, plus `crates/ref-id/examples/parse_lines.rs`
+- [x] P0 — items 5–8 — same contract as above, plus `crates/ref-id/examples/parse_lines.rs`
 - [ ] Orchestrator — the pair pass of `scripts/differential.mjs`
 
 ## Surprises & Discoveries
@@ -132,6 +132,47 @@ changed in response (commits `a4fe3c0`, `757e720`), and the crate fails the new 
   nothing, including itself." This is a judgement call, not something read directly off a spec key — worth
   confirming across ports during Track 2's realignment pass.
   Evidence: `crates/ref-id/src/relations.rs` — `pub fn same_identifier`'s doc comment and body.
+
+- Observation: `spec/ref-id.json`'s `vectors.canonical` group holds two vectors that cannot both pass
+  under `identifierEquivalence.canonicalForm`'s own prose ("its refinements sorted by key"), and they
+  are not a Rust-only problem — the TypeScript reference (`packages/ref-id/src/canonical.ts`, which
+  already implements the sort) fails the same vector, run directly: `node --experimental-strip-types
+  --test test/canonical.test.ts` inside `packages/ref-id/` reports `canonical: refinements are positional
+  and keep the order they were written` and `canonical: the form is idempotent` both red, on this branch,
+  before this task touched anything. The vector at `spec/ref-id.json:2835-2838` ("refinements are
+  positional and keep the order they were written", added 2026-09-17 by `9f9efddb`) expects
+  `lines=1,20;item=3` to stay unsorted; the vector at `spec/ref-id.json:2845-2848` ("refinements sort by
+  key, as qualifiers do", added 2026-09-24 by the adversarial-review commit `a4fe3c0`) expects the
+  structurally identical `lines=10,20;item=2` to become `item=2;lines=10,20`. The review commit that
+  introduced the sorting rule did not retire the older vector it contradicts. This crate implements the
+  sort (matching the prose and the TypeScript reference), so `cargo test --workspace` stops red at exactly
+  this one vector in `canonical_vectors` — matching TypeScript's own two failures rather than diverging
+  from them. Not fixed here: the specification is out of scope for this dossier, and "stopping red is
+  acceptable; making it green by editing … the specification … is not."
+  Evidence: `spec/ref-id.json:2835-2838` vs `spec/ref-id.json:2845-2848`; `packages/ref-id/src/canonical.ts:35-55`
+  (`canonicalIdentifier`, the ported reference); `crates/ref-id/src/relations.rs` (`canonical_form`).
+- Observation: `same_identifier`'s gate (item 5) and the canonical form's descent/sort/version-omission
+  (item 6) were both already fully designed and implemented in the TypeScript reference —
+  `packages/ref-id/src/canonical.ts`'s `canonicalIdentifier` and `sameIdentifier` — so this port is a
+  direct translation rather than a fresh design: same status gate (`ok`/`uncovered` via `read`, ported
+  from TS's own inline `usable` check), same `nestingForm`/`tableFor`/`encodeReserved` pipeline for the
+  nested descent (ported to `nesting_form`/`table_for`/`encode` in `crates/ref-id/src/relations.rs`), same
+  "omit the version slot at `version.default`" rule. No judgement call was needed here — item 5's
+  Surprises entry above (about a malformed operand) covers the one place this crate's behaviour is not
+  read directly off a spec key.
+  Evidence: `crates/ref-id/src/relations.rs` (`canonical_form`, `nesting_form`, `same_identifier`) vs
+  `packages/ref-id/src/canonical.ts:35-76`.
+- Observation: a generic function parameter `T: IdentifierArg + ?Sized` does not pick up `String` through
+  deref coercion to `str` — deref coercion applies when the target type is written literally (`&str`), not
+  when it is resolved through a type parameter. `covers(&a, &b)` with `a, b: String` is `E0277` (`the trait
+  bound String: IdentifierArg is not satisfied`) until `IdentifierArg` is implemented on `String` directly.
+  Proven fixed with a scratch crate outside the tracked tree (`/private/tmp/…/scratchpad/string-proof`,
+  `ref-id` as a `path` dependency): `ref_id::covers(&a, &b)` with `a: String, b: String` compiles and runs,
+  printing `covers(&String, &String) = true`.
+  Evidence: `crates/ref-id/src/relations.rs` (`impl IdentifierArg for String`, `impl IdentifierArg for
+  Box<str>`); `crates/ref-id/src/lib.rs` (`IdentifierArg` added to the `pub use relations::{…}` list, so
+  the trait a caller needs in scope to call a generic method on it — never required here, since every
+  public function is a free function, not a method — is at least importable from a stable path).
 
 ## Closure
 
