@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | In Progress |
 | Created | 2026-09-24 |
 | Author | Danilo Borges |
 | Issue | <https://github.com/entelekheia-ai/ref-id/issues/24> |
@@ -74,18 +74,45 @@ function to both `fn` types, which a generic function satisfies by inference.
 
 ## Implementation order
 
-- [ ] P0 — items 1–4 — delegable: one agent (`sonnet`), writes only under `crates/ref-id/src/`,
+- [x] P0 — items 1–4 — delegable: one agent (`sonnet`), writes only under `crates/ref-id/src/`,
       `crates/ref-id/tests/conformance.rs` and a new test file for `relate` under `crates/ref-id/tests/`;
       never the specification, `crates/ref-id/tests/surface.rs` (generated), `scripts/`, `packages/`,
       `Sources/`; gate `cargo test --workspace`, `node scripts/gen-surface-rust.mjs --check` and
       `node scripts/check-surface.mjs --only rust`; returns files changed, the gate output, and anything
-      in this dossier found wrong with `file:line`
+      in this dossier found wrong with `file:line`. Done: gate green (`cargo test --workspace` 14/14,
+      `gen-surface-rust.mjs --check` up to date, `check-surface.mjs --only rust` no divergence).
 - [ ] Orchestrator — `examples/parse_lines.rs` and the differential, if `relate` joins the line protocol
 
 ## Surprises & Discoveries
 
-- Observation: …
-  Evidence: …
+- Observation: `covers` and `same_package` are now implemented as reductions of `relate`'s own result
+  (`comparison.relate.reductions.covers`/`.samePackage`) rather than as separate hand-written traversals,
+  even though the dossier's item 1 ("comparison descends into a nested identifier") reads as if it were
+  its own change to `covers`/`samePackage` ahead of item 3 (`relate`). Building `relate_result` first and
+  deriving the two booleans from it removes the risk of the two computations disagreeing on the same
+  pair, which Plan-005's own design section calls out as the point of the reduction relationship.
+  Evidence: `crates/ref-id/src/relations.rs` — `pub fn covers` and `pub fn same_package` both call
+  `relate_result` internally; the old byte-comparison `equal`/`subsumes` helpers were removed as dead code
+  once nothing called them.
+- Observation: a generic function whose type parameter *is* a reference (`fn f<T: Trait>(x: T)` with
+  `T = &str`) does not coerce to the higher-ranked function pointer `for<'a> fn(&'a str) -> _` that the
+  generated `crates/ref-id/tests/surface.rs` binds against — `rustc` reports
+  `error[E0308]: one type is more general than the other` on every such binding. The fix is to implement
+  the trait on the bare type (`str`, `ParseResult`) and have every public function take `&T` for a plain
+  generic `T: IdentifierArg + ?Sized`, rather than taking `T` where `T` is instantiated to a reference —
+  that shape coerces to the higher-ranked pointer cleanly.
+  Evidence: `crates/ref-id/src/relations.rs:20-39` (the `IdentifierArg` trait's doc comment records the
+  measured error); the same fix applies to every one of `canonical_identifier`, `same_identifier`,
+  `same_package`, `covers`, `relate`.
+- Observation: `same_identifier`'s treatment of a malformed identifier is not fully specified.
+  `identifierEquivalence.comparison` only defines equality on two canonical forms, and a malformed
+  identifier has no canonical form (`canonical_identifier` refuses it, naming the failing part). Since the
+  declared surface returns a bare `bool` (the `sameIdentifier` method carries no `errors`), a malformed
+  operand cannot propagate a `RefIdError`; this crate treats a canonicalisation failure on either side as
+  `false`, matching how `covers` and `same_package` already treat a malformed operand as "the same as
+  nothing, including itself." This is a judgement call, not something read directly off a spec key — worth
+  confirming across ports during Track 2's realignment pass.
+  Evidence: `crates/ref-id/src/relations.rs` — `pub fn same_identifier`'s doc comment and body.
 
 ## Closure
 
