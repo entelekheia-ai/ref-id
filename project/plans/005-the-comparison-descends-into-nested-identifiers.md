@@ -158,13 +158,27 @@ criteria exits `0`.
   the OpenRPC meta-schema. `relate` from Track 3 and
   `sameIdentifier` are declared; `canonical` is declared as `canonicalIdentifier`, and the JSON
   canonicalisation as `canonicalise`. An identifier parameter accepts a string or a `ParseResult`, mixed
-  freely, in all three. Each implementation gains a surface check that fails on a missing or extra
-  operation and on a changed name, arity or type: in TypeScript a test importing each entry point in a
-  child process plus a type file checked by `tsc`, in Rust a test that fails to compile when a signature
-  moves, in Swift the conformance runner referencing each declared function by its full name. The two
-  TypeScript tests that import `covers`, `samePackage`, `canonical` and `sameIdentifier` from internal
-  modules import them from the entry point instead. Acceptance: the block validates against the vectors'
-  group list, and each surface check fails today on exactly the divergences the survey found.
+  freely, in all three. Each implementation's own suite gains a surface check that reads its surface
+  from the compiler, never from a regular expression over the source, and fails on a missing or extra
+  operation and on a changed name, arity or type:
+  - **Swift** — the conformance runner reads `swift package dump-symbol-graph`, which lists every public
+    symbol with its full declaration, argument labels and `throws`, and compares it with the methods.
+  - **Rust** — a test generated from the methods holds each one as a typed function pointer
+    (`const _: fn(&str, &str) -> bool = ref_id::covers;`), so a missing function or a moved signature
+    fails compilation. An extra public name is found by reading the `pub use` lines of `lib.rs` with
+    `tree-sitter-rust` through `web-tree-sitter`, both WebAssembly, so nothing builds natively. rustdoc
+    JSON is not used: stable Rust emits it only under `RUSTC_BOOTSTRAP=1`, and its format changes between
+    releases.
+  - **TypeScript** — a test imports each entry point in a child process and compares its runtime
+    exports with the methods, and a type file generated from the methods is checked by `tsc`.
+  Every generated test file has a staleness guard that regenerates it and diffs the committed copy, the
+  way `spec.browser.ts` is guarded. The checks run inside `npm test`, `cargo test` and
+  `swift run ref-id-conformance`, so the existing CI jobs run them; one cross-language table,
+  `npm run test:surface`, joins the macOS job that already has the three toolchains. Nothing is added to
+  `.vibe-ops/`. The two TypeScript tests that import `covers`, `samePackage`, `canonical` and
+  `sameIdentifier` from internal modules import them from the entry point instead. Acceptance: the
+  `openRPC` value validates against the OpenRPC meta-schema, every `x-rule` and `$ref` resolves, and each
+  surface check fails today on exactly the divergences the survey found.
 - [ ] **Track 2 — The three implementations follow.** In one realignment pass over TypeScript, Rust and
   Swift, bring the drifted code back into agreement, implement the descent and `relate`, add `relate` to
   each runner's executed groups and to `scripts/differential.mjs`, and write the changeset. Acceptance:
@@ -277,6 +291,16 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   extracted, keeps the surface in one list, and `x-rule` keeps the rule where it already lives. A
   research worktree reached the same five name divergences independently with an OpenRPC file and a
   name check; its ABNF grammar and grammar derivation are a separate question and stay out of this plan.
+  Date / Author: 2026-09-24 / Danilo Borges
+- Decision: A surface is read from each language's compiler, with `tree-sitter-rust` only for Rust's
+  extra public names, and the checks live in each implementation's suite and in CI, not in `.vibe-ops/`.
+  Rationale: a regular expression and a syntax tree both read spelling, not meaning — neither follows a
+  `pub use` to the signature it re-exports, nor resolves a Swift overload. Measured on this machine:
+  `swift package dump-symbol-graph` on the stable toolchain returned all thirteen public functions with
+  labels and `throws`, including the extras; stable `rustdoc --output-format json` is refused without
+  `-Z unstable-options`; `tree-sitter-swift` 0.7.1 ships no WebAssembly build and would compile natively,
+  while `tree-sitter-rust` 0.24.0 ships one. `.vibe-ops/` runs at every commit and builds nothing, and a
+  surface check needs two compilers, so it belongs where the vector-group check already lives.
   Date / Author: 2026-09-24 / Danilo Borges
 
 ## Outcomes & Retrospective
