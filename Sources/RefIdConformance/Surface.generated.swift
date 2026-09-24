@@ -56,10 +56,14 @@ func checkSurfaceReferences() {
     let _: (String, Any?) throws -> EnvelopeResult = validateEnvelope(requestedId:envelope:)
     // canonicalise
     let _: (Any?) throws -> String = canonicalise(_:)
+    // canonicalise — deprecated alias
+    let _: (Any?) throws -> String = canonicalJSON(_:)
     // loadSpec
     let _: () throws -> Spec = loadSpec
     // loadSpecFrom
     let _: (URL) throws -> Spec = loadSpecFrom(_:)
+    // loadSpecFrom — deprecated alias
+    let _: (URL) throws -> Spec = loadSpec(from:)
 }
 
 /// Compares `declaredMethods` against the embedded specification's own `openRPC.methods`, in

@@ -132,6 +132,16 @@ for (const method of doc.methods) {
     emit("String", paramTypes.map((t) => (t.isIdentifierOrParsed ? "String" : t.type)))
     emit("ParseResult", paramTypes.map((t) => (t.isIdentifierOrParsed ? "ParseResult" : t.type)))
   }
+
+  // A deprecated alias is bound with the method's own signature, by the full spelling `openRPC` declares
+  // (labels included), so deleting it — or letting its signature drift from the method it stands for —
+  // fails the runner's build, as a missing method does. Referencing it raises a deprecation warning,
+  // which is the point of it being deprecated and does not fail the build.
+  for (const alias of method["x-deprecated-aliases"]?.swift ?? []) {
+    if (hasUnion) throw new Error(`${method.name}: an alias of a method taking IdentifierOrParsed is not handled`)
+    lines.push(`    // ${method.name} — deprecated alias`)
+    lines.push(`    let _: (${paramTypes.map((t) => t.type).join(", ")}) ${throwsClause}-> ${resultType.type} = ${alias}`)
+  }
 }
 
 const methodsArrayLiteral = declaredMethods.map((name) => `"${name}"`).join(", ")
