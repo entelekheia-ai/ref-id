@@ -114,6 +114,11 @@ specification declares beyond them. A changed `comparison` vector also fails eve
 that implementation changes. So Tracks 1 and 3 land on this plan's branch and **merge together with
 Track 2**, never before it.
 
+**One branch, one pull request.** Every track commits onto the branch `plan-comparison-descends-into-nested`,
+which already carries this plan, and pull request #21 is the single vehicle for all of it. Do not open a
+second branch or pull request for a track: #21 merges once, after Track 2, when every command in Success
+criteria exits `0`.
+
 ## Tracks
 
 - [ ] **Track 1 — The rule descends.** Rewrite `comparison.covers.rule` and `comparison.samePackage.rule`
@@ -175,6 +180,12 @@ gives `covers(a, b) = true` in all four implementations. The same `b` against
   Rationale: the rule text and the vectors are judgements that have to agree with this plan's intent. The
   implementation is mechanical against a closed contract — the vectors — and a gate that fails on the
   first disagreement.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: All three tracks commit onto `plan-comparison-descends-into-nested` and ship through pull
+  request #21, which is opened with the plan and stays open until Track 2 is green.
+  Rationale: the specification tracks cannot merge alone, since the runners would refuse them, so a
+  pull request per track would have to wait for the last one anyway. Reusing #21 keeps the plan, its vectors and
+  their implementation reviewable as the one change they are.
   Date / Author: 2026-09-23 / Danilo Borges
 - Decision: `covers` with descent is the requirement, and `relate` follows it. If only one can ship, it is
   the descent.
