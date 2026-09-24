@@ -406,8 +406,12 @@ Three things this does **not** change:
   as opposites and are not: a qualifier list is a keyed set with no order to lose, and a digest names a
   sequence whose order is declared content.
 
-**Refinements are not qualifiers here.** They sit on the fragment side and are positional — `lines=1,20`
-names a range — so `canonical` leaves them in the order they were written.
+**Refinement order does not distinguish either.** A qualifier is a filter on what the locator names and a
+refinement a filter on what the declared name selects, and filters combine with AND, so
+`#Setup;lines=10,20;item=2` and `#Setup;item=2;lines=10,20` are one identifier and the canonical form
+sorts refinements by key as it sorts qualifiers. The order *inside* one value is content: `lines=1,20` is a
+range. A nested identifier in a qualifier value is written in its own canonical form, so the order of its
+qualifiers does not distinguish the outer identifier.
 
 ### Refinements
 

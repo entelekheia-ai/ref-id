@@ -317,8 +317,8 @@
  },
  "identifierEquivalence": {
   "qualifierOrder": "insignificant",
-  "refinementOrder": "significant",
-  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key in UTF-16 code unit order; every other part verbatim, refinements included",
+  "refinementOrder": "insignificant",
+  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key and its refinements sorted by key, both in UTF-16 code unit order, and with a nested identifier in a qualifier value written in its own canonical form; every other part verbatim. A qualifier and a refinement are each a filter — a qualifier on what the locator names, a refinement on what the declared name selects — and filters combine with AND, so neither order distinguishes. The order inside one value does: lines=1,20 is a range",
   "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte. An identifier with no decomposition — malformed, or at a scheme version the implementation does not support — has no canonical form to compare and names nothing: it is the same identifier as nothing, itself included, and the comparison answers false rather than raising",
   "reserialisation": "SHOULD preserve the order written; MUST NOT be relied on to tell two identifiers apart",
   "note": "distinct from `canonicalisation`, which is the form of THIS FILE for its own digest"
@@ -2842,6 +2842,16 @@
     "expect": "ref:folder:acme-governance;state=none;when=2026-08-02T18:31:31.870Z#AGENTS.md;lines=1,20"
    },
    {
+    "name": "refinements sort by key, as qualifiers do — each is a filter, and filters combine with AND",
+    "input": "ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20;item=2",
+    "expect": "ref:folder:acme-tools/docs/guide.md#Setup;item=2;lines=10,20"
+   },
+   {
+    "name": "a nested identifier's qualifiers sort inside its value",
+    "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bwhen=2026-01-01T00:00:00Z%3Bstate=none",
+    "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=none%3Bwhen=2026-01-01T00:00:00Z"
+   },
+   {
     "name": "a malformed identifier has no canonical form",
     "input": "ref:eita:t@1/o;state=none;state=none",
     "expect": {
@@ -3654,6 +3664,61 @@
      "covers": true,
      "coversReversed": true,
      "sameIdentifier": true
+    }
+   },
+   {
+    "name": "two orders of the same refinements are the same identifier",
+    "a": "ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20;item=2",
+    "b": "ref:folder:acme-tools/docs/guide.md#Setup;item=2;lines=10,20",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   },
+   {
+    "name": "two orders of a nested identifier's qualifiers are the same identifier",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bwhen=2026-01-01T00:00:00Z%3Bstate=none",
+    "b": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=none%3Bwhen=2026-01-01T00:00:00Z",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   },
+   {
+    "name": "an identifier at an unsupported scheme version is not the same as itself",
+    "a": "ref:2:pkg:npm/x",
+    "b": "ref:2:pkg:npm/x",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "two Unicode spellings of one text are two identifiers — comparison is byte for byte",
+    "a": "ref:zzz:caf\u00e9",
+    "b": "ref:zzz:cafe\u0301",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a segment boundary is the byte /, whatever follows it",
+    "a": "ref:zzz:a",
+    "b": "ref:zzz:a/\u0301b",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    }
   ],
