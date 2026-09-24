@@ -148,7 +148,7 @@ criteria exits `0`.
   against the `comparison` group on the same pairs. Document it in `docs/reference/the-ref-scheme.md`.
   Acceptance: every `relate` vector's reductions agree with the `comparison` group's expectations for the
   same pair, checked by a script, not by eye.
-- [ ] **Track 4 — The surface is declared.** Add an `openRPC` key to `spec/ref-id.json` whose value is one
+- [x] **Track 4 — The surface is declared.** Add an `openRPC` key to `spec/ref-id.json` whose value is one
   whole OpenRPC document: a method per public operation with its camelCase name, parameters in order,
   result and errors; the value types (`ParseResult`, `BuildParts`, `EnvelopeResult`, …) under
   `components.schemas`; `x-casing` per language. Each method carries `x-vectors`, the group that binds
@@ -181,8 +181,22 @@ criteria exits `0`.
   surface check fails today on exactly the divergences the survey found.
 - [ ] **Track 2 — The three implementations follow.** In one realignment pass over TypeScript, Rust and
   Swift, bring the drifted code back into agreement, implement the descent and `relate`, add `relate` to
-  each runner's executed groups and to `scripts/differential.mjs`, and write the changeset. Acceptance:
-  every suite passes and the differential reports zero disagreements. Then the branch merges.
+  each runner's executed groups and to `scripts/differential.mjs`, and write the changeset. The surface
+  checks Track 4 left failing are the list, per implementation:
+  - **TypeScript** — rename `canonical` to `canonicalIdentifier`, keeping `canonical` as a deprecated
+    alias; add `relate`; export the types `Fragment` (today `ParsedFragment`), `Spec` (today `RefIdSpec`),
+    `RelateResult`, `Relation`, `QualifierRelation`, `IdentifierOrParsed`; make `canonicalise` throw a
+    `SpecIntegrityError` rather than a plain `Error`.
+  - **Rust** — add `same_identifier` and `relate` with a `RelateResult` type; accept `&ParseResult`
+    wherever an identifier is taken (`canonical_identifier`, `same_identifier`, `same_package`, `covers`,
+    `relate`), through a trait, so every call written with `&str` still compiles.
+  - **Swift** — add `sameIdentifier`, `relate` with a `RelateResult` type, `canonicalise(_:)` taking
+    `Any?` (today `canonicalJSON(_:)` taking `Any`, kept as a deprecated alias), and
+    `loadSpecFrom(_:)` taking a `URL` (today `loadSpec(from:)`, kept as a deprecated alias); accept
+    `ParseResult` wherever an identifier is taken.
+  A deprecated alias is declared in `openRPC` as it is added, so the surface checks accept it by
+  declaration rather than by exception. Acceptance: every suite passes, `npm run test:surface` reports no
+  divergence, and the differential reports zero disagreements. Then the branch merges.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
   issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
   track list that is otherwise complete but has this box open is not finished.
@@ -320,6 +334,22 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   whose reductions first matched all 37 `comparison` vectors, and each was then read against the rule.
   Rationale: the script reads the specification alone, so a disagreement between the two groups is caught
   as a defect of the data rather than as three ports each failing one group.
+  Date / Author: 2026-09-24 / Danilo Borges
+- Decision: Track 4 is accepted with the declaration carrying every fact a generator needs, so each
+  generator reads the specification alone. The first round had the Swift generator scan the library's
+  source with a regular expression and the Rust one key an exception on a method name, because the
+  declaration left four things out; each became a declared field instead: `x-error-type` with the five
+  error kinds the three implementations already share (the first draft had three, one a catch-all);
+  `components.schemas.Spec` with `x-result-cached`; `x-argument-labels`; and `x-kind: "directory"` on a
+  string that is a filesystem path. The surface checks fail today on the list Track 2 now carries, and on
+  nothing else; each was shown to fail on a planted rename or extra export.
+  Rationale: a generator that consults the code it checks can only confirm the code. The Swift half of
+  `check-surface.mjs` builds the `RefId` target alone with `-emit-symbol-graph`, because
+  `swift package dump-symbol-graph` builds every target and the conformance runner is the target that
+  fails to build while a method is missing. Until Track 2, `cargo test --workspace` and
+  `swift run ref-id-conformance` stop at compilation, by design. The TypeScript `typecheck` script now
+  checks `src` and the generated file only: three older test files have never been type-checked and carry
+  type errors, which a wider scope would have to fix first.
   Date / Author: 2026-09-24 / Danilo Borges
 
 ## Outcomes & Retrospective
