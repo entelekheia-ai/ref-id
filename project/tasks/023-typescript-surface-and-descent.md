@@ -119,7 +119,10 @@ changed in response (commits `a4fe3c0`, `757e720`), and the TypeScript reference
       `file:line`
 - [x] P1 — items 4–6 — same agent, same contract
 - [ ] P0 — items 7–9 — same contract as above (plus `packages/ref-id/parse-lines.ts`); the gate adds
-      `npm run test:differential` once all three ports speak `--pairs`
+      `npm run test:differential` once all three ports speak `--pairs`. Implementation complete for all
+      three items (see Surprises & Discoveries); left unchecked because `npm test` stops red on 2 of 268
+      tests, and the cause is a defect in `spec/ref-id.json`'s own `canonical` vector group (a stale
+      vector contradicting a newer sibling), not something fixable under this item's write scope.
 - [ ] Orchestrator — changeset for the package contract (new `relate`, renamed `canonicalIdentifier`,
       descent), written once for the three implementations
 
@@ -158,6 +161,50 @@ changed in response (commits `a4fe3c0`, `757e720`), and the TypeScript reference
   already generated it against the target (post-Track-2) surface.
   Evidence: `npm test` output before/after this session; `node scripts/gen-surface-ts.mjs --check` exits 0
   with "is current".
+- Observation: `spec/ref-id.json`'s own `canonical` vector group contradicts itself on refinement order.
+  Vector "refinements are positional and keep the order they were written" expects
+  `…#AGENTS.md;lines=1,20;item=3` unchanged (i.e. NOT sorted — "item" < "lines" in UTF-16 order, so a
+  sort would move it first), while the sibling vector "refinements sort by key, as qualifiers do — each
+  is a filter, and filters combine with AND" expects exactly that reordering on an equivalent pair
+  (`…#Setup;lines=10,20;item=2` → `…#Setup;item=2;lines=10,20`). `identifierEquivalence.canonicalForm`'s
+  prose agrees with the second vector ("its refinements sorted by key… both in UTF-16 code unit order").
+  Item 7 was implemented against the prose and the second vector — `src/canonical.ts`'s
+  `canonicalIdentifier` now sorts `fragment.refinements` by key exactly as it sorts qualifiers. This
+  leaves the first vector failing on purpose: `canonical: refinements are positional and keep the order
+  they were written` and the derived `canonical: the form is idempotent` test both fail against
+  `npm test`, because that vector's own `expect` field was not updated when the sort-refinements rule was
+  added. I did not edit the specification to fix it — the gate is red on these two named tests only, and
+  the fix belongs to whoever reconciles the vector with the prose it now contradicts.
+  Evidence: `spec/ref-id.json:2834-2837` (the stale unsorted vector) vs `spec/ref-id.json:2844-2847` (the
+  sorted vector) vs `spec.identifierEquivalence.canonicalForm`'s text.
+- Observation: `canonicalIdentifier`'s nested-value canonicalisation needed the qualifier's encoding
+  table, which was already computed by a private `nestingForm()` in `src/build.ts` (unexported). Rather
+  than re-deriving `spec.qualifiers[key].forms.find(f => f.nested)` a second time in `canonical.ts` — a
+  restatement `repo-guardrails.md` forbids — `nestingForm` was exported from `build.ts` and imported into
+  `canonical.ts`, alongside `encodeReserved`/`tableFor` from `encoding.ts`, so the descent (Item 1) and
+  the canonical form (Item 7) share the same one reading of the spec's nesting table.
+  Evidence: `src/build.ts`'s `nestingForm` (now `export function`), used from `src/canonical.ts`'s
+  `canonicalIdentifier`.
+- Observation: `packages/ref-id/README.md`'s `sameIdentifier("pkg:npm/x@1.0.0", "pkg:npm/x@2.0.0")`
+  example (item 9) was doubly wrong, not just missing the `ref:` prefix as the dossier said: both
+  operands are malformed without it (no scheme prefix at all, so `parse()` cannot even reach the `pkg:`
+  dispatch), so the example's `false` result was coming from "both sides name nothing" rather than from
+  the byte-for-byte strictness the comment claims to demonstrate. Replaced with two lines: a real
+  version mismatch (`ref:pkg:npm/x@1.0.0` vs `…@2.0.0`, false) and a real qualifier-order case
+  (`;a=1;b=2` vs `;b=2;a=1`, true) — the second is the one fact `sameIdentifier` actually needs to show
+  that `covers`'s example does not: order among qualifiers never distinguishes. Both re-verified by
+  running the entry point directly rather than trusting the prose.
+  Evidence: `packages/ref-id/README.md:51-52`; verified with
+  `node --experimental-strip-types -e '…'` importing `src/index.ts` directly, all five README claims in
+  that block (including the two pre-existing `covers` lines) confirmed against live output.
+- Observation: `--pairs` needed no new error handling beyond the odd-line-count guard the plan implies
+  ("two lines per pair") — `covers`/`samePackage`/`sameIdentifier`/`relate` never throw on a malformed or
+  unsupported operand (they degrade through `relations.ts`'s `read()` to `false`/`false`/`false`/`null`,
+  same as a single bad `parse()` degrades to `status: "malformed"` rather than throwing), so the pairs
+  loop needed no per-pair try/catch to match the single-line mode's `--parse` behaviour.
+  Evidence: `printf 'not-an-identifier\nref:pkg:npm/x\n' | node --experimental-strip-types parse-lines.ts
+  --pairs` printed `{"covers":false,"coversReversed":false,"relate":null,"sameIdentifier":false,"samePackage":false}`
+  and exited 0.
 
 ## Closure
 

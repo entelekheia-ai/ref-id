@@ -14,7 +14,7 @@ import type { BuildParts, Pair } from "./types.ts"
 import { foldsType } from "./validators.ts"
 
 /** The form, among a qualifier's declared forms, that nests an identifier — where the encoding table lives. */
-function nestingForm(spec: RefIdSpec, key: string): RefIdSpec["forms"][string] | undefined {
+export function nestingForm(spec: RefIdSpec, key: string): RefIdSpec["forms"][string] | undefined {
   const declared = spec.qualifiers[key]
   if (!declared) {
     return undefined

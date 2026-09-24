@@ -38,9 +38,10 @@ npm install @entelekheia/ref-id
 
 ## Usage
 
-The entry points are `parse`, `serialise`, `digest`, `validateEnvelope`, `samePackage`, `covers` and
-`relate`; their contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `digest`,
-`envelope`, `comparison`, `relate`). An unknown locator type parses and degrades to `uncovered`; it never
+The entry points are `parse`, `serialise`, `build`, `canonicalise`, `loadSpec`, `digest`,
+`validateEnvelope`, `sameIdentifier`, `canonicalIdentifier`, `samePackage`, `covers` and `relate`; their
+contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `build`, `digest`, `envelope`,
+`canonical`, `comparison`, `relate`). An unknown locator type parses and degrades to `uncovered`; it never
 throws.
 
 Three questions get three answers, and they are not interchangeable:
@@ -48,7 +49,8 @@ Three questions get three answers, and they are not interchangeable:
 ```ts
 import { covers, sameIdentifier, samePackage } from "@entelekheia/ref-id"
 
-sameIdentifier("pkg:npm/x@1.0.0", "pkg:npm/x@2.0.0") // false — two identifiers, compared byte for byte
+sameIdentifier("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x@2.0.0") // false — two different releases, byte for byte
+sameIdentifier("ref:pkg:npm/x;a=1;b=2", "ref:pkg:npm/x;b=2;a=1") // true  — qualifier order never distinguishes
 samePackage("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x@2.0.0") // true  — one released thing, two versions
 covers("ref:pkg:npm/x", "ref:pkg:npm/x@1.0.0") // true  — the general covers the specific
 covers("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x") // false — and never the reverse
