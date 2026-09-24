@@ -112,7 +112,14 @@ enum SpecLoader {
     }
 }
 
-/// Loads and validates a spec + sidecar pair from a directory; the integrity tests use this.
+/// A specification read from a directory holding `ref-id.json` and its sidecar, verified the same way
+/// as the embedded one.
+public func loadSpecFrom(_ directory: URL) throws -> Spec {
+    try SpecLoader.load(from: directory)
+}
+
+/// Deprecated spelling of `loadSpecFrom(_:)`, kept so a call written against it still compiles.
+@available(*, deprecated, renamed: "loadSpecFrom(_:)")
 public func loadSpec(from directory: URL) throws -> Spec {
     try SpecLoader.load(from: directory)
 }
@@ -136,7 +143,11 @@ extension Spec {
 /// The embedded specification's resource URLs — exposed so a runner can prove the copy is byte-identical to the repository's file.
 public func embeddedSpecURLs() throws -> (json: URL, sidecar: URL) { try SpecLoader.embeddedURLs() }
 
-/// The canonical serialisation this package computes the spec digest over.
+/// The canonical JSON serialisation the specification's own digest is computed over.
+public func canonicalise(_ value: Any?) throws -> String { try Canonical.serialise(value ?? NSNull()) }
+
+/// Deprecated spelling of `canonicalise(_:)`, kept so a call written against it still compiles.
+@available(*, deprecated, renamed: "canonicalise(_:)")
 public func canonicalJSON(_ value: Any) throws -> String { try Canonical.serialise(value) }
 
 /// SHA-256 of a UTF-8 string, lowercase hex — the digest the sidecar carries.

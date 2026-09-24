@@ -26,10 +26,10 @@ if CommandLine.arguments.contains("--parse") {
             var json = result.asJSON()
             if !withCanonical { json["canonical"] = nil }
             if let serialised = try? serialise(result) { json["serialised"] = serialised }
-            print(try canonicalJSON(json))
+            print(try canonicalise(json))
         } catch {
             failures += 1
-            print("{\"threw\":\(try canonicalJSON(String(describing: error)))}")
+            print("{\"threw\":\(try canonicalise(String(describing: error)))}")
         }
     }
     exit(failures == 0 ? 0 : 1)
@@ -42,7 +42,7 @@ func check(_ condition: Bool, _ message: @autoclosure () -> String) {
     if condition { passed += 1 } else { failed += 1; print("✘ \(message())") }
 }
 
-func canonical(_ value: Any) throws -> String { try RefId.canonicalJSON(value) }
+func canonical(_ value: Any) throws -> String { try RefId.canonicalise(value) }
 
 func vectors(_ cls: String) throws -> [[String: Any]] {
     try loadSpec().vectorClass(cls)
@@ -74,9 +74,40 @@ func buildParts(_ json: [String: Any]) -> BuildParts {
 /// runner cannot yet run must say so, not stay silent.
 func checkEveryVectorGroupRuns() throws {
     let spec = try loadSpec()
-    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison"]
+    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate"]
     let missing = spec.vectorClasses().filter { !executed.contains($0) }.sorted()
     check(missing.isEmpty, "every-vector-group-runs: spec/ref-id.json declares vector groups this runner does not execute: \(missing)")
+}
+
+/// One relation from a `relate` vector's JSON — the four names `Relation` declares, verbatim.
+func relationFromJSON(_ raw: Any?) -> Relation? {
+    guard let name = raw as? String else { return nil }
+    return Relation(rawValue: name)
+}
+
+/// A `RelateResult` (or `nil`, for a vector's `expect.relate: null`) rebuilt from the vector's own JSON
+/// shape, so it can be compared against `relate(a, b)` with `==` rather than field by field.
+func relateResultFromJSON(_ json: Any?) -> RelateResult? {
+    guard let dict = json as? [String: Any],
+          let type = relationFromJSON(dict["type"]),
+          let version = relationFromJSON(dict["version"]),
+          let locatorStem = relationFromJSON(dict["locatorStem"]),
+          let locatorVersion = relationFromJSON(dict["locatorVersion"]),
+          let fragmentPath = relationFromJSON(dict["fragmentPath"])
+    else { return nil }
+    var fragmentRefinements: [String: Relation] = [:]
+    for (key, value) in dict["fragmentRefinements"] as? [String: Any] ?? [:] {
+        if let relation = relationFromJSON(value) { fragmentRefinements[key] = relation }
+    }
+    var qualifiers: [String: QualifierRelation] = [:]
+    for (key, value) in dict["qualifiers"] as? [String: Any] ?? [:] {
+        guard let qualifier = value as? [String: Any], let relation = relationFromJSON(qualifier["relation"]) else { continue }
+        qualifiers[key] = QualifierRelation(relation: relation, nested: relateResultFromJSON(qualifier["nested"]))
+    }
+    return RelateResult(
+        type: type, version: version, locatorStem: locatorStem, locatorVersion: locatorVersion,
+        fragmentPath: fragmentPath, fragmentRefinements: fragmentRefinements, qualifiers: qualifiers
+    )
 }
 
 func run() throws {
@@ -158,6 +189,19 @@ func run() throws {
         check(covers(b, a) == (expect["coversReversed"] as! Bool), "comparison: \(name) — coversReversed")
     }
 
+    // relate — the full result, plus the three booleans `spec.comparison.relate.reductions` declares
+    for vector in try vectors("relate") {
+        let name = vector["name"] as? String ?? "?"
+        let a = vector["a"] as! String
+        let b = vector["b"] as! String
+        let expect = vector["expect"] as! [String: Any]
+        let wanted = relateResultFromJSON(expect["relate"])
+        check(relate(a, b) == wanted, "relate: \(name) — relation")
+        check(samePackage(a, b) == (expect["samePackage"] as! Bool), "relate: \(name) — samePackage")
+        check(covers(a, b) == (expect["covers"] as! Bool), "relate: \(name) — covers")
+        check(covers(b, a) == (expect["coversReversed"] as! Bool), "relate: \(name) — coversReversed")
+    }
+
     // integrity: the embedded copy is the repository's spec (when run from the repository)
     let repositorySpec = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("spec")
     let urls = try embeddedSpecURLs()
@@ -172,13 +216,13 @@ func run() throws {
     object["scheme"] = (object["scheme"] as! String) + "x"
     try JSONSerialization.data(withJSONObject: object).write(to: tmp.appendingPathComponent("ref-id.json"))
     try Data(contentsOf: urls.sidecar).write(to: tmp.appendingPathComponent("ref-id.json.sha256"))
-    do { _ = try loadSpec(from: tmp); check(false, "integrity: an altered copy loaded") } catch RefIdError.specIntegrity { check(true, "") } catch { check(false, "integrity: altered copy threw \(error)") }
+    do { _ = try loadSpecFrom(tmp); check(false, "integrity: an altered copy loaded") } catch RefIdError.specIntegrity { check(true, "") } catch { check(false, "integrity: altered copy threw \(error)") }
     object = try JSONSerialization.jsonObject(with: try Data(contentsOf: urls.json)) as! [String: Any]
     object["specVersion"] = "2.0.0"
     let data = try JSONSerialization.data(withJSONObject: object)
     try data.write(to: tmp.appendingPathComponent("ref-id.json"))
-    try (RefId.sha256Hex(try RefId.canonicalJSON(try JSONSerialization.jsonObject(with: data))) + "\n").write(to: tmp.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
-    do { _ = try loadSpec(from: tmp); check(false, "integrity: specVersion 2.0.0 loaded") } catch RefIdError.specVersion { check(true, "") } catch { check(false, "integrity: version 2 threw \(error)") }
+    try (RefId.sha256Hex(try RefId.canonicalise(try JSONSerialization.jsonObject(with: data))) + "\n").write(to: tmp.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
+    do { _ = try loadSpecFrom(tmp); check(false, "integrity: specVersion 2.0.0 loaded") } catch RefIdError.specVersion { check(true, "") } catch { check(false, "integrity: version 2 threw \(error)") }
     check(try loadSpec().scheme == "ref", "integrity: the embedded spec does not load")
     // the dialect measurement: does the canonical expression compile unchanged here?
     let expression = try loadSpec().grammarExpression()
