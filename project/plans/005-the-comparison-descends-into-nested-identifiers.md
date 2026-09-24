@@ -127,7 +127,7 @@ criteria exits `0`.
 
 ## Tracks
 
-- [ ] **Track 1 — The rule descends.** Rewrite `comparison.covers.rule` and `comparison.samePackage.rule`
+- [x] **Track 1 — The rule descends.** Rewrite `comparison.covers.rule` and `comparison.samePackage.rule`
   in `spec/ref-id.json` so that a qualifier whose value is a nested identifier on both sides is compared
   with the same operation. Flip the vector *"a declared by= must match exactly — an unversioned engine does
   not cover a versioned one yet"* to `covers: true`, and add vectors for a versioned `by=` not covering
@@ -164,12 +164,13 @@ npm run test:differential      # four implementations, zero disagreements
 All six exit `0` on the branch before it merges. Then this pair:
 
 ```text
-a = ref:ai-model:example-app;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm
-b = ref:ai-model:example-app/mlx-community/Qwen3.5-4B-4bit;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4
+a = ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp
+b = ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931
 ```
 
-gives `covers(a, b) = true` in all four implementations. The same `b` against
-`ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp` gives `false`: a different engine.
+gives `covers(a, b) = true` in all four implementations — it is a `comparison` vector, so the differential
+proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4` gives
+`false`: a different engine.
 
 ---
 
@@ -207,6 +208,28 @@ gives `covers(a, b) = true` in all four implementations. The same `b` against
   an identifier carries"). The consumer this plan named searches stored replies by engine and build on its
   own columns, so its hot path never reaches a nested comparison. Whether a nested qualifier becomes
   `malformed` is left to how that guidance holds up in use.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: The descent applies to any qualifier whose value is a nested `ref:` on both sides, not to `by=`
+  alone; a vector on `over=` binds it. A nested pair the relation refuses — a scheme version the
+  implementation does not support — falls back to byte equality, and so does a nested identifier facing a
+  digest.
+  Rationale: the grammar gives `by=` and `over=` the same nested form, and a rule naming one key would be
+  a second table of keys in prose. A refused pair has no parts to compare, and equality is what the rule
+  said before, so it is the only answer that cannot be wrong for it.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: The success-criteria pair and its vector use `pkg:github/ggml-org/llama.cpp`, not
+  `pkg:swift/…/mlx-swift-lm`. The vector "a versioned `by=` not covering an unversioned one" was not
+  added: it is the `coversReversed` of the flipped vector.
+  Rationale: the Package URL specification requires a version on the `swift` type, and `packageurl-js`
+  refuses `pkg:swift/github.com/ml-explore/mlx-swift-lm` ("swift requires a "version" component"), so the
+  pair this plan first wrote parsed `malformed` at `by`. A Swift engine is therefore never an unversioned
+  query; "every release of it" is `samePackage` on it, which ignores the version.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: Track 1 is accepted on this evidence: the grammar runners pass (128/128 each); TypeScript and
+  Swift fail on exactly the five vectors whose answer depends on the descent, and pass the four that stay
+  strict; Rust fails at the first of those five, because its comparison test stops at its first assertion.
+  Rationale: the Rust harness cannot list the rest until the first passes, so its full list is Track 2's
+  first reading rather than this track's.
   Date / Author: 2026-09-23 / Danilo Borges
 
 ## Outcomes & Retrospective

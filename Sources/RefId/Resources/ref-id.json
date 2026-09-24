@@ -336,12 +336,12 @@
   ],
   "samePackage": {
    "symmetry": "symmetric",
-   "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an @ belongs to the format and is part of the stem. Where a version is carried, an @ that opens a segment is a namespace and an @ inside a segment closes the name — the version runs to the next /, and the path after it stays in the stem, because one file at two releases is one file.",
+   "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an @ belongs to the format and is part of the stem. Where a version is carried, an @ that opens a segment is a namespace and an @ inside a segment closes the name — the version runs to the next /, and the path after it stays in the stem, because one file at two releases is one file. A qualifier whose value on both sides is a nested `ref:` identifier is compared with this same relation on the decoded pair, so one engine at two releases is one engine. Any other qualifier value — a digest, a timestamp, plain text, or a nested identifier on one side only — is compared identically, and so is a nested pair this relation refuses.",
    "purpose": "whether two identifiers name the same released thing at whatever version each declares. Only a type declaring `versionTail` has a version dimension at all — three of the nine do — so for every other type this relation is equality, and its name is borrowed from the type that motivated it."
   },
   "covers": {
    "symmetry": "asymmetric — the general covers the specific, and the specific does not cover the general",
-   "rule": "the type and the scheme version must be equal, and the general locator stem must reach the specific one — equal, or a whole segment prefix of it, so a corpus reaches the files under it and never a sibling whose name merely begins with the same characters. For the locator version, the fragment path, each fragment refinement and each qualifier: what the first leaves undeclared, the second may declare freely; what the first declares, the second must declare identically.",
+   "rule": "the type and the scheme version must be equal, and the general locator stem must reach the specific one — equal, or a whole segment prefix of it, so a corpus reaches the files under it and never a sibling whose name merely begins with the same characters. For the locator version, the fragment path, each fragment refinement and each qualifier: what the first leaves undeclared, the second may declare freely; what the first declares, the second must declare identically. One exception: a qualifier whose value on both sides is a nested `ref:` identifier is compared with this same relation on the decoded pair — the first's nested identifier must cover the second's. The descent is one level deep, because nesting is. Any other qualifier value — a digest, a timestamp, plain text, or a nested identifier on one side only — must be identical, and so must a nested pair this relation refuses.",
    "purpose": "a partial identifier is a query — a store keyed by identifier answers a family by asking which of its keys the partial one covers",
    "reflexive": "every identifier this relation accepts covers itself"
   }
@@ -2493,9 +2493,89 @@
     }
    },
    {
-    "name": "a declared by= must match exactly — an unversioned engine does not cover a versioned one yet",
+    "name": "an unversioned engine in by= covers every release of it, and is the same package as each",
     "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
     "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "one engine at two releases in by= is the same package, and neither release covers the other",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10932",
+    "expect": {
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "two engines in by= are two instruments however the rest matches",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a general identifier with a general by= covers a specific model run by a specific release",
+    "a": "ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a nested identifier is compared on its parts — a by= with no declared name covers one that declares it",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0",
+    "b": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "the descent is not particular to by= — a corpus in over= covers a folder inside it",
+    "a": "ref:folder:acme-tools;over=ref:folder:acme-governance",
+    "b": "ref:folder:acme-tools;over=ref:folder:acme-governance/learnings",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a digest in by= stays strict — two digests are compared byte for byte",
+    "a": "ref:folder:acme-tools;by=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools;by=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a nested identifier on one side and a digest on the other are two different values",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0",
+    "b": "ref:folder:acme-tools;by=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a nested pair of a version this relation refuses is compared byte for byte",
+    "a": "ref:folder:acme-tools;by=ref:2:pkg:npm/x",
+    "b": "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
     "expect": {
      "samePackage": false,
      "covers": false,
