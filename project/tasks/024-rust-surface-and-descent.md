@@ -133,24 +133,24 @@ changed in response (commits `a4fe3c0`, `757e720`), and the crate fails the new 
   confirming across ports during Track 2's realignment pass.
   Evidence: `crates/ref-id/src/relations.rs` — `pub fn same_identifier`'s doc comment and body.
 
-- Observation: `spec/ref-id.json`'s `vectors.canonical` group holds two vectors that cannot both pass
-  under `identifierEquivalence.canonicalForm`'s own prose ("its refinements sorted by key"), and they
-  are not a Rust-only problem — the TypeScript reference (`packages/ref-id/src/canonical.ts`, which
-  already implements the sort) fails the same vector, run directly: `node --experimental-strip-types
-  --test test/canonical.test.ts` inside `packages/ref-id/` reports `canonical: refinements are positional
-  and keep the order they were written` and `canonical: the form is idempotent` both red, on this branch,
-  before this task touched anything. The vector at `spec/ref-id.json:2835-2838` ("refinements are
-  positional and keep the order they were written", added 2026-09-17 by `9f9efddb`) expects
-  `lines=1,20;item=3` to stay unsorted; the vector at `spec/ref-id.json:2845-2848` ("refinements sort by
-  key, as qualifiers do", added 2026-09-24 by the adversarial-review commit `a4fe3c0`) expects the
-  structurally identical `lines=10,20;item=2` to become `item=2;lines=10,20`. The review commit that
-  introduced the sorting rule did not retire the older vector it contradicts. This crate implements the
-  sort (matching the prose and the TypeScript reference), so `cargo test --workspace` stops red at exactly
-  this one vector in `canonical_vectors` — matching TypeScript's own two failures rather than diverging
-  from them. Not fixed here: the specification is out of scope for this dossier, and "stopping red is
-  acceptable; making it green by editing … the specification … is not."
-  Evidence: `spec/ref-id.json:2835-2838` vs `spec/ref-id.json:2845-2848`; `packages/ref-id/src/canonical.ts:35-55`
-  (`canonicalIdentifier`, the ported reference); `crates/ref-id/src/relations.rs` (`canonical_form`).
+- Observation (resolved by the orchestrator during this task, spec fix applied outside this dossier's
+  scope): `spec/ref-id.json`'s `vectors.canonical` group briefly held two vectors that could not both pass
+  under `identifierEquivalence.canonicalForm`'s own prose ("its refinements sorted by key"), and it was
+  not a Rust-only problem — the TypeScript reference (`packages/ref-id/src/canonical.ts`, which already
+  implements the sort) failed the same vector, run directly: `node --experimental-strip-types --test
+  test/canonical.test.ts` inside `packages/ref-id/` reported `canonical: refinements are positional and
+  keep the order they were written` and `canonical: the form is idempotent` both red, on this branch,
+  before this task touched anything. The vector at `spec/ref-id.json:2835-2838` (added 2026-09-17 by
+  `9f9efddb`) expected `lines=1,20;item=3` to stay unsorted; the vector added 2026-09-24 by the
+  adversarial-review commit `a4fe3c0` expected the structurally identical `lines=10,20;item=2` to become
+  `item=2;lines=10,20`. The review commit that introduced the sorting rule had not retired the older
+  vector it contradicted. This crate implemented the sort per the prose and the TypeScript reference
+  throughout, so it never special-cased the contradiction; once the orchestrator resealed the specification
+  (the vector at `spec/ref-id.json:2835` is now "the order inside a refinement value is content, the order
+  between refinement keys is not", expecting `item=3;lines=1,20`) and synced `crates/ref-id/spec/`,
+  `cargo test --workspace` went green with no code change on this crate's side.
+  Evidence: `spec/ref-id.json:2835-2837`; `packages/ref-id/src/canonical.ts:35-55` (`canonicalIdentifier`,
+  the ported reference); `crates/ref-id/src/relations.rs` (`canonical_form`, unchanged across the fix).
 - Observation: `same_identifier`'s gate (item 5) and the canonical form's descent/sort/version-omission
   (item 6) were both already fully designed and implemented in the TypeScript reference —
   `packages/ref-id/src/canonical.ts`'s `canonicalIdentifier` and `sameIdentifier` — so this port is a
