@@ -72,6 +72,24 @@ written with `&str` still compiles.
 **Why:** `openRPC` declares `IdentifierOrParsed` for these parameters; the generated bindings coerce each
 function to both `fn` types, which a generic function satisfies by inference.
 
+### After the adversarial review — P0
+
+An adversarial review ran 3025 constructed pairs through the three implementations. The specification
+changed in response (commits `a4fe3c0`, `757e720`), and the crate fails the new vectors until:
+
+5. **`same_identifier` refuses what has no parts.** It checks only that `canonical_identifier` succeeds, and
+   serialising an identifier at an unsupported scheme version succeeds, so
+   `same_identifier("ref:2:pkg:npm/x", "ref:2:pkg:npm/x")` is `true` here and `false` in TypeScript. Gate
+   on the same status check `read` uses (`ok` or `uncovered` only).
+6. **The canonical form** (`identifierEquivalence.canonicalForm`) sorts refinements by key as it sorts
+   qualifiers, writes a nested identifier in a qualifier value in its own canonical form (decode,
+   canonicalise, re-encode), and omits the version slot when it holds the default version.
+7. **`&String` compiles again.** On `main`, `covers(&a, &b)` with `a: String` deref-coerced to `&str`; with
+   `IdentifierArg` implemented only for `str` and `ParseResult` it is `E0277`. Implement it for `String`
+   (and `Box<str>` if it costs nothing), and re-export the trait from `lib.rs` so the error names a path a
+   caller can import — or seal it deliberately and say so in its doc comment.
+8. **A `--pairs` mode** in `examples/parse_lines.rs`, exactly as Plan-005 Track 5 specifies.
+
 ## Implementation order
 
 - [x] P0 — items 1–4 — delegable: one agent (`sonnet`), writes only under `crates/ref-id/src/`,
@@ -81,7 +99,8 @@ function to both `fn` types, which a generic function satisfies by inference.
       `node scripts/check-surface.mjs --only rust`; returns files changed, the gate output, and anything
       in this dossier found wrong with `file:line`. Done: gate green (`cargo test --workspace` 14/14,
       `gen-surface-rust.mjs --check` up to date, `check-surface.mjs --only rust` no divergence).
-- [ ] Orchestrator — `examples/parse_lines.rs` and the differential, if `relate` joins the line protocol
+- [ ] P0 — items 5–8 — same contract as above, plus `crates/ref-id/examples/parse_lines.rs`
+- [ ] Orchestrator — the pair pass of `scripts/differential.mjs`
 
 ## Surprises & Discoveries
 

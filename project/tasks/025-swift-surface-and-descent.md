@@ -79,6 +79,27 @@ for each identifier, mixed freely — a protocol both conform to, or overloads �
 `String` still compiles.
 **Why:** the generated references bind each function to both a `String` and a `ParseResult` signature.
 
+### After the adversarial review — P0
+
+An adversarial review ran 3025 constructed pairs through the three implementations. The specification
+changed in response (commits `a4fe3c0`, `757e720`), and the Swift port fails the new vectors until:
+
+6. **`sameIdentifier` refuses what has no parts.** `sameIdentifierCore` checks only that
+   `canonicalIdentifier` succeeds, and serialising an identifier at an unsupported scheme version succeeds,
+   so `sameIdentifier("ref:2:pkg:npm/x", "ref:2:pkg:npm/x")` is `true` here and `false` in TypeScript. Gate
+   on the status check the relations use (`ok` or `uncovered` only).
+7. **Comparison is byte for byte.** Swift's `String ==` is Unicode canonical equivalence and `hasPrefix`
+   works on grapheme clusters, so `ref:zzz:café` in NFC and NFD compare equal here and different in
+   TypeScript and Rust, and a `/` followed by a combining mark is not a segment boundary here. Compare
+   stems, paths and values on `utf8` (`a.utf8.elementsEqual(b.utf8)`), test prefixes on `utf8`, and walk
+   `unicodeScalars` or `utf8` rather than `Character` in `split`.
+8. **The canonical form** (`identifierEquivalence.canonicalForm`) sorts refinements by key as it sorts
+   qualifiers, writes a nested identifier in a qualifier value in its own canonical form (decode,
+   canonicalise, re-encode), and omits the version slot when it holds the default version.
+9. **`canonicalJSON(_:)` takes `Any?`,** as `canonicalise(_:)` does, so the deprecated alias has the
+   declared signature and the generated surface can bind it; a caller passing `Any` still compiles.
+10. **A `--pairs` mode** in the conformance runner, exactly as Plan-005 Track 5 specifies.
+
 ## Implementation order
 
 - [x] P0 — items 1–5 — delegable: one agent (`sonnet`), writes only under `Sources/RefId/` and
@@ -87,8 +108,8 @@ for each identifier, mixed freely — a protocol both conform to, or overloads �
       `swift run ref-id-conformance`, `node scripts/gen-surface-swift.mjs --check` and
       `node scripts/check-surface.mjs --only swift`; returns files changed, the gate output, and anything
       in this dossier found wrong with `file:line`
-- [ ] Orchestrator — `swift run ref-id-conformance --parse` and the differential, if `relate` joins the
-      line protocol
+- [ ] P0 — items 6–10 — same contract as above
+- [ ] Orchestrator — the pair pass of `scripts/differential.mjs`
 
 ## Surprises & Discoveries
 

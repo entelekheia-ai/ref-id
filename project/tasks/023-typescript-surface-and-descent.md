@@ -92,6 +92,24 @@ keep the old names as deprecated type aliases.
 **What:** `packages/ref-id/README.md` states that what the first declares the second must declare
 identically; after item 1 that is false for a nested identifier.
 
+### After the adversarial review — P0
+
+An adversarial review ran 3025 constructed pairs through the three implementations. The specification
+changed in response (commits `a4fe3c0`, `757e720`), and the TypeScript reference fails the new vectors until:
+
+7. **The canonical form** (`identifierEquivalence.canonicalForm`) sorts refinements by key as it sorts
+   qualifiers, writes a nested identifier in a qualifier value in its own canonical form (decode, canonicalise,
+   re-encode), and omits the version slot when it holds the default version. `src/canonical.ts`'s comment
+   saying refinements are positional is now false: order *inside* one value is content, order between keys
+   is not.
+8. **A `--pairs` mode** in `parse-lines.ts`, exactly as Plan-005 Track 5 specifies (two input lines per
+   pair, one canonical JSON line out with `covers`, `coversReversed`, `samePackage`, `sameIdentifier`,
+   `relate`), for both entry points (`--browser` too).
+9. **README** (`packages/ref-id/README.md`): the "entry points" sentence lists every exported operation
+   (`sameIdentifier`, `canonicalIdentifier`, `relate`, `build`, `canonicalise`, `loadSpec` are missing
+   today), and the `sameIdentifier("pkg:npm/x@1.0.0", …)` example has no `ref:` prefix, so both sides are
+   malformed — give it real identifiers and state the rule it shows.
+
 ## Implementation order
 
 - [x] P0 — items 1–3 — delegable: one agent (`sonnet`), writes only under `packages/ref-id/`; never the
@@ -100,6 +118,8 @@ identically; after item 1 that is false for a nested identifier.
       root; returns files changed, the gate output, and anything in this dossier found wrong with
       `file:line`
 - [x] P1 — items 4–6 — same agent, same contract
+- [ ] P0 — items 7–9 — same contract as above (plus `packages/ref-id/parse-lines.ts`); the gate adds
+      `npm run test:differential` once all three ports speak `--pairs`
 - [ ] Orchestrator — changeset for the package contract (new `relate`, renamed `canonicalIdentifier`,
       descent), written once for the three implementations
 
