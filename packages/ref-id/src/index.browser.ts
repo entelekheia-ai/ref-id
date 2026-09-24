@@ -29,16 +29,29 @@ installSpecSource(() => SPEC)
 installHash(hashHexBrowser)
 
 export { build } from "./build.ts"
-export { canonical, sameIdentifier } from "./canonical.ts"
+export { canonical, canonicalIdentifier, sameIdentifier } from "./canonical.ts"
 export { digest } from "./digest.ts"
 export { validateEnvelope } from "./envelope.ts"
 export { BuildError, DigestError, RefIdError, SerialiseError } from "./errors.ts"
 export { parse } from "./parse.ts"
-export { covers, samePackage } from "./relations.ts"
+export { covers, relate, samePackage } from "./relations.ts"
 export { serialise } from "./serialise.ts"
-export { canonicalise, loadSpec, SpecIntegrityError, SpecVersionError, type RefIdSpec } from "./spec.ts"
+export { canonicalise, loadSpec, SpecIntegrityError, SpecVersionError, type RefIdSpec, type Spec } from "./spec.ts"
 // The digest spec/ref-id.json carried when this build's constant was generated. A statement about
 // provenance, not a verification — spec.browser.ts says so at length, and re-exporting it here does
 // not make it one.
 export { SPEC_DIGEST } from "./spec.browser.ts"
-export type { BuildParts, EnvelopeResult, NestedQualifierValue, Pair, ParsedFragment, ParseResult, ParseStatus } from "./types.ts"
+export type {
+  BuildParts,
+  EnvelopeResult,
+  Fragment,
+  IdentifierOrParsed,
+  NestedQualifierValue,
+  Pair,
+  ParsedFragment,
+  ParseResult,
+  ParseStatus,
+  QualifierRelation,
+  RelateResult,
+  Relation,
+} from "./types.ts"

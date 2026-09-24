@@ -21,7 +21,7 @@ import type { ParseResult } from "./types.ts"
  * A malformed identifier has no canonical form and is refused, for the reason `serialise` gives: there is
  * no faithful way to write back a string whose failing part was never decomposed.
  */
-export function canonical(identifier: string | ParseResult): string {
+export function canonicalIdentifier(identifier: string | ParseResult): string {
   const spec = loadSpec()
   const parsed = typeof identifier === "string" ? parse(identifier) : identifier
   if (parsed.status === status(spec, "malformed")) return serialise(parsed) // throws, naming the failing part
@@ -29,7 +29,11 @@ export function canonical(identifier: string | ParseResult): string {
   return serialise({ ...parsed, qualifiers: sorted })
 }
 
+/** @deprecated Use `canonicalIdentifier`, the name `spec.openRPC` declares. Kept as an alias for one
+ * minor (Plan-005, Track 2). */
+export const canonical = canonicalIdentifier
+
 /** Whether two identifiers name one thing. Order of qualifiers does not distinguish; everything else does. */
 export function sameIdentifier(a: string | ParseResult, b: string | ParseResult): boolean {
-  return canonical(a) === canonical(b)
+  return canonicalIdentifier(a) === canonicalIdentifier(b)
 }

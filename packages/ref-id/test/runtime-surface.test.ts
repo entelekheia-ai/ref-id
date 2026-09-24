@@ -28,6 +28,7 @@ const RUNNER = `${HERE}/list-exports-runner.ts`
 interface OpenRPCMethod {
   name: string
   "x-absent-from"?: string[]
+  "x-deprecated-aliases"?: Record<string, string[]>
 }
 
 interface OpenRPCDoc {
@@ -49,15 +50,19 @@ function exportsOf(args: string[]): string[] {
 }
 
 /** `x-casing.typescript` is `camelCase`, and openRPC's method names are already camelCase — so a
- * TypeScript entry's declared surface is the canonical method name, verbatim. Every entry also carries
- * the error hierarchy: `x-error-type` names the base class (`RefIdError`) and each `components.errors`
- * key names a kind whose TypeScript class is `<Kind>Error` (e.g. `Build` → `BuildError`) — both derived
- * from the spec, never a literal list, so a sixth error kind is picked up with no edit here. */
+ * TypeScript entry's declared surface is the canonical method name, verbatim, plus each method's
+ * `x-deprecated-aliases.typescript` — a name kept exported for one minor after a rename, so a caller
+ * mid-migration does not break. Every entry also carries the error hierarchy: `x-error-type` names the
+ * base class (`RefIdError`) and each `components.errors` key names a kind whose TypeScript class is
+ * `<Kind>Error` (e.g. `Build` → `BuildError`) — both derived from the spec, never a literal list, so a
+ * sixth error kind is picked up with no edit here. */
 function declaredFor(absentKey: string, extensionsKey: string): string[] {
-  const methods = doc.methods.filter((method) => !(method["x-absent-from"] ?? []).includes(absentKey)).map((method) => method.name)
+  const live = doc.methods.filter((method) => !(method["x-absent-from"] ?? []).includes(absentKey))
+  const methods = live.map((method) => method.name)
+  const deprecatedAliases = live.flatMap((method) => method["x-deprecated-aliases"]?.typescript ?? [])
   const extensions = doc["x-extensions"][extensionsKey] ?? []
   const errorClasses = Object.keys(doc.components.errors).map((kind) => `${kind}Error`)
-  return [...methods, ...extensions, doc["x-error-type"], ...errorClasses].sort()
+  return [...methods, ...deprecatedAliases, ...extensions, doc["x-error-type"], ...errorClasses].sort()
 }
 
 const entries: { label: string; runnerArgs: string[]; absentKey: string; extensionsKey: string }[] = [

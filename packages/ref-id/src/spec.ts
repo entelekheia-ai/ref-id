@@ -37,6 +37,9 @@ export class SpecVersionError extends RefIdError {
  * The `ref:` specification, as published in `spec/ref-id.json`. Typed only as far as the code
  * reads it; the shapes of the tables and of `vectors` are spec data, read dynamically rather than
  * mirrored into a second declaration.
+ *
+ * @deprecated Use `Spec`, the name `spec.openRPC` declares (`components.schemas.Spec`). Kept as an
+ * alias for one minor (Plan-005, Track 2).
  */
 export interface RefIdSpec {
   specVersion: string
@@ -92,10 +95,18 @@ export interface RefIdSpec {
   }
 }
 
+/** `spec.openRPC`'s name for `RefIdSpec` (`components.schemas.Spec`) — opaque to a caller, who reads it
+ * only through this package's own functions. */
+export type Spec = RefIdSpec
+
 /**
  * Canonical serialisation per `spec.canonicalisation.rules`: object keys sorted by UTF-16 code
  * unit, no whitespace outside strings, strings escaped as `JSON.stringify` does, numbers
  * restricted to integers.
+ *
+ * Every value this package refuses to canonicalise is a `SpecIntegrityError` — `openRPC` declares it
+ * as `canonicalise`'s one error (`components.errors.SpecIntegrity`) — rather than a plain `Error`, so
+ * that a caller's one `instanceof RefIdError` covers everything this package throws.
  */
 export function canonicalise(value: unknown): string {
   if (value === null) {
@@ -106,7 +117,7 @@ export function canonicalise(value: unknown): string {
   }
   if (typeof value === "number") {
     if (!Number.isInteger(value)) {
-      throw new Error(`canonicalisation covers integers only, got ${value}`)
+      throw new SpecIntegrityError(`canonicalisation covers integers only, got ${value}`)
     }
     return String(value)
   }
@@ -121,7 +132,7 @@ export function canonicalise(value: unknown): string {
     const keys = Object.keys(record).sort()
     return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalise(record[key])}`).join(",")}}`
   }
-  throw new Error(`value of type ${typeof value} has no canonical form`)
+  throw new SpecIntegrityError(`value of type ${typeof value} has no canonical form`)
 }
 
 /**

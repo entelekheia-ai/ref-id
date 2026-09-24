@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | In Progress |
 | Created | 2026-09-24 |
 | Author | Danilo Borges |
 | Issue | <https://github.com/entelekheia-ai/ref-id/issues/23> |
@@ -94,19 +94,50 @@ identically; after item 1 that is false for a nested identifier.
 
 ## Implementation order
 
-- [ ] P0 — items 1–3 — delegable: one agent (`sonnet`), writes only under `packages/ref-id/`; never the
+- [x] P0 — items 1–3 — delegable: one agent (`sonnet`), writes only under `packages/ref-id/`; never the
       specification, `scripts/`, `crates/`, `Sources/`, or any generated surface file; gate `npm test`
       and `npm run typecheck` in `packages/ref-id` and `node scripts/gen-surface-ts.mjs --check` at the
       root; returns files changed, the gate output, and anything in this dossier found wrong with
       `file:line`
-- [ ] P1 — items 4–6 — same agent, same contract
+- [x] P1 — items 4–6 — same agent, same contract
 - [ ] Orchestrator — changeset for the package contract (new `relate`, renamed `canonicalIdentifier`,
       descent), written once for the three implementations
 
 ## Surprises & Discoveries
 
-- Observation: …
-  Evidence: …
+- Observation: The `runtime-surface.test.ts` check does not read `x-deprecated-aliases` at all — it only
+  accepts a runtime export that is a declared method name or listed under `x-extensions`. Renaming
+  `canonical` to `canonicalIdentifier` while keeping `canonical` exported (item 3) therefore made the test
+  fail on `canonical` as an "undeclared" export until the test itself was taught to read
+  `method["x-deprecated-aliases"].typescript`, exactly as item 3's own "Change" text anticipated
+  ("teach test/runtime-surface.test.ts to accept the names…").
+  Evidence: `packages/ref-id/test/runtime-surface.test.ts`'s `declaredFor()` previously built its list from
+  `doc.methods` names, `x-extensions`, `x-error-type` and error classes only — no read of
+  `x-deprecated-aliases` anywhere in the file before this change.
+- Observation: `canonicalise`'s two existing throw sites (non-integer number, unmappable JS type) already
+  had a ready-made class to raise — `SpecIntegrityError` was already defined in `spec.ts` above
+  `canonicalise` (for the sidecar-digest mismatch case) and is declared in `openRPC` as `canonicalise`'s
+  one error (`components/errors/SpecIntegrity`). No new error class was needed for item 5, just swapping
+  `throw new Error(...)` for `throw new SpecIntegrityError(...)` at both sites in `src/spec.ts`.
+  Evidence: `spec/ref-id.json`'s `openRPC.methods` entry for `canonicalise` carries
+  `"errors": [{"$ref": "#/components/errors/SpecIntegrity"}]`.
+- Observation: `ParseResult.nested[key]` already holds the *decoded* nested identifier string one level
+  down (populated by `parse.ts`'s `tryNested`), so the descent in `covers`/`samePackage`/`relate` needed no
+  new decoding step — it just calls the public `covers`/`samePackage`/`relate` again on that string. A
+  second level of nesting can never reach this code: the parser already refuses it (a qualifier value that
+  itself tries to nest past `form.depth` fails `matchForms` and the *outer* identifier comes back
+  `malformed`, so `read()` at the top of `covers`/`samePackage`/`relate` already rejects it before any
+  qualifier is compared).
+  Evidence: `src/parse.ts`'s `tryNested()` (`depth >= maxDepth` check) and the "nesting deeper than one
+  level is malformed" vector referenced in Plan-005's Scope section.
+- Observation: the dossier's own gate commands were already exactly reproducible: before this work,
+  `npm test` in `packages/ref-id` failed on 6 named test cases (5 `comparison` subtests + the vector-group
+  coverage test) plus the 2 `runtime-surface` tests, all listed under `# fail`. After the change, all 268
+  tests pass, `npm run typecheck` is clean, and `node scripts/gen-surface-ts.mjs --check` at the root
+  reports the committed `test/surface.generated.ts` current — this file needed no edit, since Track 4 had
+  already generated it against the target (post-Track-2) surface.
+  Evidence: `npm test` output before/after this session; `node scripts/gen-surface-ts.mjs --check` exits 0
+  with "is current".
 
 ## Closure
 

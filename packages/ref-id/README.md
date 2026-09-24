@@ -38,9 +38,10 @@ npm install @entelekheia/ref-id
 
 ## Usage
 
-The entry points are `parse`, `serialise`, `digest`, `validateEnvelope`, `samePackage` and `covers`; their
-contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `digest`, `envelope`,
-`comparison`). An unknown locator type parses and degrades to `uncovered`; it never throws.
+The entry points are `parse`, `serialise`, `digest`, `validateEnvelope`, `samePackage`, `covers` and
+`relate`; their contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `digest`,
+`envelope`, `comparison`, `relate`). An unknown locator type parses and degrades to `uncovered`; it never
+throws.
 
 Three questions get three answers, and they are not interchangeable:
 
@@ -57,7 +58,18 @@ covers("ref:pkg:npm/x@1.0.0", "ref:pkg:npm/x") // false — and never the revers
 symmetric and ignores the locator's version, and only where the type declares it carries one — a mailbox's
 `@` and a served model's quantisation key are not versions. `covers` is **asymmetric**: what the first
 identifier leaves undeclared, the second may declare freely; what the first declares, the second must
-declare identically. That is what makes a partial identifier a query over a store keyed by identifier.
+declare identically — **except a qualifier whose value is a nested `ref:` identifier on both sides**,
+which is compared with `covers` on the decoded pair instead, one level deep, so an unversioned instrument
+covers every release of it. Any other qualifier value — a digest, a timestamp, plain text, or a nested
+identifier on one side only — still must be identical, and so must a nested pair `covers` refuses (a
+scheme version this package does not implement). That is what makes a partial identifier a query over a
+store keyed by identifier.
+
+`relate(a, b)` answers a different question: not whether one covers the other, but how the two relate in
+each dimension — type, version, locator stem, locator version, the declared name and its refinements, and
+each qualifier — as `"equal" | "covers" | "coveredBy" | "differ"`, or `null` for a pair it refuses.
+`covers`, `samePackage` (and their mirror) are reductions of this same result, never a second computation
+that could disagree with it.
 
 **An identifier is a reference, not a copy of the record.** Read it as
 `search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)`: the first two are the pointer,
