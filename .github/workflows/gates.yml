@@ -41,8 +41,12 @@ jobs:
       - name: the declared surface is a valid OpenRPC document tied to the rules and vectors it names
         run: npm run test:openrpc
       - name: build, tests, grammar in three engines, Rust port
+        # typecheck is what holds the TypeScript surface to openRPC by signature: the generated
+        # test/surface.generated.ts is checked by tsc alone, and `npm test` strips types without checking
+        # them, so without this line a narrowed parameter or a changed return type merges green.
         run: |
           npm run build
+          npm run typecheck
           npm test
           npm run test:grammar
           cargo test --quiet

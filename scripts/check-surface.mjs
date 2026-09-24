@@ -41,9 +41,11 @@ const declaredFor = (language) => {
   const spell = CASING[doc["x-casing"][language]]
   const methods = doc.methods.filter((method) => !(method["x-absent-from"] ?? []).includes(language)).map((method) => spell(method.name))
   // A deprecated alias is declared per method, spelled as the language spells it — with Swift argument
-  // labels — and a surface is compared by base name, so the labels are dropped here.
-  const aliases = doc.methods.flatMap((method) => method["x-deprecated-aliases"]?.[language] ?? []).map((alias) => alias.replace(/\(.*$/, ""))
-  return { methods: new Set(methods), extensions: new Set([...(doc["x-extensions"][language] ?? []), ...aliases]) }
+  // labels. It is allowed by base name, and REQUIRED by its full spelling: `loadSpec(from:)` shares its
+  // base name with the declared `loadSpec`, so a base-name check would pass with the alias deleted.
+  const aliases = doc.methods.flatMap((method) => method["x-deprecated-aliases"]?.[language] ?? [])
+  const base = (name) => name.replace(/\(.*$/, "")
+  return { methods: new Set(methods), aliases, extensions: new Set([...(doc["x-extensions"][language] ?? []), ...aliases.map(base)]) }
 }
 
 async function rustSurface() {
@@ -70,12 +72,21 @@ async function rustSurface() {
       if (name) names.add(name)
     }
   }
+  // A public item whose names this reading cannot enumerate is a surface nobody can hold to the
+  // declaration: a glob re-export (`pub use m::*`), a public module, a public static or const. Each is
+  // reported as unreadable rather than read as empty, because an empty reading is a pass.
+  const unreadable = []
   for (const item of tree.rootNode.namedChildren) {
     if (!isPublic(item)) continue
-    if (item.type === "use_declaration") collect(item.childForFieldName("argument"))
+    if (item.type === "use_declaration") {
+      const argument = item.childForFieldName("argument")
+      if (argument.type === "use_wildcard" || argument.descendantsOfType("use_wildcard").length > 0) unreadable.push(item.text)
+      else collect(argument)
+    }
     if (item.type === "function_item") names.add(item.childForFieldName("name").text)
+    if (["mod_item", "static_item", "const_item", "macro_definition"].includes(item.type)) unreadable.push(item.text.split("\n")[0])
   }
-  return names
+  return { names, titles: names, unreadable }
 }
 
 function swiftSurface() {
@@ -92,12 +103,14 @@ function swiftSurface() {
     const file = readdirSync(out).find((name) => name === "RefId.symbols.json")
     const graph = JSON.parse(readFileSync(join(out, file), "utf8"))
     const names = new Set()
+    const titles = new Set()
     for (const symbol of graph.symbols) {
       if (symbol.accessLevel !== "public" || symbol.pathComponents.length !== 1) continue
+      titles.add(symbol.names.title)
       if (symbol.kind.identifier === "swift.func") names.add(symbol.names.title.replace(/\(.*$/, ""))
       else names.add(symbol.names.title)
     }
-    return names
+    return { names, titles, unreadable: [] }
   } finally {
     rmSync(out, { recursive: true, force: true })
   }
@@ -110,16 +123,19 @@ const languages = [
 
 let failures = 0
 for (const { language, read } of languages) {
-  const exposed = await read()
-  const { methods, extensions } = declaredFor(language)
+  const { names: exposed, titles, unreadable } = await read()
+  const { methods, aliases, extensions } = declaredFor(language)
   const functions = [...exposed].filter((name) => /^[a-z]/.test(name))
   const types = [...exposed].filter((name) => /^[A-Z]/.test(name)).sort()
   const missing = [...methods].filter((name) => !exposed.has(name)).sort()
+  const aliasesMissing = aliases.filter((alias) => !titles.has(alias)).sort()
   const undeclared = functions.filter((name) => !methods.has(name) && !extensions.has(name)).sort()
-  failures += missing.length + undeclared.length
+  failures += missing.length + aliasesMissing.length + undeclared.length + unreadable.length
   console.log(`${language}`)
   console.log(`  declared methods missing: ${missing.join(", ") || "—"}`)
+  console.log(`  declared deprecated aliases missing: ${aliasesMissing.join(", ") || "—"}`)
   console.log(`  public functions no method declares: ${undeclared.join(", ") || "—"}`)
+  console.log(`  public items this reading cannot enumerate: ${unreadable.join(" | ") || "—"}`)
   console.log(`  public types (listed, not checked): ${types.join(", ") || "—"}`)
 }
 if (failures) {
