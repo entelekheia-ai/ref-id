@@ -81,6 +81,14 @@ func checkEveryVectorGroupRuns() throws {
 
 func run() throws {
     try checkEveryVectorGroupRuns()
+    // surface: Surface.generated.swift's typed references already fail this executable's build
+    // when a declared method is missing or its label/type moved (see the file for the known
+    // divergences). This call only exercises the runtime half — a spec change that adds or
+    // removes a method without the file being regenerated.
+    for problem in try checkDeclaredMethodsMatchSpec() {
+        check(false, "surface: \(problem)")
+    }
+    checkSurfaceReferences() // never fails at runtime — its job is done by the time this executable built at all
     // parse
     for vector in try vectors("parse") {
         let name = vector["name"] as? String ?? "?"

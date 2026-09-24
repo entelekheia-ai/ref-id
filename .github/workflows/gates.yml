@@ -70,3 +70,8 @@ jobs:
       - run: npm ci
       - name: every implementation answers the same for every input the specification names
         run: npm run test:differential
+      # Each suite fails when a declared method is missing or its signature moved; none of them can see
+      # a public function nobody declared. This reads Rust through tree-sitter and Swift through its
+      # compiler's symbol graph, which is why it runs here, beside the Swift toolchain.
+      - name: no implementation exposes a public function the specification does not declare
+        run: npm run test:surface

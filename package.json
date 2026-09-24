@@ -14,6 +14,7 @@
     "test:grammar": "python3 spec/conformance/grammar-check.py && perl spec/conformance/grammar-check.pl",
     "test:relate": "node scripts/check-relate.mjs",
     "test:openrpc": "node scripts/check-openrpc.mjs",
+    "test:surface": "node scripts/check-surface.mjs",
     "gen:spec": "node scripts/gen-spec.mjs",
     "release": "npm run build && changeset publish",
     "version": "changeset version && sh scripts/sync-versions.sh",
@@ -29,6 +30,8 @@
     "@open-rpc/meta-schema": "^1.14.9",
     "@types/node": "^25.2.3",
     "ajv": "^8.20.0",
-    "typescript": "^7.0.2"
+    "tree-sitter-rust": "^0.24.0",
+    "typescript": "^7.0.2",
+    "web-tree-sitter": "^0.27.0"
   }
 }

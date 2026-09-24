@@ -7,8 +7,7 @@
 
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { loadSpec } from "../src/index.ts"
-import { covers, samePackage } from "../src/relations.ts"
+import { covers, loadSpec, samePackage } from "../src/index.ts"
 
 interface ComparisonVector {
   name: string
