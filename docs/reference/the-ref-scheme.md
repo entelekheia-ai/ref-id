@@ -96,7 +96,8 @@ Bare digits, omitted for version 1. `version.default` is `1` and `version.suppor
 version 1 is the only identifier version this document defines. Every identifier written today therefore
 carries no version prefix, and an explicit `ref:1:` **MUST** parse to the same version as its omission — it
 is spelling, not a different identifier class. A parse **MUST** report which spelling was used
-(`explicitVersion`), because the identifier round-trips as written.
+(`explicitVersion`), because the identifier round-trips as written; the canonical form omits the default
+version, so `ref:1:pkg:npm/x` and `ref:pkg:npm/x` are one identifier to `sameIdentifier`.
 
 Digits and not a letter-led token, because a `type` **MUST** begin with a lowercase letter, so a leading
 digit can only be a version. The letter-led alternative parses without error and means something else:

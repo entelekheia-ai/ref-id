@@ -197,6 +197,17 @@ criteria exits `0`.
   A deprecated alias is declared in `openRPC` as it is added, so the surface checks accept it by
   declaration rather than by exception. Acceptance: every suite passes, `npm run test:surface` reports no
   divergence, and the differential reports zero disagreements. Then the branch merges.
+- [ ] **Track 5 — The differential compares pairs.** The four implementations agree on every parse and
+  still disagreed on comparisons no vector names: an adversarial review built 3025 pairs and found
+  `sameIdentifier` and Unicode handling diverging with every suite green. `scripts/differential.mjs`
+  gains a second pass over every ordered pair of its corpus. Each port gains a `--pairs` mode on the same
+  line protocol: stdin carries two lines per pair, `a` then `b`, escaped as `--parse` escapes them; stdout
+  carries one line per pair, the canonical JSON (`canonicalise`) of
+  `{covers, coversReversed, samePackage, sameIdentifier, relate}`, where `coversReversed` is
+  `covers(b, a)` and `relate` is the full result or `null`. Two lines per pair rather than a separator,
+  because the grammar admits a tab in a locator. The differential compares every field of every pair
+  against the reference row and fails on the first disagreement. Acceptance: zero disagreements, and the
+  pass shown to fail on a planted divergence.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
   issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
   track list that is otherwise complete but has this box open is not finished.

@@ -318,7 +318,7 @@
  "identifierEquivalence": {
   "qualifierOrder": "insignificant",
   "refinementOrder": "insignificant",
-  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key and its refinements sorted by key, both in UTF-16 code unit order, and with a nested identifier in a qualifier value written in its own canonical form; every other part verbatim. A qualifier and a refinement are each a filter — a qualifier on what the locator names, a refinement on what the declared name selects — and filters combine with AND, so neither order distinguishes. The order inside one value does: lines=1,20 is a range",
+  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key and its refinements sorted by key, both in UTF-16 code unit order, and with a nested identifier in a qualifier value written in its own canonical form, and with the version slot omitted when it holds the default version — ref:1: and ref: are one version, so writing it or not does not distinguish; every other part verbatim. A qualifier and a refinement are each a filter — a qualifier on what the locator names, a refinement on what the declared name selects — and filters combine with AND, so neither order distinguishes. The order inside one value does: lines=1,20 is a range",
   "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte. An identifier with no decomposition — malformed, or at a scheme version the implementation does not support — has no canonical form to compare and names nothing: it is the same identifier as nothing, itself included, and the comparison answers false rather than raising",
   "reserialisation": "SHOULD preserve the order written; MUST NOT be relied on to tell two identifiers apart",
   "note": "distinct from `canonicalisation`, which is the form of THIS FILE for its own digest"
@@ -2827,9 +2827,9 @@
     "expect": "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation"
    },
    {
-    "name": "an explicit version survives canonicalisation verbatim",
+    "name": "the default version written explicitly is omitted — ref:1: and ref: are one version",
     "input": "ref:1:pkg:npm/x@1.0.0;state=none;by=sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "expect": "ref:1:pkg:npm/x@1.0.0;by=sha256:0000000000000000000000000000000000000000000000000000000000000000;state=none"
+    "expect": "ref:pkg:npm/x@1.0.0;by=sha256:0000000000000000000000000000000000000000000000000000000000000000;state=none"
    },
    {
     "name": "refinements are positional and keep the order they were written",
@@ -3719,6 +3719,17 @@
      "covers": true,
      "coversReversed": false,
      "sameIdentifier": false
+    }
+   },
+   {
+    "name": "the default version written or omitted is the same identifier",
+    "a": "ref:1:pkg:npm/x@1.0.0",
+    "b": "ref:pkg:npm/x@1.0.0",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    }
   ],
