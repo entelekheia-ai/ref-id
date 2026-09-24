@@ -34,6 +34,10 @@ jobs:
         # because this is the one drift the copy gate cannot see: four copies equally stale agree with
         # each other perfectly. Reads the source, so no build is needed and none has happened yet.
         run: node scripts/seal-spec.mjs --check
+      - name: the relate vectors reduce to what the comparison vectors say
+        # Reads the specification alone: a disagreement between the two groups is a defect of the data,
+        # which every port would otherwise report as its own failure on one group or the other.
+        run: npm run test:relate
       - name: build, tests, grammar in three engines, Rust port
         run: |
           npm run build

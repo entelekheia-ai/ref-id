@@ -142,7 +142,7 @@ criteria exits `0`.
   pointer. Reseal, sync the two embedded copies, regenerate the browser
   constant. Acceptance: the grammar runners pass, and each implementation fails on exactly the flipped and
   new vectors.
-- [ ] **Track 3 — `relate` is declared.** Add a `comparison.relate` entry with the four relations and the
+- [x] **Track 3 — `relate` is declared.** Add a `comparison.relate` entry with the four relations and the
   reduction rules, and a `relate` vector group of pairs with their full expected result. The pairs cover
   one pair per dimension, a nested `by=` in each of the four relations, and the three reductions checked
   against the `comparison` group on the same pairs. Document it in `docs/reference/the-ref-scheme.md`.
@@ -302,6 +302,25 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   while `tree-sitter-rust` 0.24.0 ships one. `.vibe-ops/` runs at every commit and builds nothing, and a
   surface check needs two compilers, so it belongs where the vector-group check already lives.
   Date / Author: 2026-09-24 / Danilo Borges
+- Decision: `relate` always reports the five fixed dimensions, and a keyed dimension — refinements,
+  qualifiers — only the keys at least one side declares; a dimension neither side declares is `equal`.
+  Every dimension is computed on its own, so two different types still report their locators. A pair
+  `covers` refuses relates to `null`. Every qualifier member is an object with `relation`, and carries
+  `nested` only where both values are nested identifiers the operation accepts.
+  Rationale: the fixed dimensions are finite, so reporting them keeps one output shape; the keyed ones are
+  open-ended, so only the declared keys can be reported at all. A uniform qualifier member keeps the Rust
+  and Swift result types free of a string-or-object union. Computing dimensions independently keeps the
+  rule free of a short-circuit order every implementation would have to reproduce; the `type` dimension
+  alone already stops the pair from covering.
+  Date / Author: 2026-09-24 / Danilo Borges
+- Decision: Track 3 is accepted on `scripts/check-relate.mjs` (`npm run test:relate`, run in CI before the
+  suites): the 19 `relate` vectors reduce to their stated booleans, the 11 pairs the two groups share agree,
+  and every nested result reduces to its qualifier's relation. The script was shown to fail by altering one
+  expected relation. The expected results were produced by a scratch generator written from the rule text,
+  whose reductions first matched all 37 `comparison` vectors, and each was then read against the rule.
+  Rationale: the script reads the specification alone, so a disagreement between the two groups is caught
+  as a defect of the data rather than as three ports each failing one group.
+  Date / Author: 2026-09-24 / Danilo Borges
 
 ## Outcomes & Retrospective
 
@@ -311,9 +330,7 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
 
 ## Open questions
 
-- Should `relate` report a dimension neither side declares, or leave it out? Reporting it as `equal` keeps
-  the output shape fixed. Leaving it out keeps the output small. Track 3 decides, and records the choice
-  above.
+*None open.*
 
 ## Related
 

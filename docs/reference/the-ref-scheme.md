@@ -424,6 +424,52 @@ A refinement value that fails its pattern is malformed, and the failing part is 
 `#AGENTS.md;lines=ten` reports `lines`. A `lines=` value that matches the pattern's shape but names a
 reversed range — `lines=20,10` — is malformed at `lines` too; the validator checks order as well as digits.
 
+## Comparison
+
+`comparison` in the specification defines three relations equality cannot express, all computed on the
+parsed parts and never on the bytes. An identifier with no decomposition — `malformed`, or at a scheme
+version the implementation does not support — relates to nothing, itself included.
+
+| Relation | Answers | Direction |
+|---|---|---|
+| `covers(a, b)` | whether `a` is `b` with less declared — a partial identifier used as a query | asymmetric |
+| `samePackage(a, b)` | whether both name one released thing, at whatever version each declares | symmetric |
+| `relate(a, b)` | how the two relate in each dimension | mirrored |
+
+**`covers`** requires the type and scheme version to be equal and the first locator stem to reach the
+second — equal, or a whole-segment prefix, so `acme-tools` reaches `acme-tools/docs` and never
+`acme-tools-extra`. For the locator version, the declared-name path, each refinement and each qualifier,
+what the first leaves undeclared the second may declare, and what the first declares the second must
+declare identically. **`samePackage`** compares every part identically except the locator version, which
+it ignores — and only a type whose `dispatch` entry sets `versionTail` has one.
+
+**Both descend one level into a nested identifier.** Where a qualifier's value is a nested `ref:` on both
+sides, the pair is compared with the same relation on the decoded identifiers, so
+`…;by=ref:pkg:github/ggml-org/llama.cpp` covers `…;by=ref:pkg:github/ggml-org/llama.cpp@b10931`, and two
+releases of one engine are the same package. A digest, a timestamp, plain text, a nested identifier facing
+a digest, and a nested pair at a scheme version the relation refuses are compared byte for byte.
+
+**`relate` reports where, and the other two are its reductions.** Its result has five fixed dimensions —
+`type`, `version`, `locatorStem`, `locatorVersion`, `fragmentPath` — and two keyed ones,
+`fragmentRefinements` and `qualifiers`, carrying only the keys at least one side declares. Each holds one of
+`equal`, `covers`, `coveredBy`, `differ`; a qualifier whose value is a nested identifier on both sides also
+carries `nested`, the `relate` result of the decoded pair. Every dimension is computed on its own, so two
+different types still report their locators.
+
+```text
+relate(ref:folder:acme-tools;when=2026-01-01T00:00:00Z, ref:folder:acme-tools/docs/guide.md)
+  locatorStem: covers   qualifiers.when: coveredBy   everything else: equal
+  → reduces to differ: neither covers the other
+```
+
+A result reduces to `equal` when every relation in it is `equal`, to `covers` when each is `equal` or
+`covers`, to `coveredBy` for the mirror, and to `differ` otherwise. `covers(a, b)` is a reduction to
+`equal` or `covers` with the type and version equal; `samePackage(a, b)` is every dimension `equal` apart
+from the locator version, applying `samePackage` to each `nested` result. The `relate` vector group states
+full results and the three booleans for each pair; `npm run test:relate` checks, from the specification
+alone, that those booleans follow from the results and agree with the `comparison` group wherever the
+two groups hold the same pair.
+
 ## Sets are ordered
 
 A set named by a digest is a **sequence**: order is significant and is the declared order. A producer
