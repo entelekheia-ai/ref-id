@@ -26,10 +26,14 @@ vibe-ops-template: plan@3
 ## Summary
 
 `covers` and `samePackage` compare a qualifier by byte equality, even when its value is a nested `ref:`
-identifier that the same operation could compare. So a store cannot ask *"everything any build of this
-engine produced"*: `…;by=ref:pkg:github/ggml-org/llama.cpp` does not cover
-`…;by=ref:pkg:github/ggml-org/llama.cpp@b10931`, although the two nested identifiers stand in exactly
-that relation when compared directly. This plan makes both operations descend into a nested identifier,
+identifier that the same operation could compare. So `…;by=ref:pkg:github/ggml-org/llama.cpp` does not
+cover `…;by=ref:pkg:github/ggml-org/llama.cpp@b10931`, although the two nested identifiers stand in exactly
+that relation when compared directly. **This is a bonus, not a gap in the pointer.** An identifier is the
+locator and the declared name; `by=` is enrichment on top of it, and a nested identifier is a bare pointer
+(`docs/reference/the-ref-scheme.md`, "What an identifier carries"). A query that has to reach an
+attribute — which engine build, whether it was recorded — runs on the consumer's columns. What this plan
+buys is that the comparison stops being stricter than the scheme it compares, for consumers that do key a
+mixed-kind store by identifier. This plan makes both operations descend into a nested identifier,
 and adds `relate`, an operation that reports the relation in every dimension instead of reducing it to one
 boolean. The specification and its vectors change first. The three implementations follow in one
 realignment pass, because their code has already drifted apart on other points and is being brought back
@@ -65,8 +69,10 @@ in line at once.
   compares their `pkg:huggingface` identity instead.
 - Nesting deeper than one level. The specification already refuses it at parse time (the vector *"nesting
   deeper than one level is malformed"*), so the recursion is bounded at one step.
-- A new marker for "version unknown". `state=none` on the nested identifier already says it:
-  `covers(…;state=none, …@b10931)` is `false`, and a query with no version and no state covers both.
+- "Version unknown" as part of an identifier. A nested identifier is a bare pointer, so an engine build
+  nobody recorded is a column of the consumer's record, never `%3Bstate=none` inside `by=`. The grammar
+  still parses that form, and the descent compares whatever a nested identifier carries, but no vector
+  and no example here writes one.
 
 ## Design
 
@@ -124,9 +130,10 @@ criteria exits `0`.
 - [ ] **Track 1 — The rule descends.** Rewrite `comparison.covers.rule` and `comparison.samePackage.rule`
   in `spec/ref-id.json` so that a qualifier whose value is a nested identifier on both sides is compared
   with the same operation. Flip the vector *"a declared by= must match exactly — an unversioned engine does
-  not cover a versioned one yet"* to `covers: true`, and add vectors for `state=none` not covering a
-  release, for a versionless query covering `state=none`, for `samePackage` across two engine releases,
-  and for `sha256:` values staying strict. Reseal, sync the two embedded copies, regenerate the browser
+  not cover a versioned one yet"* to `covers: true`, and add vectors for a versioned `by=` not covering
+  an unversioned one, for two different engines staying `false`, for `samePackage` across two engine
+  releases, and for `sha256:` values staying strict. Every nested identifier in the new vectors is a bare
+  pointer. Reseal, sync the two embedded copies, regenerate the browser
   constant. Acceptance: the grammar runners pass, and each implementation fails on exactly the flipped and
   new vectors.
 - [ ] **Track 3 — `relate` is declared.** Add a `comparison.relate` entry with the four relations and the
@@ -162,7 +169,7 @@ b = ref:ai-model:example-app/mlx-community/Qwen3.5-4B-4bit;by=ref:pkg:swift/gith
 ```
 
 gives `covers(a, b) = true` in all four implementations. The same `b` against
-`…;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none` gives `false`.
+`ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp` gives `false`: a different engine.
 
 ---
 
@@ -191,6 +198,15 @@ gives `covers(a, b) = true` in all four implementations. The same `b` against
   the descent.
   Rationale: the consumer that searches stored replies needs a boolean on its hot path. The consumer that
   types graph edges by relation needs `relate`, and it is not built yet.
+  Date / Author: 2026-09-23 / Danilo Borges
+- Decision: The descent and `relate` are a bonus on the comparison, not a requirement of any consumer.
+  `by=` is enrichment on a pointer that already works without it, a nested identifier is a bare pointer,
+  and "version unknown" is a column; the `state=none` vectors and the success-criteria pair that used one
+  are dropped. The ordering between the descent and `relate` in the entry above still holds.
+  Rationale: the scheme now says an identifier is a reference, not a copy of the record (reference, "What
+  an identifier carries"). The consumer this plan named searches stored replies by engine and build on its
+  own columns, so its hot path never reaches a nested comparison. Whether a nested qualifier becomes
+  `malformed` is left to how that guidance holds up in use.
   Date / Author: 2026-09-23 / Danilo Borges
 
 ## Outcomes & Retrospective
