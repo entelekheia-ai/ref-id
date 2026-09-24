@@ -283,6 +283,9 @@ ref:folder:acme-governance;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conform
 ref:folder:acme-governance;by=ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S
 ```
 
+The second line shows what the encoding admits, not what a producer should write: a nested identifier
+is advised to stay a bare pointer (see [What an identifier carries](#what-an-identifier-carries)).
+
 **Nesting is exactly one level deep.** Depth is fixed by the specification; width is not (see
 [Qualifiers](#qualifiers)). A nested value that itself nests another level is `malformed`, reported at the
 qualifier key that carries it.
@@ -314,6 +317,45 @@ scheme from a path with decoration.
 
 A composition's identifier is **not** a member's identifier with the composition appended. It is a name in
 the package that declares it. This is what keeps the identifier space from growing with nesting depth.
+
+## What an identifier carries
+
+**An identifier is a reference, not a copy of the record.** It is the shortest string that points at one
+record, the way a URL does; the record's attributes stay in its columns. Read it as a search:
+
+```text
+search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)
+```
+
+`in` says where to look and `for` says which declared name — those two are the identifier. `with` is
+enrichment: it is added when two records would otherwise share one identifier, and not by default. A
+`by=` naming the instrument is enrichment too, and what `covers` does with it is a bonus on top of a
+pointer that already works without it.
+
+Three rules keep every identifier that short and every one shaped the same way:
+
+- A qualifier **SHOULD** be added only where it tells two records apart or earns its place in a debug
+  view, and it is flat: `;thinking=no`, `;endpoint=mac-studio`.
+- A nested identifier **SHOULD** be a bare pointer — a type, a locator and at most a fragment, with no
+  qualifiers of its own. The grammar already refuses a second level of nesting and a repeated key, so an
+  identifier never carries two `by=`.
+- What does not fit those rules is a column beside the identifier, and a query on it runs on the columns.
+
+```text
+ref:ai-model:example-app/org/repo;thinking=no                                          ← the pointer
+ref:ai-model:example-app/org/repo;thinking=no;by=ref:pkg:github/ggml-org/llama.cpp     ← enriched, still a pointer
+ref:ai-model:example-app/org/repo;thinking=no;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none;latency-ms=812
+                                                                                       ← a copy of the record
+```
+
+In the third line the engine build nobody recorded and the latency of one reply are attributes: they go in
+columns (`engine_build = null`, `latency_ms = 812`), and "everything an unrecorded build answered" is a
+query on those columns. Every qualifier a producer adds by habit is one more place where two producers
+naming the same record write two different identifiers.
+
+**These rules are guidance, not grammar.** The third line parses `ok` under this `specVersion`, and a
+consumer that already stored one keeps it. Whether the nested rule becomes a grammar rule — which would
+make such an identifier `malformed`, a new major — is decided on how the guidance holds up in use.
 
 ## Qualifiers
 

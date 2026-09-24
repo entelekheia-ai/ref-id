@@ -64,6 +64,16 @@ form takes a digest or a commit object name.
 **A composition is a name in the package that declares it**, never a member's identifier with the
 composition appended. Appending is what makes an identifier space grow without bound as nesting deepens.
 
+**An identifier is a reference, not a copy of the record — so the default is no qualifier at all.** Read
+it as `search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)`: the locator and the
+fragment are the pointer, and each qualifier is enrichment that has to tell two records apart or earn
+its place in a debug view. `by=` is enrichment too, never the point of the
+identifier. A nested identifier is a bare pointer — no `%3B` qualifier inside it — so an engine build
+nobody recorded is a column (`engine_build = null`), never `by=…%3Bstate=none`. Latencies, token counts,
+parameters and any other attribute of the record go in columns beside the identifier. The grammar accepts
+all of these; this skill does not write them. The rules with their examples are in
+[What an identifier carries](../../../docs/reference/the-ref-scheme.md#what-an-identifier-carries).
+
 **The qualifiers are chosen here, before the script runs.** `state=` freezes the content the identifier
 was read against and takes the forms `swhid`, `git`, `content-hash` or `none` — never a released version,
 which the rule above keeps in the locator. `by=` names the instrument that produced a reading, as a
@@ -228,6 +238,8 @@ Registering one is five things, in this order:
       rather than being pushed into `state=`
 - [ ] The qualifiers were chosen before the script ran, and declared absence was distinguished from
       absence
+- [ ] Every qualifier tells two records apart; a nested identifier carries none of its own, and every
+      other attribute went to a column
 - [ ] The script ran, and any refusal was answered by its own row in Step 3 rather than worked around
 - [ ] A sweep excluded the files that teach the scheme, and every remaining finding was judged by opening
       the file it names
