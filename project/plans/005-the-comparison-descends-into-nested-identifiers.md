@@ -65,7 +65,8 @@ in line at once.
 - The TypeScript reference, the Rust crate and the Swift port, including their runners' lists of executed
   groups and the differential in `scripts/differential.mjs`.
 - `docs/reference/the-ref-scheme.md` and a changeset.
-- A new `api` block in `spec/ref-id.json`, and one surface check per implementation that reads it.
+- A new `openRPC` key in `spec/ref-id.json` holding one OpenRPC document, and one surface check per
+  implementation that reads it.
 
 ### Out of scope
 
@@ -147,9 +148,14 @@ criteria exits `0`.
   against the `comparison` group on the same pairs. Document it in `docs/reference/the-ref-scheme.md`.
   Acceptance: every `relate` vector's reductions agree with the `comparison` group's expectations for the
   same pair, checked by a script, not by eye.
-- [ ] **Track 4 — The surface is declared.** Add an `api` block to `spec/ref-id.json`: one entry per public
-  operation and public type, with its camelCase name, parameters in order, result, whether it can fail,
-  and the vector group that binds it (or a stated reason it has none). `relate` from Track 3 and
+- [ ] **Track 4 — The surface is declared.** Add an `openRPC` key to `spec/ref-id.json` whose value is one
+  whole OpenRPC document: a method per public operation with its camelCase name, parameters in order,
+  result and errors; the value types (`ParseResult`, `BuildParts`, `EnvelopeResult`, …) under
+  `components.schemas`; `x-casing` per language. Each method carries `x-vectors`, the group that binds
+  it (or `null` with the reason), and `x-rule`, a JSON Pointer into `ref-id.json` naming the key that
+  states its rule (`/comparison/covers`). A `$ref` resolves against the OpenRPC document, an `x-rule`
+  against the whole specification, and a check resolves both and validates the extracted value against
+  the OpenRPC meta-schema. `relate` from Track 3 and
   `sameIdentifier` are declared; `canonical` is declared as `canonicalIdentifier`, and the JSON
   canonicalisation as `canonicalise`. An identifier parameter accepts a string or a `ParseResult`, mixed
   freely, in all three. Each implementation gains a surface check that fails on a missing or extra
@@ -262,6 +268,16 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   modules, so an operation dropped from the entry point leaves its vectors green. Declaring before Track 2
   lets the realignment pass implement against the declaration once instead of twice.
   Date / Author: 2026-09-23 / Danilo Borges
+- Decision: The surface is declared as one OpenRPC document under the key `openRPC` of `ref-id.json`, with
+  each method pointing at the key that states its rule through `x-rule`. A separate `api` block, an
+  `operation` field inside each rule key, and OpenRPC as a second file in `spec/` were each considered.
+  Rationale: ADR-0001 ships the specification as one file, which rules out a second file. Fields spread
+  across rule keys would not form a document, so no OpenRPC tool could read them and every `$ref` would
+  need to know which key it landed in. One embedded document is still a valid OpenRPC document once
+  extracted, keeps the surface in one list, and `x-rule` keeps the rule where it already lives. A
+  research worktree reached the same five name divergences independently with an OpenRPC file and a
+  name check; its ABNF grammar and grammar derivation are a separate question and stay out of this plan.
+  Date / Author: 2026-09-24 / Danilo Borges
 
 ## Outcomes & Retrospective
 
