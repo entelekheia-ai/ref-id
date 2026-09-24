@@ -396,7 +396,7 @@
   "info": {
    "title": "ref: identifier operations",
    "version": "1.3.0",
-   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, and x-extensions lists what a language exposes beyond this surface."
+   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, x-extensions lists what a language exposes beyond this surface; x-error-type names the one error type every language raises, whose kinds are components.errors; x-argument-labels on a method means Swift uses its parameter names as argument labels, where every other method takes unlabelled arguments; x-result-cached means the result is one shared instance for the process, which Rust returns as a 'static reference."
   },
   "x-casing": {
    "typescript": "camelCase",
@@ -465,7 +465,7 @@
     },
     "errors": [
      {
-      "$ref": "#/components/errors/Refused"
+      "$ref": "#/components/errors/Serialise"
      }
     ],
     "x-rule": "/identifierEquivalence/reserialisation",
@@ -491,7 +491,7 @@
     },
     "errors": [
      {
-      "$ref": "#/components/errors/Refused"
+      "$ref": "#/components/errors/Build"
      }
     ],
     "x-rule": "/dispatch",
@@ -517,7 +517,7 @@
     },
     "errors": [
      {
-      "$ref": "#/components/errors/Refused"
+      "$ref": "#/components/errors/Serialise"
      }
     ],
     "x-rule": "/identifierEquivalence/canonicalForm",
@@ -666,7 +666,7 @@
     },
     "errors": [
      {
-      "$ref": "#/components/errors/Refused"
+      "$ref": "#/components/errors/Digest"
      }
     ],
     "x-rule": "/digest",
@@ -704,7 +704,8 @@
      }
     ],
     "x-rule": "/envelope",
-    "x-vectors": "envelope"
+    "x-vectors": "envelope",
+    "x-argument-labels": true
    },
    {
     "name": "canonicalise",
@@ -738,7 +739,7 @@
     "result": {
      "name": "spec",
      "schema": {
-      "type": "object"
+      "$ref": "#/components/schemas/Spec"
      }
     },
     "errors": [
@@ -751,7 +752,8 @@
     ],
     "x-rule": "/specVersion",
     "x-vectors": null,
-    "x-vectors-reason": "exercised by the specification-integrity tests, which alter one byte and one version and expect the refusal"
+    "x-vectors-reason": "exercised by the specification-integrity tests, which alter one byte and one version and expect the refusal",
+    "x-result-cached": true
    },
    {
     "name": "loadSpecFrom",
@@ -768,7 +770,7 @@
     "result": {
      "name": "spec",
      "schema": {
-      "type": "object"
+      "$ref": "#/components/schemas/Spec"
      }
     },
     "errors": [
@@ -1157,23 +1159,36 @@
        "$ref": "#/components/schemas/ParseResult"
       }
      ]
+    },
+    "Spec": {
+     "description": "The loaded specification, verified against its digest. Opaque: a caller reads it through the implementation, and no field of it is part of this surface.",
+     "type": "object"
     }
    },
    "errors": {
-    "Refused": {
+    "Build": {
      "code": 1,
-     "message": "the operation refused its input; the error names the refused part"
+     "message": "build refused its parts; the error names the refused part"
+    },
+    "Digest": {
+     "code": 2,
+     "message": "digest refused a member; the error names it"
+    },
+    "Serialise": {
+     "code": 3,
+     "message": "serialise refused a result it cannot write; the error names the part"
     },
     "SpecIntegrity": {
-     "code": 2,
+     "code": 4,
      "message": "the specification's bytes do not match its digest"
     },
     "SpecVersion": {
-     "code": 3,
+     "code": 5,
      "message": "the specification's major version is one this implementation does not support"
     }
    }
-  }
+  },
+  "x-error-type": "RefIdError"
  },
  "vectors": {
   "parse": [
