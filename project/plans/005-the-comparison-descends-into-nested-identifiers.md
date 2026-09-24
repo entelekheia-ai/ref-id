@@ -179,7 +179,7 @@ criteria exits `0`.
   `sameIdentifier` from internal modules import them from the entry point instead. Acceptance: the
   `openRPC` value validates against the OpenRPC meta-schema, every `x-rule` and `$ref` resolves, and each
   surface check fails today on exactly the divergences the survey found.
-- [ ] **Track 2 — The three implementations follow.** In one realignment pass over TypeScript, Rust and
+- [x] **Track 2 — The three implementations follow.** In one realignment pass over TypeScript, Rust and
   Swift, bring the drifted code back into agreement, implement the descent and `relate`, add `relate` to
   each runner's executed groups and to `scripts/differential.mjs`, and write the changeset. The surface
   checks Track 4 left failing are the list, per implementation:
@@ -197,7 +197,7 @@ criteria exits `0`.
   A deprecated alias is declared in `openRPC` as it is added, so the surface checks accept it by
   declaration rather than by exception. Acceptance: every suite passes, `npm run test:surface` reports no
   divergence, and the differential reports zero disagreements. Then the branch merges.
-- [ ] **Track 5 — The differential compares pairs.** The four implementations agree on every parse and
+- [x] **Track 5 — The differential compares pairs.** The four implementations agree on every parse and
   still disagreed on comparisons no vector names: an adversarial review built 3025 pairs and found
   `sameIdentifier` and Unicode handling diverging with every suite green. `scripts/differential.mjs`
   gains a second pass over every ordered pair of its corpus. Each port gains a `--pairs` mode on the same
@@ -215,23 +215,27 @@ criteria exits `0`.
 ## Success criteria
 
 ```sh
+npm run typecheck              # TypeScript surface, by signature
 npm test                       # TypeScript reference, every vector group including relate
 npm run test:grammar           # Python and Perl grammar runners
-cargo test --workspace         # Rust crate
-swift run ref-id-conformance   # Swift port
-npm run test:differential      # four implementations, zero disagreements
+npm run test:relate            # relate vectors agree with comparison vectors, from the spec alone
+npm run test:openrpc           # the declared surface is valid OpenRPC and tied to rules and vectors
+cargo test --workspace         # Rust crate, surface bindings included
+swift run ref-id-conformance   # Swift port, surface references included
+npm run test:surface           # no undeclared public function; every alias present
+npm run test:differential      # four implementations, every input and every pair, zero disagreements
 ./scripts/check.sh             # governance gate
 ```
 
-All six exit `0` on the branch before it merges. Then this pair:
+All exit `0` on the branch before it merges. Then this pair:
 
 ```text
 a = ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp
 b = ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931
 ```
 
-gives `covers(a, b) = true` in all four implementations — it is a `comparison` vector, so the differential
-proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4` gives
+gives `covers(a, b) = true` in all three implementations — it is a `comparison` vector each suite runs —
+and the pair pass of the differential holds the four builds to one answer on it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4` gives
 `false`: a different engine.
 
 ---
@@ -361,6 +365,26 @@ proves it. The same `b` against `…;by=ref:pkg:swift/github.com/ml-explore/mlx-
   `swift run ref-id-conformance` stop at compilation, by design. The TypeScript `typecheck` script now
   checks `src` and the generated file only: three older test files have never been type-checked and carry
   type errors, which a wider scope would have to fix first.
+  Date / Author: 2026-09-24 / Danilo Borges
+- Decision: Identity is presence, not spelling. Refinement order does not distinguish (each refinement,
+  like each qualifier, is a filter, and filters combine with AND); a nested identifier is written in its
+  own canonical form; the default version written or omitted is one identifier (`ref:1:x` is `ref:x`).
+  The canonical form now does all three, and the vectors that pinned the opposite were rewritten.
+  Rationale: with every suite green, `relate` and `covers` treated refinements as keyed while
+  `sameIdentifier` treated their order as significant, so a pair could relate as `equal` in every dimension
+  and still be two identifiers. The earlier reasoning — refinements are positional because `lines=1,20` is
+  a range — confused the order inside one value, which is content, with the order between keys, which is
+  not. The reference already called `ref:1:` spelling rather than a different identifier class.
+  Date / Author: 2026-09-24 / Danilo Borges
+- Decision: A fifth track, a pair pass in the differential, lands before the merge rather than as later
+  work, and comparison is byte for byte in every implementation.
+  Rationale: an adversarial review built 3025 pairs and found two disagreements no vector named —
+  `sameIdentifier` true in Rust and Swift for an identifier at an unsupported version, and Swift comparing
+  text by Unicode canonical equivalence where TypeScript and Rust compare bytes. Both were invisible to
+  every suite and to a parse-only differential. The pair pass runs 38416 pairs through four builds in
+  about twenty seconds, and was shown to fail on one planted field. The same review found a Rust API break
+  (`&String` arguments no longer compiled), a TypeScript signature check no CI ran, deprecated aliases no
+  check required, and Rust public items the surface reading could not enumerate; each is fixed and bound.
   Date / Author: 2026-09-24 / Danilo Borges
 
 ## Outcomes & Retrospective
