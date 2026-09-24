@@ -434,6 +434,14 @@
       "$ref": "#/components/schemas/ParseResult"
      }
     },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
     "x-rule": "/grammar",
     "x-vectors": "parse"
    },
@@ -687,6 +695,14 @@
       "$ref": "#/components/schemas/EnvelopeResult"
      }
     },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
     "x-rule": "/envelope",
     "x-vectors": "envelope"
    },
