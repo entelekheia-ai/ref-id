@@ -6,8 +6,8 @@
 // each line below only compiles when the entry point's exported name has the type openRPC
 // declares for it, or is missing/misnamed entirely, which is exactly what a divergence is.
 
-import { build, canonicalIdentifier, canonicalise, covers, digest, loadSpec, loadSpecFrom, parse, relate, sameIdentifier, samePackage, serialise, validateEnvelope } from "../src/index.ts"
-import type { BuildParts, EnvelopeResult, Fragment, IdentifierOrParsed, NestedQualifierValue, Pair, ParseResult, QualifierRelation, RelateResult, Relation } from "../src/index.ts"
+import { BuildError, DigestError, RefIdError, SerialiseError, SpecIntegrityError, SpecVersionError, build, canonicalIdentifier, canonicalise, covers, digest, loadSpec, loadSpecFrom, parse, relate, sameIdentifier, samePackage, serialise, validateEnvelope } from "../src/index.ts"
+import type { BuildParts, EnvelopeResult, Fragment, IdentifierOrParsed, NestedQualifierValue, Pair, ParseResult, QualifierRelation, RelateResult, Relation, Spec } from "../src/index.ts"
 
 // --- one assignment per openRPC method: the imported function against its declared signature ---
 
@@ -22,8 +22,8 @@ const _relate: (a: string | ParseResult, b: string | ParseResult) => RelateResul
 const _digest: (members: readonly string[]) => string = digest
 const _validateEnvelope: (requestedId: string, envelope: unknown) => EnvelopeResult = validateEnvelope
 const _canonicalise: (value: unknown) => string = canonicalise
-const _loadSpec: () => unknown = loadSpec
-const _loadSpecFrom: (directory: string) => unknown = loadSpecFrom
+const _loadSpec: () => Spec = loadSpec
+const _loadSpecFrom: (directory: string) => Spec = loadSpecFrom
 
 // --- one type-level assertion per named value type: the exported type exists under this name ---
 
@@ -37,5 +37,19 @@ type _Relation = Relation
 type _QualifierRelation = QualifierRelation
 type _RelateResult = RelateResult
 type _IdentifierOrParsed = IdentifierOrParsed
+type _Spec = Spec
+
+// --- error hierarchy: every declared error kind's class extends RefIdError ---
+
+declare const _instance_BuildError: InstanceType<typeof BuildError>
+const _isRefIdError_BuildError: RefIdError = _instance_BuildError
+declare const _instance_DigestError: InstanceType<typeof DigestError>
+const _isRefIdError_DigestError: RefIdError = _instance_DigestError
+declare const _instance_SerialiseError: InstanceType<typeof SerialiseError>
+const _isRefIdError_SerialiseError: RefIdError = _instance_SerialiseError
+declare const _instance_SpecIntegrityError: InstanceType<typeof SpecIntegrityError>
+const _isRefIdError_SpecIntegrityError: RefIdError = _instance_SpecIntegrityError
+declare const _instance_SpecVersionError: InstanceType<typeof SpecVersionError>
+const _isRefIdError_SpecVersionError: RefIdError = _instance_SpecVersionError
 
 export {}

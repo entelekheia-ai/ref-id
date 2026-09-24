@@ -10,16 +10,22 @@
  * the file down with it. A schema maps to a Rust type by a small fixed table (`rustType` below):
  * `Identifier` as a parameter is `&str`, as a result `String`; `ParseResult` as a parameter is
  * `&ref_id::ParseResult`, as a result `ref_id::ParseResult`; any other named schema (`BuildParts`,
- * `EnvelopeResult`, `RelateResult`, …) follows the same parameter/result shape by its bare name, whether
- * or not that name actually exists in the crate — a name that does not exist is exactly the failure this
- * file exists to produce. `IdentifierOrParsed` is not a real Rust type, so a parameter of that shape
- * produces two bindings instead of one: the whole method repeated once with every such parameter as
- * `&str`, once with every such parameter as `&ref_id::ParseResult` — because today's functions are not
- * generic over the two, and one of the two bindings for `canonical_identifier`/`same_package`/`covers` is
- * expected to fail until they are. A method with declared `errors` returns `Result<T, ref_id::RefIdError>`;
- * one without returns `T` directly. Also emits `DECLARED`, the snake_cased method list, and a runtime
- * `#[test]` that it equals `spec.openRPC.methods` in both directions — so a spec change with no
- * regeneration fails at runtime even where every signature still happens to compile.
+ * `EnvelopeResult`, `RelateResult`, `Spec`, …) follows the same parameter/result shape by its bare name,
+ * whether or not that name actually exists in the crate — a name that does not exist is exactly the
+ * failure this file exists to produce. Two document-level fields adjust that mapping without ever
+ * naming a method: a result whose method carries `"x-result-cached": true` (only `loadSpec`, today) is
+ * wrapped `&'static`, because the crate hands back a process-wide singleton rather than a fresh owned
+ * value; and the `Result` error type for every method with declared `errors` is `x-error-type` at the
+ * document root (`RefIdError`), read rather than written as a literal, so a rename of that type in the
+ * specification is a regeneration away rather than a hunt through this file. `IdentifierOrParsed` is not
+ * a real Rust type, so a parameter of that shape produces two bindings instead of one: the whole method
+ * repeated once with every such parameter as `&str`, once with every such parameter as
+ * `&ref_id::ParseResult` — because today's functions are not generic over the two, and one of the two
+ * bindings for `canonical_identifier`/`same_package`/`covers` is expected to fail until they are. A
+ * method with declared `errors` returns `Result<T, ref_id::<x-error-type>>`; one without returns `T`
+ * directly. Also emits `DECLARED`, the snake_cased method list, and a runtime `#[test]` that it equals
+ * `spec.openRPC.methods` in both directions — so a spec change with no regeneration fails at runtime
+ * even where every signature still happens to compile.
  *
  * `--check` regenerates in memory and diffs against the committed file instead of writing it, exiting
  * non-zero when they differ.
@@ -34,6 +40,13 @@ const OUT_PATH = new URL("../crates/ref-id/tests/surface.rs", import.meta.url)
 
 const spec = JSON.parse(readFileSync(SPEC_PATH, "utf8"))
 const doc = spec.openRPC
+// The `Result` error type every method with declared `errors` returns, named by the document root
+// rather than written here as a literal — so a rename in the specification is a regeneration away.
+const ERROR_TYPE = doc["x-error-type"]
+if (!ERROR_TYPE) {
+  console.error('gen-surface-rust: openRPC document has no "x-error-type" at its root')
+  process.exit(1)
+}
 
 const snakeCase = (name) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
 
@@ -53,10 +66,9 @@ function rustType(schema, { asParam, method, param }) {
   const ref = refName(schema)
   if (ref === "Identifier") return asParam ? "&str" : "String"
   if (ref) return asParam ? `&ref_id::${ref}` : `ref_id::${ref}`
-  // loadSpecFrom's `directory` is a plain `string` in the specification (any implementation reads a
-  // path from a string), but the crate's own `load_spec_from` takes `&std::path::Path` — read from
-  // `crates/ref-id/src/spec.rs`, not invented here.
-  if (asParam && method === "loadSpecFrom" && param === "directory") return "&std::path::Path"
+  // A string the specification marks `x-kind: "directory"` is a filesystem path, which Rust takes as
+  // `&std::path::Path` — each language spells a path its own way, and the mark says which string is one.
+  if (asParam && schema?.type === "string" && schema["x-kind"] === "directory") return "&std::path::Path"
   if (schema && schema.type === "boolean") return "bool"
   if (schema && schema.type === "array" && refName(schema.items) === "Identifier") return asParam ? "&[String]" : "Vec<String>"
   if (schema && Object.keys(schema).length === 0) return asParam ? "&serde_json::Value" : "serde_json::Value"
@@ -70,14 +82,6 @@ function rustType(schema, { asParam, method, param }) {
     return undefined
   }
   if (schema && schema.type === "string") return asParam ? "&str" : "String"
-  if (schema && schema.type === "object") {
-    // loadSpec/loadSpecFrom: the specification this crate embeds. `load_spec` hands back the
-    // process-wide embedded copy (`&'static ref_id::Spec`); `load_spec_from` reads one from a directory
-    // and owns it (`ref_id::Spec`). Read from `crates/ref-id/src/spec.rs`, not invented here.
-    if (method === "loadSpec") return "&'static ref_id::Spec"
-    if (method === "loadSpecFrom") return "ref_id::Spec"
-    return undefined
-  }
   return undefined
 }
 
@@ -107,17 +111,15 @@ for (const method of doc.methods) {
   const iopIndexes = method.params.map((p, i) => (isIdentifierOrParsed(p.schema) ? i : -1)).filter((i) => i >= 0)
 
   const resultSchema = method.result ? method.result.schema : undefined
-  const resultTy =
-    method.name === "loadSpec" || method.name === "loadSpecFrom"
-      ? rustType({ type: "object" }, { asParam: false, method: method.name })
-      : resultSchema
-        ? rustType(resultSchema, { asParam: false, method: method.name })
-        : "()"
+  let resultTy = resultSchema ? rustType(resultSchema, { asParam: false, method: method.name }) : "()"
   if (resultTy === undefined) {
     console.error(`gen-surface-rust: method "${method.name}" has a result schema this generator cannot map: ${JSON.stringify(resultSchema)}`)
     process.exit(1)
   }
-  const returnTy = hasErrors ? `Result<${resultTy}, ref_id::RefIdError>` : resultTy
+  // `x-result-cached: true` (declared per method, only `loadSpec` today) means the crate hands back a
+  // process-wide singleton rather than a freshly owned value.
+  if (method["x-result-cached"]) resultTy = `&'static ${resultTy}`
+  const returnTy = hasErrors ? `Result<${resultTy}, ref_id::${ERROR_TYPE}>` : resultTy
 
   const otherParamTys = method.params.map((p, i) => (iopIndexes.includes(i) ? undefined : rustType(p.schema, { asParam: true, method: method.name, param: p.name })))
   for (let i = 0; i < otherParamTys.length; i++) {

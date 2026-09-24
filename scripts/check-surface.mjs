@@ -13,7 +13,7 @@
  *   rust   the `pub use` and `pub fn` items of `crates/ref-id/src/lib.rs`, read by tree-sitter-rust through
  *          web-tree-sitter (WebAssembly, nothing built natively). Stable rustdoc emits no JSON, so the
  *          compiler's own listing is not available here without unstable flags.
- *   swift  `swift package dump-symbol-graph`, the compiler's list of every public symbol. Needs macOS and
+ *   swift  the symbol graph the compiler emits for the `RefId` target, its list of every public symbol. Needs macOS and
  *          a build, so it runs where the Swift toolchain is.
  *
  * A public function no method declares, and that `x-extensions` does not list for the language, fails. A
@@ -77,7 +77,14 @@ async function rustSurface() {
 function swiftSurface() {
   const out = mkdtempSync(join(tmpdir(), "ref-id-symbol-graph-"))
   try {
-    execFileSync("swift", ["package", "dump-symbol-graph", "--output-dir", out], { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] })
+    // The library target alone. `swift package dump-symbol-graph` builds every target first, and the
+    // conformance runner is exactly the target that fails to build while a declared method is missing —
+    // so it would report nothing at the one moment there is something to report.
+    execFileSync(
+      "swift",
+      ["build", "--target", "RefId", "-Xswiftc", "-emit-symbol-graph", "-Xswiftc", "-emit-symbol-graph-dir", "-Xswiftc", out],
+      { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] },
+    )
     const file = readdirSync(out).find((name) => name === "RefId.symbols.json")
     const graph = JSON.parse(readFileSync(join(out, file), "utf8"))
     const names = new Set()

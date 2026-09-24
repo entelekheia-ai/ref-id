@@ -60,11 +60,10 @@ function tsType(schema) {
   if (schema.type === "boolean") return "boolean"
   if (schema.type === "string") return "string"
   if (schema.type === "array") return `readonly ${tsType(schema.items)}[]`
-  // A bare `{ "type": "object" }` (no `properties`) is the same "any JSON" shape as a truly empty `{}`
-  // schema — both map to `unknown`, per the brief's rule for `{}`. Neither appears here with `properties`
-  // declared; a schema that grows one would need a real mapping, which this throws for instead of guessing.
-  if (schema.type === "object" && schema.properties) throw new Error(`gen-surface-ts.mjs needs a real mapping for an object schema with properties: ${JSON.stringify(schema)}`)
-  if (schema.type === "object" || (!schema.type && Object.keys(schema).length === 0)) return "unknown"
+  // A truly empty `{}` schema ("any JSON") maps to `unknown`, per the brief's rule. Every other shape
+  // (including a bare `{ "type": "object" }`) is now named via `$ref` (loadSpec/loadSpecFrom → Spec), so
+  // there is no other user of a bare object mapping left — an unmapped schema throws instead of guessing.
+  if (!schema.type && Object.keys(schema).length === 0) return "unknown"
   throw new Error(`gen-surface-ts.mjs does not know how to map schema ${JSON.stringify(schema)}`)
 }
 
@@ -105,7 +104,16 @@ function collectTypeNames(schema, into) {
 }
 const typeImports = Array.from(new Set([...signatureTypeNames, ...namedSchemas])).sort()
 
-lines.push(`import { ${functionImports.join(", ")} } from "${ENTRY}"`)
+// The error hierarchy: `x-error-type` names the base class every declared error kind extends, and
+// `components.errors` names the kinds themselves — `Build` → the exported class `BuildError`, etc. Both
+// the base and each `<Kind>Error` are classes, so they are real (value) imports, not `import type`: a
+// `typeof` on a type-only binding is refused by `verbatimModuleSyntax`.
+const errorBaseName = doc["x-error-type"]
+const errorClassNames = Object.keys(doc.components.errors)
+  .map((kind) => `${kind}Error`)
+  .sort()
+
+lines.push(`import { ${[...functionImports, errorBaseName, ...errorClassNames].sort().join(", ")} } from "${ENTRY}"`)
 lines.push(`import type { ${typeImports.join(", ")} } from "${ENTRY}"`)
 lines.push("")
 lines.push("// --- one assignment per openRPC method: the imported function against its declared signature ---")
@@ -121,6 +129,13 @@ lines.push("// --- one type-level assertion per named value type: the exported t
 lines.push("")
 for (const name of namedSchemas) {
   lines.push(`type _${name} = ${name}`)
+}
+lines.push("")
+lines.push(`// --- error hierarchy: every declared error kind's class extends ${errorBaseName} ---`)
+lines.push("")
+for (const className of errorClassNames) {
+  lines.push(`declare const _instance_${className}: InstanceType<typeof ${className}>`)
+  lines.push(`const _isRefIdError_${className}: ${errorBaseName} = _instance_${className}`)
 }
 lines.push("")
 lines.push("export {}")

@@ -2,46 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Generate Sources/RefIdConformance/Surface.generated.swift from spec/ref-id.json's `openRPC`
- * document: one typed reference per declared method, so a missing symbol, a moved argument label
- * or a changed type fails the conformance executable's build — the Swift toolchain here ships
- * neither XCTest nor the Swift Testing macros, so a compile-time binding is the check.
+ * document alone: one typed reference per declared method, so a missing symbol, a moved argument
+ * label or a changed type fails the conformance executable's build — the Swift toolchain here
+ * ships neither XCTest nor the Swift Testing macros, so a compile-time binding is the check.
+ *
+ * Reads nothing from Sources/RefId/**: every mapping below is declared by the specification
+ * itself, not discovered by scanning the library's source.
  *
  * `IdentifierOrParsed` is a union the openRPC document declares but Swift has no union type for:
  * every parameter of that shape gets two references for the whole method — one with every such
  * parameter typed String, one with every such parameter typed ParseResult — rather than the full
  * cartesian product over parameters, because the spec's own vectors never mix the two on one call.
  *
- * A bare `{}` (any-JSON) parameter schema has no Swift type of its own to derive: this script reads
- * what the library's own public functions declare for a parameter of that exact name (`Any` or
- * `Any?`) and uses that, so a change to the library's own choice shows up here without a second
- * hand-maintained table — and so two methods that both take `{}` but disagree on `Any` vs `Any?`
- * are reported rather than silently reconciled.
+ * Argument labels: every parameter is `_` unless the method carries `x-argument-labels: true`, in
+ * which case every parameter's label is its own declared name (today only `validateEnvelope`:
+ * `requestedId:envelope:`).
  *
- * A bare `{"type": "object"}` *result* schema (only `loadSpec`/`loadSpecFrom`) is not a plain JSON
- * dictionary in any implementation — the TypeScript reference returns a typed `RefIdSpec`, the
- * Swift port a `Spec` wrapper that verifies the embedded specification before handing it back.
- * JSON Schema has no way to spell an opaque implementation type, so this one mapping
- * (`{type: object}` -> `Spec`) is a declared exception here rather than a mechanical translation.
+ * A bare `{}` (any-JSON) schema maps to `Any?` everywhere — a fixed rule, not read from the
+ * library. `canonicalise`'s `value: {}` is therefore referenced as `(Any?) throws -> String`; the
+ * library spells this method `canonicalJSON(_ value: Any)` (non-optional `Any`), a divergence this
+ * script leaves for the build to report rather than reconciling.
  *
- * Argument labels: the spec's `params` are positional and unlabeled by nature (openRPC does not
- * distinguish call-site labels), so every parameter defaults to `_`. The one way a generated
- * reference asks for a label is when the library already exposes a *public function of the exact
- * declared name* with a call-site label equal to the spec's own parameter name at that position —
- * `validateEnvelope(requestedId:envelope:)` today. A method the library does not expose under its
- * declared name (e.g. `canonicalise`, `loadSpecFrom`) always gets `_` labels: there is no
- * comparison to make.
+ * A `{"$ref": "#/components/schemas/Spec"}` result (`loadSpec`, `loadSpecFrom`) maps to Swift
+ * `Spec`. A string the specification marks `x-kind: "directory"` (`loadSpecFrom`'s `directory`) is a
+ * filesystem path, which Swift takes as a `URL`.
+ *
+ * `errors` on a method (whatever `components.errors` kind — `x-error-type` names `RefIdError`,
+ * which has five: Build, Digest, Serialise, SpecIntegrity, SpecVersion) means `throws`; a method
+ * with no `errors` key does not throw. Nothing about which kind of error changes the reference.
  *
  * Usage:
  *   node scripts/gen-surface-swift.mjs           # regenerate the committed file
  *   node scripts/gen-surface-swift.mjs --check   # regenerate in memory, diff, exit 1 if stale
  */
-import { readFileSync, writeFileSync, readdirSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const OUT = join(ROOT, "Sources/RefIdConformance/Surface.generated.swift")
-const LIB_DIR = join(ROOT, "Sources/RefId")
 
 const spec = JSON.parse(readFileSync(join(ROOT, "spec/ref-id.json"), "utf8"))
 const doc = spec.openRPC
@@ -52,55 +51,7 @@ if (casing !== "camelCase") {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Read the Swift library's own public function signatures, so bare-`{}` parameter types and
-// call-site labels are read from the source rather than hand-copied into a second table.
-// ---------------------------------------------------------------------------------------------
-
-/** { name, params: [{label, type}], throws } for every `public func` declaration found. */
-function readLibrarySignatures() {
-  const signatures = []
-  for (const file of readdirSync(LIB_DIR)) {
-    if (!file.endsWith(".swift")) continue
-    const text = readFileSync(join(LIB_DIR, file), "utf8")
-    const re = /public func\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(throws\s*)?(?:->\s*([^\{\n]+))?/g
-    let match
-    while ((match = re.exec(text))) {
-      const [, name, rawParams, throwsKw] = match
-      const params = rawParams
-        .split(",")
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .map((p) => {
-          // `_ name: Type`  |  `label name: Type`  |  `name: Type`
-          const m = p.match(/^(?:(_|[A-Za-z_][A-Za-z0-9_]*)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/)
-          if (!m) return { label: null, internalName: p, type: "?" }
-          const [, explicitLabel, internalName, type] = m
-          const label = explicitLabel === "_" ? null : explicitLabel ?? internalName
-          return { label, internalName, type: type.trim() }
-        })
-      signatures.push({ name, params, throws: Boolean(throwsKw) })
-    }
-  }
-  return signatures
-}
-
-const librarySignatures = readLibrarySignatures()
-
-/** The public functions in the library that carry the exact declared method name (there may be more than one overload). */
-function libraryFunctionsNamed(name) {
-  return librarySignatures.filter((sig) => sig.name === name)
-}
-
-/** For a bare `{}` schema parameter, the type the library uses today for a parameter of that name — `Any` unless a declared function spells it `Any?`. Reports every distinct answer found, for the caller to compare across methods. */
-function bareObjectParamType(paramName) {
-  const found = librarySignatures.flatMap((sig) => sig.params.filter((p) => p.internalName === paramName && /^Any\??$/.test(p.type)))
-  if (found.length === 0) return { type: "Any", source: "no matching library parameter found; defaulted to Any" }
-  const distinct = [...new Set(found.map((f) => f.type))]
-  return { type: found[0].type, source: `read from the library's own \`${paramName}\` parameter (${distinct.join(", ")})`, distinct }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Schema -> Swift type
+// Schema -> Swift type. Declared entirely by the specification; nothing here reads Sources/RefId.
 // ---------------------------------------------------------------------------------------------
 
 function refName(schema) {
@@ -114,14 +65,11 @@ const REF_TYPE = {
   BuildParts: "BuildParts",
   EnvelopeResult: "EnvelopeResult",
   RelateResult: "RelateResult", // no Swift type declared today — see report; the reference still names it verbatim.
+  Spec: "Spec",
 }
 
-/**
- * Maps one openRPC schema to a Swift type. `paramName` is used only to resolve a bare `{}`
- * schema's type from the library. Returns `{ type, isIdentifierOrParsed }`; the caller expands
- * IdentifierOrParsed into two references.
- */
-function schemaToSwiftType(schema, paramName) {
+/** Maps one openRPC schema to a Swift type. Returns `{ type }` or `{ isIdentifierOrParsed: true }`. */
+function schemaToSwiftType(schema) {
   const ref = refName(schema)
   if (ref === "IdentifierOrParsed") return { isIdentifierOrParsed: true }
   if (ref) {
@@ -132,46 +80,23 @@ function schemaToSwiftType(schema, paramName) {
     const nonNull = schema.oneOf.filter((s) => s.type !== "null")
     const hasNull = schema.oneOf.some((s) => s.type === "null")
     if (nonNull.length !== 1 || !hasNull) throw new Error(`oneOf shape not handled: ${JSON.stringify(schema)}`)
-    const inner = schemaToSwiftType(nonNull[0], paramName)
+    const inner = schemaToSwiftType(nonNull[0])
     if (inner.isIdentifierOrParsed) throw new Error("oneOf around IdentifierOrParsed not expected")
     return { type: `${inner.type}?` }
   }
   if (schema.type === "boolean") return { type: "Bool" }
+  if (schema.type === "string" && schema["x-kind"] === "directory") return { type: "URL" }
   if (schema.type === "string") return { type: "String" }
   if (schema.type === "array") {
     const itemRef = refName(schema.items)
     if (itemRef && REF_TYPE[itemRef]) return { type: `[${REF_TYPE[itemRef]}]` }
     throw new Error(`array item schema not handled: ${JSON.stringify(schema.items)}`)
   }
-  if (schema.type === "object") {
-    // `loadSpec` / `loadSpecFrom`'s declared result — no implementation returns a plain JSON
-    // object for this; see the file header. Not used for any parameter today.
-    return { type: "Spec" }
-  }
   if (Object.keys(schema).length === 0) {
-    // Bare `{}` — any JSON. Only ever seen on parameters (`envelope`, `value`) so far.
-    const { type, source, distinct } = bareObjectParamType(paramName)
-    if (distinct && distinct.length > 1) {
-      console.warn(`[gen-surface-swift] inconsistent bare-object type across the library for parameter "${paramName}": ${distinct.join(" vs ")} — using ${type}`)
-    }
-    console.warn(`[gen-surface-swift] "${paramName}": {} -> ${type} (${source})`)
-    return { type }
+    // Bare `{}` — any JSON. Fixed mapping: Any? everywhere.
+    return { type: "Any?" }
   }
-  throw new Error(`schema not handled for param ${paramName}: ${JSON.stringify(schema)}`)
-}
-
-// ---------------------------------------------------------------------------------------------
-// Argument labels
-// ---------------------------------------------------------------------------------------------
-
-/** `_` for every parameter, unless the library already exposes a function of the exact declared
- * name whose call-site label at that position equals the spec's own parameter name. */
-function labelsFor(methodName, paramNames) {
-  const candidates = libraryFunctionsNamed(methodName).filter((sig) => sig.params.length === paramNames.length)
-  if (candidates.length === 0) return paramNames.map(() => "_")
-  // Prefer a candidate whose labels already match everywhere it can; report the first candidate's labels otherwise.
-  const sig = candidates.find((c) => c.params.every((p, i) => p.label === paramNames[i])) ?? candidates[0]
-  return paramNames.map((name, i) => (sig.params[i]?.label === name ? name : "_"))
+  throw new Error(`schema not handled: ${JSON.stringify(schema)}`)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -181,23 +106,23 @@ function labelsFor(methodName, paramNames) {
 const declaredMethods = doc.methods.map((m) => m.name) // x-casing.swift is identity (camelCase already)
 
 const lines = []
-const knownDivergences = new Set()
 
 for (const method of doc.methods) {
   const paramNames = method.params.map((p) => p.name)
-  const paramTypes = method.params.map((p) => schemaToSwiftType(p.schema, p.name))
-  const resultType = schemaToSwiftType(method.result?.schema ?? { type: "object" }, method.result?.name ?? "result")
+  const paramTypes = method.params.map((p) => schemaToSwiftType(p.schema))
+  const resultType = schemaToSwiftType(method.result?.schema)
   if (resultType.isIdentifierOrParsed) throw new Error(`${method.name}: a result of IdentifierOrParsed is not handled`)
   const throwsClause = Array.isArray(method.errors) && method.errors.length > 0 ? "throws " : ""
-  const labels = labelsFor(method.name, paramNames)
+  const useLabels = method["x-argument-labels"] === true
+  const labels = paramNames.map((name) => (useLabels ? name : "_"))
   const callLabels = labels.map((l) => `${l}:`).join("")
   const hasUnion = paramTypes.some((t) => t.isIdentifierOrParsed)
 
-  function emit(variant, resolvedParamTypes, comment) {
+  function emit(variant, resolvedParamTypes) {
     const paramTypeList = resolvedParamTypes.join(", ")
     const arrow = resultType.type
     const refExpr = paramNames.length === 0 ? method.name : `${method.name}(${callLabels})`
-    lines.push(`    // ${method.name}${variant ? ` — IdentifierOrParsed: ${variant} variant` : ""}${comment ? ` (${comment})` : ""}`)
+    lines.push(`    // ${method.name}${variant ? ` — IdentifierOrParsed: ${variant} variant` : ""}`)
     lines.push(`    let _: (${paramTypeList}) ${throwsClause}-> ${arrow} = ${refExpr}`)
   }
 

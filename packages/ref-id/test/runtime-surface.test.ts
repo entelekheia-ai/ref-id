@@ -32,6 +32,8 @@ interface OpenRPCMethod {
 
 interface OpenRPCDoc {
   "x-extensions": Record<string, string[]>
+  "x-error-type": string
+  components: { errors: Record<string, unknown> }
   methods: OpenRPCMethod[]
 }
 
@@ -47,11 +49,15 @@ function exportsOf(args: string[]): string[] {
 }
 
 /** `x-casing.typescript` is `camelCase`, and openRPC's method names are already camelCase — so a
- * TypeScript entry's declared surface is the canonical method name, verbatim. */
+ * TypeScript entry's declared surface is the canonical method name, verbatim. Every entry also carries
+ * the error hierarchy: `x-error-type` names the base class (`RefIdError`) and each `components.errors`
+ * key names a kind whose TypeScript class is `<Kind>Error` (e.g. `Build` → `BuildError`) — both derived
+ * from the spec, never a literal list, so a sixth error kind is picked up with no edit here. */
 function declaredFor(absentKey: string, extensionsKey: string): string[] {
   const methods = doc.methods.filter((method) => !(method["x-absent-from"] ?? []).includes(absentKey)).map((method) => method.name)
   const extensions = doc["x-extensions"][extensionsKey] ?? []
-  return [...methods, ...extensions].sort()
+  const errorClasses = Object.keys(doc.components.errors).map((kind) => `${kind}Error`)
+  return [...methods, ...extensions, doc["x-error-type"], ...errorClasses].sort()
 }
 
 const entries: { label: string; runnerArgs: string[]; absentKey: string; extensionsKey: string }[] = [
