@@ -634,6 +634,24 @@ covers the UTF-8 bytes of the result.
 file carrying its own digest cannot be verified without first deciding which bytes to exclude, and that
 decision is a second canonicalisation nobody would test.
 
+**The public surface is declared inside the file, as one OpenRPC document under `openRPC`.** Each method
+is one operation every implementation exposes — its canonical name, parameters, result and errors — and
+`components.schemas` holds the value types (`ParseResult`, `BuildParts`, `RelateResult`, …) in JSON Schema
+draft-07. No JSON-RPC transport is implied; the format is used because an extracted `openRPC` value is a
+document any OpenRPC tool reads. Four extensions tie it to the rest of the file:
+
+| Extension | Holds |
+|---|---|
+| `x-rule` | a JSON Pointer into the whole specification naming the key that states the method's rule, `/comparison/covers` |
+| `x-vectors` | the vector group that binds the method, or `null` beside an `x-vectors-reason` |
+| `x-casing` | how each language spells a canonical name — `covers` stays `covers`, `samePackage` becomes `same_package` in Rust |
+| `x-extensions` | what a language exposes beyond the shared surface, such as the browser build's `SPEC_DIGEST` |
+
+A `$ref` resolves against the OpenRPC document; an `x-rule` against the whole specification.
+`npm run test:openrpc` validates the value against the OpenRPC meta-schema, resolves both kinds of pointer,
+and requires every vector group to be claimed by a method. Each implementation's own suite compares its
+public surface, read from its compiler, with the methods.
+
 ## Conformance vectors
 
 Five classes. Each fixes a different property, and a port is checked against all five rather than against

@@ -38,6 +38,8 @@ jobs:
         # Reads the specification alone: a disagreement between the two groups is a defect of the data,
         # which every port would otherwise report as its own failure on one group or the other.
         run: npm run test:relate
+      - name: the declared surface is a valid OpenRPC document tied to the rules and vectors it names
+        run: npm run test:openrpc
       - name: build, tests, grammar in three engines, Rust port
         run: |
           npm run build

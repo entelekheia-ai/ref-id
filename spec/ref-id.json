@@ -391,6 +391,774 @@
   "invariant": "for every qualifier whose value is a digest, sets[qualifier] exists and digest(sets[qualifier]) equals it; and id equals the identifier the envelope was requested under",
   "onFailure": "refuse at ingestion"
  },
+ "openRPC": {
+  "openrpc": "1.3.2",
+  "info": {
+   "title": "ref: identifier operations",
+   "version": "1.3.0",
+   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, and x-extensions lists what a language exposes beyond this surface."
+  },
+  "x-casing": {
+   "typescript": "camelCase",
+   "rust": "snake_case",
+   "swift": "camelCase"
+  },
+  "x-extensions": {
+   "typescript-browser": [
+    "SPEC_DIGEST"
+   ],
+   "rust": [
+    "embedded_spec_text"
+   ],
+   "swift": [
+    "embeddedSpecURLs",
+    "sha256Hex"
+   ]
+  },
+  "methods": [
+   {
+    "name": "parse",
+    "summary": "Decompose an identifier into its parts. An input the grammar does not decompose is a result whose status says so, never an error.",
+    "params": [
+     {
+      "name": "input",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "result": {
+     "name": "parsed",
+     "schema": {
+      "$ref": "#/components/schemas/ParseResult"
+     }
+    },
+    "x-rule": "/grammar",
+    "x-vectors": "parse"
+   },
+   {
+    "name": "serialise",
+    "summary": "Write a parse result back to the bytes it was read from.",
+    "params": [
+     {
+      "name": "parsed",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/ParseResult"
+      }
+     }
+    ],
+    "result": {
+     "name": "identifier",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Refused"
+     }
+    ],
+    "x-rule": "/identifierEquivalence/reserialisation",
+    "x-vectors": "roundtrip"
+   },
+   {
+    "name": "build",
+    "summary": "Compose an identifier from its parts, refusing parts the grammar or a validator refuses.",
+    "params": [
+     {
+      "name": "parts",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/BuildParts"
+      }
+     }
+    ],
+    "result": {
+     "name": "identifier",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Refused"
+     }
+    ],
+    "x-rule": "/dispatch",
+    "x-vectors": "build"
+   },
+   {
+    "name": "canonicalIdentifier",
+    "summary": "The canonical spelling of an identifier.",
+    "params": [
+     {
+      "name": "identifier",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "canonical",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Refused"
+     }
+    ],
+    "x-rule": "/identifierEquivalence/canonicalForm",
+    "x-vectors": "canonical"
+   },
+   {
+    "name": "sameIdentifier",
+    "summary": "Whether two identifiers name one thing: their canonical spellings are equal byte for byte.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "same",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/identifierEquivalence/comparison",
+    "x-vectors": "canonical"
+   },
+   {
+    "name": "samePackage",
+    "summary": "Whether two identifiers name one released thing, at whatever version each declares.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "same",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/comparison/samePackage",
+    "x-vectors": "comparison"
+   },
+   {
+    "name": "covers",
+    "summary": "Whether the general identifier is the specific one with less declared.",
+    "params": [
+     {
+      "name": "general",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "specific",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "covered",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/comparison/covers",
+    "x-vectors": "comparison"
+   },
+   {
+    "name": "relate",
+    "summary": "How two identifiers relate in each dimension; null for a pair that has no parts to relate.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "relation",
+     "schema": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/RelateResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "x-rule": "/comparison/relate",
+    "x-vectors": "relate"
+   },
+   {
+    "name": "digest",
+    "summary": "The digest of a sequence of identifiers, in declared order, never deduplicated.",
+    "params": [
+     {
+      "name": "members",
+      "required": true,
+      "schema": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Identifier"
+       }
+      }
+     }
+    ],
+    "result": {
+     "name": "digest",
+     "schema": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Refused"
+     }
+    ],
+    "x-rule": "/digest",
+    "x-vectors": "digest"
+   },
+   {
+    "name": "validateEnvelope",
+    "summary": "Whether an envelope is admissible for the identifier it was requested under.",
+    "params": [
+     {
+      "name": "requestedId",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/Identifier"
+      }
+     },
+     {
+      "name": "envelope",
+      "required": true,
+      "schema": {}
+     }
+    ],
+    "result": {
+     "name": "verdict",
+     "schema": {
+      "$ref": "#/components/schemas/EnvelopeResult"
+     }
+    },
+    "x-rule": "/envelope",
+    "x-vectors": "envelope"
+   },
+   {
+    "name": "canonicalise",
+    "summary": "The canonical JSON serialisation the specification's own digest is computed over.",
+    "params": [
+     {
+      "name": "value",
+      "required": true,
+      "schema": {}
+     }
+    ],
+    "result": {
+     "name": "json",
+     "schema": {
+      "type": "string"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     }
+    ],
+    "x-rule": "/canonicalisation",
+    "x-vectors": null,
+    "x-vectors-reason": "exercised by every implementation's specification-integrity test, which recomputes the sidecar digest through it"
+   },
+   {
+    "name": "loadSpec",
+    "summary": "The specification this implementation embeds, verified against its digest.",
+    "params": [],
+    "result": {
+     "name": "spec",
+     "schema": {
+      "type": "object"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/specVersion",
+    "x-vectors": null,
+    "x-vectors-reason": "exercised by the specification-integrity tests, which alter one byte and one version and expect the refusal"
+   },
+   {
+    "name": "loadSpecFrom",
+    "summary": "A specification read from a directory holding ref-id.json and its sidecar, verified the same way.",
+    "params": [
+     {
+      "name": "directory",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "result": {
+     "name": "spec",
+     "schema": {
+      "type": "object"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/specVersion",
+    "x-vectors": null,
+    "x-vectors-reason": "as loadSpec",
+    "x-absent-from": [
+     "typescript-browser"
+    ],
+    "x-absent-reason": "a browser has no directory to read"
+   }
+  ],
+  "components": {
+   "schemas": {
+    "Identifier": {
+     "type": "string",
+     "pattern": "^ref:"
+    },
+    "Pair": {
+     "description": "A key=value pair, in input order, value verbatim.",
+     "type": "array",
+     "items": [
+      {
+       "type": "string",
+       "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      {
+       "type": "string"
+      }
+     ],
+     "additionalItems": false,
+     "minItems": 2
+    },
+    "Fragment": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "path",
+      "refinements"
+     ],
+     "properties": {
+      "path": {
+       "type": "string",
+       "minLength": 1
+      },
+      "refinements": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Pair"
+       }
+      }
+     }
+    },
+    "ParseFields": {
+     "$comment": "Shared by ParseResult and ParseExpectation; kept apart so the two differ only in what they require.",
+     "properties": {
+      "input": {
+       "type": "string"
+      },
+      "status": {
+       "enum": [
+        "ok",
+        "malformed",
+        "uncovered",
+        "unsupported"
+       ]
+      },
+      "version": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "explicitVersion": {
+       "type": "boolean"
+      },
+      "versionText": {
+       "type": "string",
+       "pattern": "^[0-9]+$"
+      },
+      "type": {
+       "type": "string"
+      },
+      "locator": {
+       "type": "string"
+      },
+      "delegated": {
+       "type": "string"
+      },
+      "canonical": {
+       "type": "string"
+      },
+      "qualifiers": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Pair"
+       }
+      },
+      "nested": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/Identifier"
+       }
+      },
+      "fragment": {
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/Fragment"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "part": {
+       "type": "string"
+      }
+     }
+    },
+    "ParseInvariants": {
+     "$comment": "What holds of every parse result, whichever fields a vector chooses to assert.",
+     "allOf": [
+      {
+       "if": {
+        "required": [
+         "status"
+        ],
+        "properties": {
+         "status": {
+          "const": "malformed"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "part"
+        ]
+       }
+      },
+      {
+       "if": {
+        "required": [
+         "part"
+        ],
+        "properties": {
+         "part": {
+          "const": "grammar"
+         }
+        }
+       },
+       "then": {
+        "$comment": "the grammar decomposed nothing, so there are no parts: both are the empty string",
+        "properties": {
+         "type": {
+          "const": ""
+         },
+         "locator": {
+          "const": ""
+         }
+        }
+       },
+       "else": {
+        "properties": {
+         "type": {
+          "pattern": "^[a-z][a-z0-9+.-]*$"
+         },
+         "locator": {
+          "minLength": 1
+         }
+        }
+       }
+      }
+     ]
+    },
+    "ParseResult": {
+     "description": "What parse() returns.",
+     "type": "object",
+     "allOf": [
+      {
+       "$ref": "#/components/schemas/ParseFields"
+      },
+      {
+       "$ref": "#/components/schemas/ParseInvariants"
+      }
+     ],
+     "propertyNames": {
+      "enum": [
+       "input",
+       "status",
+       "version",
+       "explicitVersion",
+       "versionText",
+       "type",
+       "locator",
+       "delegated",
+       "canonical",
+       "qualifiers",
+       "nested",
+       "fragment",
+       "part"
+      ]
+     },
+     "required": [
+      "input",
+      "status",
+      "version",
+      "explicitVersion",
+      "type",
+      "locator",
+      "qualifiers",
+      "fragment"
+     ]
+    },
+    "NestedQualifierValue": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "nested"
+     ],
+     "properties": {
+      "nested": {
+       "$ref": "#/components/schemas/Identifier"
+      }
+     }
+    },
+    "BuildParts": {
+     "description": "What build() takes. `location` never reaches the identifier.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "type",
+      "locator"
+     ],
+     "properties": {
+      "type": {
+       "type": "string"
+      },
+      "locator": {
+       "type": "string"
+      },
+      "qualifiers": {
+       "type": "array",
+       "items": {
+        "type": "array",
+        "items": [
+         {
+          "type": "string"
+         },
+         {
+          "oneOf": [
+           {
+            "type": "string"
+           },
+           {
+            "$ref": "#/components/schemas/NestedQualifierValue"
+           }
+          ]
+         }
+        ],
+        "additionalItems": false,
+        "minItems": 2
+       }
+      },
+      "fragment": {
+       "oneOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "path"
+         ],
+         "properties": {
+          "path": {
+           "type": "string"
+          },
+          "refinements": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Pair"
+           }
+          }
+         }
+        }
+       ]
+      },
+      "location": {}
+     }
+    },
+    "EnvelopeResult": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "admissible"
+     ],
+     "properties": {
+      "admissible": {
+       "type": "boolean"
+      },
+      "reason": {
+       "type": "string"
+      }
+     }
+    },
+    "Relation": {
+     "description": "One relation between two identifiers in one dimension.",
+     "enum": [
+      "equal",
+      "covers",
+      "coveredBy",
+      "differ"
+     ]
+    },
+    "QualifierRelation": {
+     "type": "object",
+     "required": [
+      "relation"
+     ],
+     "additionalProperties": false,
+     "properties": {
+      "relation": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "nested": {
+       "$ref": "#/components/schemas/RelateResult"
+      }
+     }
+    },
+    "RelateResult": {
+     "description": "What relate() returns for a pair it accepts; null for a pair it refuses.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "type",
+      "version",
+      "locatorStem",
+      "locatorVersion",
+      "fragmentPath",
+      "fragmentRefinements",
+      "qualifiers"
+     ],
+     "properties": {
+      "type": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "version": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "locatorStem": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "locatorVersion": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "fragmentPath": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "fragmentRefinements": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/Relation"
+       }
+      },
+      "qualifiers": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/QualifierRelation"
+       }
+      }
+     }
+    },
+    "IdentifierOrParsed": {
+     "description": "An identifier as a string, or the result parse() returned for one. Every operation that takes an identifier takes either, and a pair may mix them.",
+     "oneOf": [
+      {
+       "$ref": "#/components/schemas/Identifier"
+      },
+      {
+       "$ref": "#/components/schemas/ParseResult"
+      }
+     ]
+    }
+   },
+   "errors": {
+    "Refused": {
+     "code": 1,
+     "message": "the operation refused its input; the error names the refused part"
+    },
+    "SpecIntegrity": {
+     "code": 2,
+     "message": "the specification's bytes do not match its digest"
+    },
+    "SpecVersion": {
+     "code": 3,
+     "message": "the specification's major version is one this implementation does not support"
+    }
+   }
+  }
+ },
  "vectors": {
   "parse": [
    {
