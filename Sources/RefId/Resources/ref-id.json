@@ -319,7 +319,7 @@
   "qualifierOrder": "insignificant",
   "refinementOrder": "significant",
   "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key in UTF-16 code unit order; every other part verbatim, refinements included",
-  "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte",
+  "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte. An identifier with no decomposition — malformed, or at a scheme version the implementation does not support — has no canonical form to compare and names nothing: it is the same identifier as nothing, itself included, and the comparison answers false rather than raising",
   "reserialisation": "SHOULD preserve the order written; MUST NOT be relied on to tell two identifiers apart",
   "note": "distinct from `canonicalisation`, which is the form of THIS FILE for its own digest"
  },
@@ -554,7 +554,7 @@
      }
     },
     "x-rule": "/identifierEquivalence/comparison",
-    "x-vectors": "canonical"
+    "x-vectors": "comparison"
    },
    {
     "name": "samePackage",
@@ -3245,7 +3245,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": true
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    },
    {
@@ -3255,7 +3256,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3265,7 +3267,8 @@
     "expect": {
      "samePackage": true,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3275,7 +3278,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3285,7 +3289,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3295,7 +3300,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3305,7 +3311,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3315,7 +3322,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3325,7 +3333,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3335,7 +3344,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3345,7 +3355,8 @@
     "expect": {
      "samePackage": true,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3355,7 +3366,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3365,7 +3377,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3375,7 +3388,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3385,7 +3399,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3395,7 +3410,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3405,7 +3421,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3415,7 +3432,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3425,7 +3443,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3435,7 +3454,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3445,7 +3465,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3455,7 +3476,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3465,7 +3487,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3475,7 +3498,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3485,7 +3509,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": true
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    },
    {
@@ -3495,7 +3520,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3505,7 +3531,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3515,7 +3542,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3525,7 +3553,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3535,7 +3564,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3545,7 +3575,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3555,7 +3586,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3565,7 +3597,8 @@
     "expect": {
      "samePackage": true,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3575,7 +3608,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3585,7 +3619,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3595,7 +3630,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -3605,7 +3641,19 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "two orders of the same qualifiers are the same identifier, byte for byte different",
+    "a": "ref:folder:acme-tools;when=2026-01-01T00:00:00Z;state=none",
+    "b": "ref:folder:acme-tools;state=none;when=2026-01-01T00:00:00Z",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    }
   ],

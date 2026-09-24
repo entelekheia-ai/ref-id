@@ -3,7 +3,7 @@
 // One assertion per conformance vector; the specification is the oracle, nothing here is hardcoded.
 // A field is compared through the canonical JSON serialisation of both sides.
 
-use ref_id::{build, canonical_identifier, canonicalise, covers, digest, load_spec, load_spec_from, parse, same_package, serialise, validate_envelope, BuildParts, FragmentParts, Pair, QualifierValue, RefIdError};
+use ref_id::{build, canonical_identifier, canonicalise, covers, digest, load_spec, load_spec_from, parse, same_identifier, same_package, serialise, validate_envelope, BuildParts, FragmentParts, Pair, QualifierValue, RefIdError};
 use serde_json::Value;
 
 fn build_parts(json: &Value) -> BuildParts {
@@ -43,7 +43,7 @@ fn build_parts(json: &Value) -> BuildParts {
 #[test]
 fn every_vector_group_runs() {
     let spec = load_spec().unwrap();
-    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison"];
+    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate"];
     let mut missing: Vec<String> = spec.vector_classes().into_iter().filter(|c| !executed.contains(&c.as_str())).collect();
     missing.sort();
     assert!(missing.is_empty(), "spec/ref-id.json declares vector groups this runner does not execute: {missing:?}");
@@ -149,6 +149,7 @@ fn comparison_vectors() {
         assert_eq!(same_package(a, b), expect["samePackage"].as_bool().unwrap(), "comparison: {name} — samePackage");
         assert_eq!(covers(a, b), expect["covers"].as_bool().unwrap(), "comparison: {name} — covers");
         assert_eq!(covers(b, a), expect["coversReversed"].as_bool().unwrap(), "comparison: {name} — coversReversed");
+        assert_eq!(same_identifier(a, b), expect["sameIdentifier"].as_bool().unwrap(), "comparison: {name} — sameIdentifier");
     }
 }
 

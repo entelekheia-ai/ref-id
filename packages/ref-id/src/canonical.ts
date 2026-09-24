@@ -33,7 +33,19 @@ export function canonicalIdentifier(identifier: string | ParseResult): string {
  * minor (Plan-005, Track 2). */
 export const canonical = canonicalIdentifier
 
-/** Whether two identifiers name one thing. Order of qualifiers does not distinguish; everything else does. */
+/**
+ * Whether two identifiers name one thing. Order of qualifiers does not distinguish; everything else does.
+ *
+ * An identifier with no decomposition — malformed, or at a scheme version this package does not
+ * implement — names nothing, so it is the same identifier as nothing, itself included: the answer is
+ * `false`, never a thrown refusal. That is what `identifierEquivalence.comparison` states and what the
+ * `sameIdentifier` expectation of every comparison vector binds, in all three implementations.
+ */
 export function sameIdentifier(a: string | ParseResult, b: string | ParseResult): boolean {
-  return canonicalIdentifier(a) === canonicalIdentifier(b)
+  const spec = loadSpec()
+  const usable = [status(spec, "ok"), status(spec, "uncovered")]
+  const read = (identifier: string | ParseResult): ParseResult => (typeof identifier === "string" ? parse(identifier) : identifier)
+  const [x, y] = [read(a), read(b)]
+  if (!usable.includes(x.status) || !usable.includes(y.status)) return false
+  return canonicalIdentifier(x) === canonicalIdentifier(y)
 }

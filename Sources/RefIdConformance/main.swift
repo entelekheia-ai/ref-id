@@ -187,6 +187,7 @@ func run() throws {
         check(samePackage(a, b) == (expect["samePackage"] as! Bool), "comparison: \(name) — samePackage")
         check(covers(a, b) == (expect["covers"] as! Bool), "comparison: \(name) — covers")
         check(covers(b, a) == (expect["coversReversed"] as! Bool), "comparison: \(name) — coversReversed")
+        check(sameIdentifier(a, b) == (expect["sameIdentifier"] as! Bool), "comparison: \(name) — sameIdentifier")
     }
 
     // relate — the full result, plus the three booleans `spec.comparison.relate.reductions` declares
