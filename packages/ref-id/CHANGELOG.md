@@ -1,5 +1,94 @@
 # @entelekheia/ref-id
 
+## 0.5.0
+
+### Minor Changes
+
+- 18e27af: An `ai-model` locator opens on the provider serving the model, then carries the id it is served under:
+  `ref:ai-model:anthropic/claude-opus-5-5`, `ref:ai-model:azure.ai.inference/claude-opus-5-5`,
+  `ref:ai-model:ollama/llama3:8b`. One served id through two providers is now two models, and a locator of
+  one segment — `ref:ai-model:omlx` — names the provider alone and covers every model it serves. The provider
+  is an OpenTelemetry `gen_ai.provider.name` well-known value where one applies, and the name of the runtime
+  that executes the model otherwise — a server or a library linked in-process (`mlx`, `llama.cpp`); its
+  segment is lowercase and admits no `:` or `@`. With no server, the served id is the name the weights'
+  source declares (`ref:ai-model:llama.cpp/<org>/<repo>/<file>.gguf`), never a filesystem path.
+  An application that embeds and configures a runtime is itself the provider; the engine is recorded as
+  `;by=` with a nested identifier that is a bare pointer — a released package where the version is known,
+  the unversioned package where it is not, with the unknown kept in the consumer's own record.
+
+  **An identifier written under the previous grammar changes meaning.** An uppercase served id or an Ollama
+  tag (`ref:ai-model:llama3:8b`) is now `malformed`; a lowercase served id without a colon
+  (`ref:ai-model:claude-opus-5`) still parses, as a provider. A store holding identifiers of this type must
+  rewrite them to `<provider>/<served id>` — the provider was never recorded, so no parser can supply it.
+  No code changed: the three implementations read the pattern from the specification.
+
+- dd50d26: `covers` and `samePackage` descend one level into a nested identifier. Where a qualifier's value is a
+  nested `ref:` on both sides, the pair is compared with the same relation on the decoded identifiers, so
+  `…;by=ref:pkg:github/ggml-org/llama.cpp` now covers `…;by=ref:pkg:github/ggml-org/llama.cpp@b10931`, and two
+  releases of one engine are the same package. A digest, a timestamp, plain text, a nested identifier facing a
+  digest, and a nested pair at a scheme version the relation refuses are still compared byte for byte.
+  **A comparison result a store kept may flip from `false` to `true`** — for such a pair only; no identifier
+  changes meaning.
+
+  New: `relate(a, b)` reports how two identifiers relate in each dimension — type, scheme version, locator
+  stem and version, declared-name path, each refinement and each qualifier — as `equal`, `covers`,
+  `coveredBy` or `differ`, with a `nested` result for a qualifier holding a nested identifier on both sides,
+  and `null` for a pair that has no parts to relate. `covers`, `coveredBy` and `samePackage` are its
+  reductions.
+
+  `sameIdentifier` answers `false`, rather than throwing, when either identifier is malformed or at a scheme
+  version this package does not implement: such an identifier names nothing, itself included.
+
+  **Three spellings that named one thing are now one identifier.** The canonical form — what
+  `canonicalIdentifier` returns and `sameIdentifier` compares — sorts refinements by key as it already sorted
+  qualifiers (each is a filter, and filters combine with AND), writes a nested identifier in its own canonical
+  form, and omits the version slot when it holds the default version: `ref:1:pkg:npm/x` and `ref:pkg:npm/x`
+  are one identifier. A `sameIdentifier` result or a canonical form a store kept may change for such
+  spellings; `parse` still reports `explicitVersion`, and `serialise` still writes back what was read.
+
+  Comparison is byte for byte in every implementation: two Unicode spellings of one text (composed and
+  decomposed) are two identifiers, and a segment boundary is the byte `/`.
+
+  The public surface is declared in the specification, and this release aligns the package with it:
+
+  - `canonical` is now `canonicalIdentifier`; `canonical` remains as a deprecated alias.
+  - The types `Fragment` (was `ParsedFragment`), `Spec` (was `RefIdSpec`), `RelateResult`, `Relation`,
+    `QualifierRelation` and `IdentifierOrParsed` are exported; the old names remain as deprecated aliases.
+  - `canonicalise` raises a `SpecIntegrityError` for the values the specification's canonicalisation refuses
+    (a non-integer number, an unmappable type), where it raised a plain `Error`.
+
+  The Rust crate and the Swift package gain the same operations under the same names — `same_identifier`
+  and `sameIdentifier`, `relate`, identifiers accepted as a string or a parse result (in Rust through a
+  trait implemented for `str`, `String` and `ParseResult`, so `&String` arguments keep compiling) — and the Swift
+  package's `canonicalJSON(_:)` and `loadSpec(from:)` become `canonicalise(_:)` and `loadSpecFrom(_:)`, the
+  old names kept as deprecated aliases.
+
+- 59e0619: The specification now calls itself `specVersion` 1.4.0. The type registry, the path moving into the locator,
+  `relate` and the `ai-model` provider all changed since 1.3.0 without the document's version moving, so 0.3.0,
+  0.4.0 and the release before this one embedded different registries under one `specVersion`. A consumer that
+  pins `specVersion` can tell this release apart from them; 1.3.0 is ambiguous and needs the package version
+  read beside it.
+
+  A `folder` identifier's fragment is the leaf: the locator carries the path down to the file's directory, so a
+  file is `ref:folder:acme-tools/docs#guide.md` and never `ref:folder:acme-tools#docs/guide.md`. The parse vector
+  that spelled a path in the fragment, and the example in the reference, now use the leaf form. No parser
+  enforces the rule — the fragment's grammar belongs to whoever mints — so an identifier written the other way
+  still parses, and names the same file under a second spelling that `sameIdentifier` reports as different.
+
+### Patch Changes
+
+- 59e0619: A repeated qualifier or refinement key that the specification does not declare now parses as `malformed`
+  at that key, as a repeated declared key always did. `parse('ref:ai-model:anthropic/x;effort=low;effort=medium')`
+  threw `SpecVersionError` instead — the error meant for a package naming a part its spec lacks, raised here
+  for a key the identifier itself carried. Fixed in the three implementations, and bound by two new parse
+  vectors so a fourth cannot reintroduce it with every suite green.
+- 6933215: `BuildError`'s message names the refused part — `cannot build: the assembled string is malformed — refused at
+the locator` — in the TypeScript, Rust and Swift implementations, and each suite now checks that every build
+  error vector's part appears in the message. A part that `parse` reported while checking the assembled string
+  is carried verbatim, so a key the spec does not declare no longer turns a build refusal into a
+  `SpecVersionError`. The reference and the `identify` skill state what an `unknown` locator admits: one `:`
+  closing the species and one trailing `@`, so a composed label carrying more fits only in the fragment.
+
 ## 0.4.0
 
 ### Minor Changes
