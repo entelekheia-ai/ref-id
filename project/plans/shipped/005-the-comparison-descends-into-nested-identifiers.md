@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | Shipped |
 | Created | 2026-09-23 |
 | Author | Danilo Borges |
 | Related | ADR-0005 (the `ai-model` locator opens on the provider) |
