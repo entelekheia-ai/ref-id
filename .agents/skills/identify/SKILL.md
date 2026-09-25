@@ -93,6 +93,23 @@ at all (`comparison.covers.rule` in `spec/ref-id.json`). A partial identifier is
 locator — decide here whether the value being placed needs that kind of partial match, or whether an exact
 qualifier is enough.
 
+**Not every discriminator can be both searchable and well placed, and the locator's own pattern decides
+which.** Read `dispatch.<type>.pattern` before choosing. An `unknown` locator admits exactly one `:`, the
+one that closes the species, and one `@`, trailing the last segment as its version:
+
+```text
+acme:delivery/probe        ok
+acme:delivery/probe@2      ok      ← the version tail
+acme:delivery/pro:be       refused ← a second ':'
+acme:delivery/pro@be/x     refused ← '@' before the last segment
+acme:delivery/a@1/b@2      refused ← two '@'
+```
+
+A composed label such as `custom:some-gate:tool@1.2.3` therefore fits only in the fragment, where `covers`
+compares by equality. That is a real loss of search, and the answer is not to reshape the label so it slips
+past the pattern: a permissive locator is how a type stops discriminating. Name the loss where the
+identifier is minted, or split the label so its searchable half sits in the locator.
+
 **Nesting is one level deep, and a nested identifier is a bare pointer.** A `ref:` value placed inside a
 qualifier — `by=`, `over=` — is compared by descending into it, but only one level: a nested value that
 itself nests another `ref:` is malformed. This skill writes the nested identifier as a bare pointer — a

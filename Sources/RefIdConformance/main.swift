@@ -218,6 +218,9 @@ func run() throws {
         } else if let wanted = (vector["expect"] as? [String: Any])?["error"] as? String {
             do { _ = try build(parts); check(false, "build: \(name) must refuse at \(wanted)") } catch let error as RefIdError {
                 check(error.part == wanted, "build: \(name) — part \(String(describing: error.part)) wanted \(wanted)")
+                if case .build(_, let message) = error {
+                    check(message.contains(wanted), "build: \(name) — the message names the part: \(message)")
+                }
             }
         }
     }

@@ -101,7 +101,10 @@ fn build_vectors() {
             expect => {
                 let wanted = expect["error"].as_str().unwrap();
                 match build(&parts) {
-                    Err(RefIdError::Build { part, .. }) => assert_eq!(part, wanted, "build: {name} — part"),
+                    Err(RefIdError::Build { part, message }) => {
+                        assert_eq!(part, wanted, "build: {name} — part");
+                        assert!(message.contains(wanted), "build: {name} — the message names the part: {message}");
+                    }
                     other => panic!("build: {name} must refuse at {wanted}, got {other:?}"),
                 }
             }
