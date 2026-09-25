@@ -265,14 +265,19 @@ function mint(args: Map<string, string[]>): never {
     }
     if (!fragment && !args.has("corpus")) {
       const found = candidates(target)
+      // With `--root` and no manifest reaching the file, `corpus` is undefined and the `folder` branch above
+      // is what resolved: report what was resolved, not the manifest that was not found.
+      const leaf = type === "folder" && locator.includes("/") && !statSync(target).isDirectory()
       emit(
         refuse("target-undeclared", "the corpus resolved; which declared name inside it is the target is undecided", {
-          corpus: `${corpus.type}:${corpus.locator}`,
-          manifest: corpus.manifest,
+          corpus: corpus ? `${corpus.type}:${corpus.locator}` : `${type}:${locator}`,
+          manifest: corpus?.manifest,
           fragmentGrammar: found.model,
           declaredNames: found.names,
           note: found.note,
-          answer: "pass --fragment <declared name>, or --corpus when the package itself is the target",
+          answer: leaf
+            ? `pass --fragment <declared name>; when the file itself is the target, --type folder --locator ${dirname(locator)} --fragment ${basename(locator)} (the fragment is the leaf)`
+            : "pass --fragment <declared name>, or --corpus when the package itself is the target",
         }),
       )
     }

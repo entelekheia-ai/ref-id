@@ -49,11 +49,14 @@ const unescape = (line: string): string => line.replace(/\\n/g, "\n").replace(/\
 let failures = 0
 const lines = stdin.split("\n").filter((line) => line.length > 0)
 
-if (pairsMode) {
-  if (lines.length % 2 !== 0) {
-    console.error(`parse-lines --pairs: ${lines.length} lines is not an even number of lines (two per pair)`)
-    process.exit(1)
-  }
+// Neither mode calls process.exit() after writing: stdout to a pipe is asynchronous, and exiting drops what is
+// still queued. The pair pass lost 12 049 of 39 601 rows that way on the macOS runner the day the corpus grew
+// by two vectors — the differential then reported the reference as not having run. `exitCode` lets the
+// queue drain.
+if (pairsMode && lines.length % 2 !== 0) {
+  console.error(`parse-lines --pairs: ${lines.length} lines is not an even number of lines (two per pair)`)
+  process.exitCode = 1
+} else if (pairsMode) {
   for (let index = 0; index < lines.length; index += 2) {
     const a = unescape(lines[index]!)
     const b = unescape(lines[index + 1]!)
@@ -67,32 +70,34 @@ if (pairsMode) {
       }),
     )
   }
-  process.exit(0)
+} else {
+  runParse()
 }
 
-for (const line of lines) {
-  const input = unescape(line)
-  let result
-  try {
-    result = parse(input)
-  } catch (error) {
-    failures += 1
-    console.log(canonicalise({ threw: String(error) }))
-    continue
+function runParse(): void {
+  for (const line of lines) {
+    const input = unescape(line)
+    let result
+    try {
+      result = parse(input)
+    } catch (error) {
+      failures += 1
+      console.log(canonicalise({ threw: String(error) }))
+      continue
+    }
+    const row: Record<string, unknown> = { ...result }
+    // Shapes each implementation forms for itself, and never part of the comparison.
+    delete row.nested
+    delete row.delegated
+    if (!withCanonical) {
+      delete row.canonical
+    }
+    try {
+      row.serialised = serialise(result)
+    } catch {
+      // A result the serialiser refuses carries no `serialised` field — the ports do the same.
+    }
+    console.log(canonicalise(row))
   }
-  const row: Record<string, unknown> = { ...result }
-  // Shapes each implementation forms for itself, and never part of the comparison.
-  delete row.nested
-  delete row.delegated
-  if (!withCanonical) {
-    delete row.canonical
-  }
-  try {
-    row.serialised = serialise(result)
-  } catch {
-    // A result the serialiser refuses carries no `serialised` field — the ports do the same.
-  }
-  console.log(canonicalise(row))
+  process.exitCode = failures === 0 ? 0 : 1
 }
-
-process.exit(failures === 0 ? 0 : 1)

@@ -23,7 +23,16 @@ export function nestingForm(spec: RefIdSpec, key: string): RefIdSpec["forms"][st
 }
 
 function refuse(spec: RefIdSpec, failedPart: string, why: string): never {
-  throw new BuildError(part(spec, failedPart), `cannot build: ${why}`)
+  refuseAt(part(spec, failedPart), why)
+}
+
+/**
+ * The message names the refused part, so a caller reads what to change instead of guessing and retrying.
+ * A part that `parse` already reported is used verbatim: it may be a key the identifier carries and the
+ * spec never declared, which `part()` would mistake for this package naming a part its spec lacks.
+ */
+function refuseAt(refused: string, why: string): never {
+  throw new BuildError(refused, `cannot build: ${why} — refused at the ${refused}`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -126,7 +135,7 @@ export function build(parts: BuildParts): string {
   }
   const check = parse(out)
   if (check.status === status(spec, "malformed")) {
-    refuse(spec, check.part ?? "grammar", "the assembled string is malformed")
+    refuseAt(check.part ?? part(spec, "grammar"), "the assembled string is malformed")
   }
   if (check.explicitVersion || check.type !== parts.type) {
     refuse(spec, "type", "the type re-split into other parts")

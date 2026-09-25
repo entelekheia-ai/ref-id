@@ -17,7 +17,18 @@ import { loadSpec, part, status, type RefIdSpec } from "./spec.ts"
 import type { Fragment, Pair, ParseResult } from "./types.ts"
 import { assertImplemented, delegatedString, rangeHolds, validateLocator } from "./validators.ts"
 
-function malformed(spec: RefIdSpec, input: string, failedPart: string, base: Partial<ParseResult>): ParseResult {
+/**
+ * `keyFromInput` marks a part that is a key the identifier itself carries — a repeated key the spec never
+ * declared is still carried through by policy, so it names the malformed part verbatim rather than being
+ * checked against the vocabulary this package names.
+ */
+function malformed(
+  spec: RefIdSpec,
+  input: string,
+  failedPart: string,
+  base: Partial<ParseResult>,
+  keyFromInput = false,
+): ParseResult {
   const result: ParseResult = {
     input,
     status: status(spec, "malformed"),
@@ -27,7 +38,7 @@ function malformed(spec: RefIdSpec, input: string, failedPart: string, base: Par
     locator: base.locator ?? "",
     qualifiers: base.qualifiers ?? [],
     fragment: base.fragment ?? null,
-    part: part(spec, failedPart),
+    part: keyFromInput ? failedPart : part(spec, failedPart),
   }
   if (base.versionText !== undefined) {
     result.versionText = base.versionText
@@ -35,7 +46,7 @@ function malformed(spec: RefIdSpec, input: string, failedPart: string, base: Par
   return result
 }
 
-type Decomposed<T> = { ok: true; value: T } | { ok: false; part: string }
+type Decomposed<T> = { ok: true; value: T } | { ok: false; part: string; keyFromInput?: true }
 
 /** Splits `key=value` segments with the given pair grammar; a repeated key is malformed at that key. */
 function decomposePairs(spec: RefIdSpec, grammar: RegExp, segments: string[], failedPart: string): Decomposed<Pair[]> {
@@ -48,7 +59,7 @@ function decomposePairs(spec: RefIdSpec, grammar: RegExp, segments: string[], fa
     }
     const key = match.groups.key ?? ""
     if (seen.has(key)) {
-      return { ok: false, part: key }
+      return { ok: false, part: key, keyFromInput: true }
     }
     seen.add(key)
     pairs.push([key, match.groups.value ?? ""])
@@ -145,7 +156,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   if (state !== undefined) {
     const decomposed = decomposeState(spec, state)
     if (!decomposed.ok) {
-      return malformed(spec, input, decomposed.part, head)
+      return malformed(spec, input, decomposed.part, head, decomposed.keyFromInput)
     }
     qualifiers = decomposed.value
   }
@@ -155,7 +166,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   if (fragmentRaw !== undefined) {
     const decomposed = decomposeFragment(spec, fragmentRaw)
     if (!decomposed.ok) {
-      return malformed(spec, input, decomposed.part, head)
+      return malformed(spec, input, decomposed.part, head, decomposed.keyFromInput)
     }
     fragment = decomposed.value
   }

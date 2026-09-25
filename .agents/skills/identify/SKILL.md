@@ -36,14 +36,19 @@ cut is a word. Descending a level pushes the previous one into the locator, so a
 exactly one cut, and **choosing where to cut is choosing what is being named**:
 
 ```text
-ref:folder:acme-tools#docs/guide.md                 ← the item is the corpus, the cut is a file
+ref:folder:acme-tools/docs#guide.md                 ← the item is the directory, the cut is a file
 ref:folder:acme-tools/docs/guide.md#Setup           ← the item is the file, the cut is a heading
 ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20   ← a refinement narrows within the cut
 ```
 
-All three are correct; they name three different things. What is *not* correct is skipping a level —
-cutting at the corpus and hanging a heading on it, which is what produces one identifier for every
-`## Overview` in the tree, and leaves `state=` with nowhere to go but the corpus it is not about.
+All three are correct; they name three different things. What is *not* correct is skipping a level. A
+path in the fragment is one: `ref:folder:acme-tools#docs/guide.md` cuts from the corpus through a
+directory to a file, and gives the file a second spelling beside `acme-tools/docs#guide.md` that
+`sameIdentifier` reports as different. Cutting at the corpus and hanging a heading on it is the other —
+it produces one identifier for every `## Overview` in the tree, and leaves `state=` with nowhere to go
+but the corpus it is not about. **The fragment is the leaf; the locator carries the path down to its
+parent.** No parser enforces it, because the fragment's grammar is the minting side's (see the reference's
+*Fragment grammars*), so `mint` is where it holds.
 
 **A path in the locator is scope, not location.** The scope of a heading in a Markdown file *is* that
 file — unlike a code symbol, whose language gives it a qualified name and whose fragment grammar
@@ -87,6 +92,23 @@ path, each refinement and each qualifier must be declared identically once the g
 at all (`comparison.covers.rule` in `spec/ref-id.json`). A partial identifier is therefore a query only over what sits in the
 locator — decide here whether the value being placed needs that kind of partial match, or whether an exact
 qualifier is enough.
+
+**Not every discriminator can be both searchable and well placed, and the locator's own pattern decides
+which.** Read `dispatch.<type>.pattern` before choosing. An `unknown` locator admits exactly one `:`, the
+one that closes the species, and one `@`, trailing the last segment as its version:
+
+```text
+acme:delivery/probe        ok
+acme:delivery/probe@2      ok      ← the version tail
+acme:delivery/pro:be       refused ← a second ':'
+acme:delivery/pro@be/x     refused ← '@' before the last segment
+acme:delivery/a@1/b@2      refused ← two '@'
+```
+
+A composed label such as `custom:some-gate:tool@1.2.3` therefore fits only in the fragment, where `covers`
+compares by equality. That is a real loss of search, and the answer is not to reshape the label so it slips
+past the pattern: a permissive locator is how a type stops discriminating. Name the loss where the
+identifier is minted, or split the label so its searchable half sits in the locator.
 
 **Nesting is one level deep, and a nested identifier is a bare pointer.** A `ref:` value placed inside a
 qualifier — `by=`, `over=` — is compared by descending into it, but only one level: a nested value that

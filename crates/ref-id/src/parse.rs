@@ -18,6 +18,8 @@ use std::collections::HashSet;
 enum Decomposed<T> {
     Ok(T),
     Failed(String),
+    /// A key the identifier repeats: named verbatim, since an undeclared key is still carried through.
+    Repeated(String),
 }
 
 struct Parser<'a> {
@@ -27,6 +29,13 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn malformed(&self, input: &str, part: &str, head: Option<&ParseResult>) -> Result<ParseResult, RefIdError> {
+        let part = self.spec.part(part)?;
+        self.malformed_at(input, part, head)
+    }
+
+    /// Malformed at a key the identifier itself carries — reported verbatim, not checked against the
+    /// vocabulary this crate names, because an undeclared key is carried through by policy.
+    fn malformed_at(&self, input: &str, part: String, head: Option<&ParseResult>) -> Result<ParseResult, RefIdError> {
         let mut result = head.cloned().unwrap_or(ParseResult {
             input: String::new(),
             status: String::new(),
@@ -47,7 +56,7 @@ impl<'a> Parser<'a> {
         result.delegated = None;
         result.canonical = None;
         result.nested = None;
-        result.part = Some(self.spec.part(part)?);
+        result.part = Some(part);
         Ok(result)
     }
 
@@ -59,7 +68,7 @@ impl<'a> Parser<'a> {
             let Some(captures) = regex.captures(segment) else { return Decomposed::Failed(failed_part.to_string()) };
             let key = captures.name("key").map(|m| m.as_str()).unwrap_or("").to_string();
             if !seen.insert(key.clone()) {
-                return Decomposed::Failed(key);
+                return Decomposed::Repeated(key);
             }
             out.push(Pair::new(key, captures.name("value").map(|m| m.as_str()).unwrap_or("")));
         }
@@ -79,6 +88,7 @@ impl<'a> Parser<'a> {
         }
         match self.pairs(&self.grammar.fragment_pair, &segments[1..], "fragment") {
             Decomposed::Failed(part) => Decomposed::Failed(part),
+            Decomposed::Repeated(key) => Decomposed::Repeated(key),
             Decomposed::Ok(refinements) => Decomposed::Ok(Fragment { path: path.to_string(), refinements }),
         }
     }
@@ -145,12 +155,14 @@ impl<'a> Parser<'a> {
         if let Some(state) = group("state") {
             match self.state(&state) {
                 Decomposed::Failed(part) => return self.malformed(input, &part, Some(&head)),
+                Decomposed::Repeated(key) => return self.malformed_at(input, key, Some(&head)),
                 Decomposed::Ok(qualifiers) => head.qualifiers = qualifiers,
             }
         }
         if let Some(fragment) = group("fragment") {
             match self.fragment(&fragment) {
                 Decomposed::Failed(part) => return self.malformed(input, &part, Some(&head)),
+                Decomposed::Repeated(key) => return self.malformed_at(input, key, Some(&head)),
                 Decomposed::Ok(fragment) => head.fragment = Some(fragment),
             }
         }

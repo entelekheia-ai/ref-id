@@ -32,6 +32,7 @@ jobs:
           npm run build
           npm test
           npm run test:grammar
+          npm run test:readme-refs
           cargo test --quiet
       - uses: changesets/action@v1
         id: changesets
@@ -50,12 +51,28 @@ jobs:
       # exists yet. Derived here rather than read from the action's `published` output, which is parsed
       # from the `New tag:` lines that --no-git-tag suppresses. Idempotent: a rerun after a partial
       # release finishes the missing half and a run with nothing to release does nothing.
+      #
+      # Only a run with no pending changesets can have released, and only there is the working tree the
+      # pushed commit: with changesets pending the action leaves the version branch checked out, one
+      # version ahead, so a version read from disk names a release nobody made and a crate published from
+      # it would ship unreleased code. Hence the `hasChangesets` guard and the version read from
+      # $GITHUB_SHA rather than from the tree.
+      #
+      # The npm registry does not read its own writes at once: 0.4.0 was published at 01:27:51 and
+      # `npm view` in the same second returned nothing, so this step concluded that nothing was released
+      # and the crate and the tag were never made. The version is polled for up to three minutes before
+      # the answer is taken as "not on npm".
       - name: did this run release?
         id: released
+        if: steps.changesets.outputs.hasChangesets == 'false'
         run: |
-          VERSION=$(node -p "require('./packages/ref-id/package.json').version")
+          VERSION=$(git show "$GITHUB_SHA:packages/ref-id/package.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          on_npm=$([ "$(npm view "@entelekheia/ref-id@$VERSION" version 2>/dev/null)" = "$VERSION" ] && echo yes || echo no)
+          on_npm=no
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if [ "$(npm view "@entelekheia/ref-id@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then on_npm=yes; break; fi
+            echo "npm does not list $VERSION yet (attempt $attempt)"; sleep 15
+          done
           tagged=$([ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ] && echo yes || echo no)
           crated=$(curl -s -o /dev/null -w '%{http_code}' -A 'entelekheia-ref-id release workflow (github actions)' "https://crates.io/api/v1/crates/ref-id/$VERSION")
           echo "npm=$on_npm tag=$tagged crates.io=$crated"

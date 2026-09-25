@@ -1,5 +1,5 @@
 {
- "specVersion": "1.3.0",
+ "specVersion": "1.4.0",
  "scheme": "ref",
  "grammar": {
   "dialect": "ecmascript-2018",
@@ -395,7 +395,7 @@
   "openrpc": "1.3.2",
   "info": {
    "title": "ref: identifier operations",
-   "version": "1.3.0",
+   "version": "1.4.0",
    "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, x-extensions lists what a language exposes beyond this surface; x-error-type names the one error type every language raises, whose kinds are components.errors; x-argument-labels on a method means Swift uses its parameter names as argument labels, where every other method takes unlabelled arguments; x-deprecated-aliases lists, per language, an earlier name a method is still exposed under for one minor release, spelled as that language spells it (with Swift argument labels); x-kind \"directory\" on a string schema means a filesystem path, which each language takes as its own path type; x-result-cached means the result is one shared instance for the process, which Rust returns as a 'static reference."
   },
   "x-casing": {
@@ -1240,18 +1240,18 @@
     }
    },
    {
-    "name": "folder corpus with declared name",
-    "input": "ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health",
+    "name": "a folder cuts to the file one level below the directory its locator names",
+    "input": "ref:folder:acme-governance/learnings#a-chunk-carrying-no-answer-means-death-or-health",
     "expect": {
      "status": "ok",
      "version": 1,
      "qualifiers": [],
      "fragment": {
-      "path": "learnings/a-chunk-carrying-no-answer-means-death-or-health",
+      "path": "a-chunk-carrying-no-answer-means-death-or-health",
       "refinements": []
      },
      "type": "folder",
-     "locator": "acme-governance"
+     "locator": "acme-governance/learnings"
     }
    },
    {
@@ -1719,6 +1719,22 @@
     "expect": {
      "status": "malformed",
      "part": "lines"
+    }
+   },
+   {
+    "name": "a repeated qualifier key the spec does not declare is malformed at that key, not an error",
+    "input": "ref:ai-model:anthropic/claude-opus-5-5;effort=low;effort=medium",
+    "expect": {
+     "status": "malformed",
+     "part": "effort"
+    }
+   },
+   {
+    "name": "a repeated refinement key the spec does not declare is malformed at that key, not an error",
+    "input": "ref:folder:acme-tools#AGENTS.md;col=1;col=2",
+    "expect": {
+     "status": "malformed",
+     "part": "col"
     }
    },
    {

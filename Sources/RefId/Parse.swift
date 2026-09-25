@@ -11,6 +11,8 @@ import Foundation
 private enum Decomposed<T> {
     case ok(T)
     case failed(part: String)
+    /// A key the identifier repeats: named verbatim, since an undeclared key is still carried through.
+    case repeated(key: String)
 }
 
 private struct Parser {
@@ -18,13 +20,19 @@ private struct Parser {
     let grammar: Grammar
 
     func malformed(_ input: String, _ failedPart: String, _ head: ParseResult?) throws -> ParseResult {
+        try malformed(input, at: try spec.part(failedPart), head)
+    }
+
+    /// Malformed at a key the identifier itself carries — reported verbatim, not checked against the
+    /// vocabulary this package names, because an undeclared key is carried through by policy.
+    func malformed(_ input: String, at part: String, _ head: ParseResult?) throws -> ParseResult {
         var result = head ?? ParseResult(input: input, status: "", version: spec.int("version", "default"), explicitVersion: false, type: "", locator: "", qualifiers: [], fragment: nil)
         result.input = input
         result.status = try spec.status("malformed")
         result.delegated = nil
         result.canonical = nil
         result.nested = nil
-        result.part = try spec.part(failedPart)
+        result.part = part
         return result
     }
 
@@ -39,7 +47,7 @@ private struct Parser {
         var seen = Set<String>()
         for segment in segments {
             guard let match = try? regex.wholeMatch(in: segment), let key = group(match, "key") else { return .failed(part: failedPart) }
-            if seen.contains(key) { return .failed(part: key) }
+            if seen.contains(key) { return .repeated(key: key) }
             seen.insert(key)
             out.append(Pair(key, group(match, "value") ?? ""))
         }
@@ -56,6 +64,7 @@ private struct Parser {
         if path.isEmpty { return .failed(part: "fragment") }
         switch pairs(grammar.fragmentPair, Array(segments.dropFirst()), "fragment") {
         case .failed(let part): return .failed(part: part)
+        case .repeated(let key): return .repeated(key: key)
         case .ok(let refinements): return .ok(Fragment(path: path, refinements: refinements))
         }
     }
@@ -98,12 +107,14 @@ private struct Parser {
         if let stateRaw {
             switch state(stateRaw) {
             case .failed(let part): return try malformed(input, part, head)
+            case .repeated(let key): return try malformed(input, at: key, head)
             case .ok(let qualifiers): head.qualifiers = qualifiers
             }
         }
         if let fragmentRaw {
             switch fragment(fragmentRaw) {
             case .failed(let part): return try malformed(input, part, head)
+            case .repeated(let key): return try malformed(input, at: key, head)
             case .ok(let fragment): head.fragment = fragment
             }
         }

@@ -26,9 +26,17 @@ fn nesting_form<'a>(spec: &'a Spec, key: &str) -> Option<&'a Value> {
 
 fn refuse(spec: &Spec, part: &str, why: &str) -> RefIdError {
     match spec.part(part) {
-        Ok(part) => RefIdError::Build { part, message: format!("cannot build: {why}") },
+        Ok(part) => refuse_at(part, why),
         Err(e) => e,
     }
+}
+
+/// The message names the refused part, so a caller reads what to change instead of guessing and retrying.
+/// A part `parse` already reported is used verbatim: it may be a key the identifier carries and the spec
+/// never declared, which `spec.part()` would mistake for this crate naming a part its spec lacks.
+fn refuse_at(part: String, why: &str) -> RefIdError {
+    let message = format!("cannot build: {why} — refused at the {part}");
+    RefIdError::Build { part, message }
 }
 
 /// Builds a `ref:` identifier string.
@@ -112,7 +120,11 @@ pub fn build(parts: &BuildParts) -> Result<String, RefIdError> {
     }
     let check = parse(&out)?;
     if check.status == spec.status("malformed")? {
-        return Err(refuse(spec, check.part.as_deref().unwrap_or("grammar"), "the assembled string is malformed"));
+        let refused = match check.part {
+            Some(part) => part,
+            None => spec.part("grammar")?,
+        };
+        return Err(refuse_at(refused, "the assembled string is malformed"));
     }
     if check.explicit_version || check.r#type != parts.r#type {
         return Err(refuse(spec, "type", "the type re-split into other parts"));

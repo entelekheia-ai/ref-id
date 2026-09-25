@@ -20,7 +20,7 @@ ref:[<version>:]<type>:<locator>[;<qualifier>=<value>]*[#<declared-name-path>[;<
 ```text
 ref:pkg:npm/@acme/scanner-core@0.1.0#Observation
 ref:pkg:npm/@acme/scanner-trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented
-ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health
+ref:folder:acme-governance/learnings#a-chunk-carrying-no-answer-means-death-or-health
 ref:folder:acme-governance;state=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
@@ -131,6 +131,15 @@ with the same decomposition. What it changes is which **pairs** of identifiers w
 `;a=1;b=2` and `;b=2;a=1` it reports two, where a 1.3.0 reader reports one. A consumer that only parses
 needs nothing; one that compares, dedupes or indexes identifiers is the one that upgrades.
 
+**1.4.0 is the version the registry should have moved at, and did not.** Everything from `url`, `unknown`,
+`tel`, `isbn` and `gtin` joining the dispatch — with `domain` and `dot-agent` retired — through the path
+moving into the `folder` and `pkg` locators, `relate`, and the `ai-model` locator opening on its provider,
+shipped in `@entelekheia/ref-id` 0.4.0 and 0.5.0 under a document that still called itself 1.3.0. Two
+releases therefore embedded two different registries with one `specVersion`, and a consumer pinning it
+could not tell them apart. 1.4.0 names that state, and adds that a repeated key the spec does not declare
+is `malformed` at the key rather than an error. A reader that pins `specVersion` and compares identifiers
+of those types must treat 1.3.0 as ambiguous and read the package version beside it.
+
 ## Parse statuses
 
 Quoted verbatim from `statuses`:
@@ -203,7 +212,7 @@ When the status is `malformed`, the reported part is one of:
 | `folder` | a declared corpus name, then one segment per directory down to the file | `^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)*$` | the file is not one a package manager ships, so no release contains it: `ref:folder:acme-tools/docs/guide.md#Setup`. A clean install of the package would not hold this file, and a `pkg` identifier for it would resolve to nothing |
 | `url` | `host(/segment)*(@version)?` — a host under the owner's control, then each path segment a name the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; a segment admits every character except `/`, `@`, `;`, `#` and `:` — the colon is excluded so an identifier spelled in another format's own convention (a version after a colon, a digest after a tilde) is refused rather than absorbed silently, with the version and digest inert inside a name; `~` is admitted alone, because a digest never appears without the colon that precedes it; an optional `@version` on the last segment | the thing exists *as* a host — a site, a portfolio, a case published under it: `ref:url:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
 | `email` | an addr-spec as the first segment, then one segment per item served under it | RFC 5322 dot-atom local part on the first segment only, host as above | a mailbox identifies a person or a role, and the items served under it are declared by whoever serves them — a message by its RFC 5322 Message-ID, a thread by the id its provider minted: `ref:email:someone@mail.example/CADx9v7abc123@mail.gmail.com#Assunto`. The addr-spec is the first segment and nothing else, so an item id carrying an `@` is never mistaken for the mailbox. A Message-ID is written without the angle brackets the RFC surrounds it with, which is the form a mail API hands over |
-| `unknown` | a deferred species, `species:name(@version)?` | a declared-name pattern, deliberately permissive | an authority this registry does not cover, named precisely instead of opaquely: `ref:unknown:doi:10.1000/182`, `ref:unknown:orcid:0000-0002-1825-0097`. Promoting the species to a type of its own later leaves the written identifier unchanged and moves only its status, from `uncovered` to `ok` |
+| `unknown` | a deferred species, `species:name(@version)?` | a declared-name pattern, permissive in its characters and strict in its shape: exactly one `:`, the one closing the species, and one `@`, trailing the last segment — so `acme:delivery/pro:be` and `acme:delivery/pro@be/x` are refused, and a composed label carrying either fits only in the fragment, where `covers` compares by equality | an authority this registry does not cover, named precisely instead of opaquely: `ref:unknown:doi:10.1000/182`, `ref:unknown:orcid:0000-0002-1825-0097`. Promoting the species to a type of its own later leaves the written identifier unchanged and moves only its status, from `uncovered` to `ok` |
 | `tel` | a global number, `+` and up to 15 digits | ITU-T E.164, written as RFC 3966's `global-number-digits` — the leading `+` is required, so one number has one spelling | a telephone number: `ref:tel:+15551234567`. A visually separated spelling is refused, not repaired |
 | `isbn` | 10 or 13 digits, no hyphens | ISO 2108, pattern and check digit | a book number: `ref:isbn:9780306406157`. A 13-digit ISBN is also a GTIN-13 under the 978/979 prefixes; the two types overlap there deliberately and diverge at the 10-digit form |
 | `gtin` | 8, 12, 13 or 14 digits | GS1, pattern and the GS1 weighted-sum check digit | a trade item number, the number a retail barcode carries: `ref:gtin:00012345678905` (GTIN-8, GTIN-12/UPC-A, GTIN-13/EAN-13 and GTIN-14/ITF-14 are all admitted) |
@@ -624,7 +633,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.3.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.4.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension

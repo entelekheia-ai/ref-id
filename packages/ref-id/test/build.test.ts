@@ -26,8 +26,9 @@ for (const vector of vectors) {
     const wanted = vector.expect.error
     assert.throws(
       () => build(vector.parts),
-      (error: unknown) => error instanceof BuildError && error.part === wanted,
-      `expected BuildError at part "${wanted}"`,
+      // The message names the refused part too (#26): a caller reads it instead of guessing and retrying.
+      (error: unknown) => error instanceof BuildError && error.part === wanted && error.message.includes(wanted),
+      `expected BuildError at part "${wanted}", named in its message`,
     )
   })
 }

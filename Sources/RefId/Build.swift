@@ -18,7 +18,14 @@ func nestingForm(_ spec: Spec, key: String) -> [String: Any]? {
 }
 
 private func refuse(_ spec: Spec, _ part: String, _ why: String) throws -> Never {
-    throw RefIdError.build(part: try spec.part(part), message: "cannot build: " + why)
+    try refuse(at: try spec.part(part), why)
+}
+
+/// The message names the refused part, so a caller reads what to change instead of guessing and retrying.
+/// A part `parse` already reported is used verbatim: it may be a key the identifier carries and the spec
+/// never declared, which `spec.part()` would mistake for this package naming a part its spec lacks.
+private func refuse(at part: String, _ why: String) throws -> Never {
+    throw RefIdError.build(part: part, message: "cannot build: \(why) — refused at the \(part)")
 }
 
 /// Builds a `ref:` identifier string. `parts.location` is ignored — it never reaches the identity.
@@ -91,7 +98,7 @@ public func build(_ parts: BuildParts) throws -> String {
     }
     let check = try parse(out)
     if check.status == (try spec.status("malformed")) {
-        try refuse(spec, check.part ?? "grammar", "the assembled string is malformed")
+        try refuse(at: try check.part ?? spec.part("grammar"), "the assembled string is malformed")
     }
     if check.explicitVersion || check.type != parts.type {
         try refuse(spec, "type", "the type re-split into other parts")
