@@ -208,7 +208,7 @@ criteria exits `0`.
   because the grammar admits a tab in a locator. The differential compares every field of every pair
   against the reference row and fails on the first disagreement. Acceptance: zero disagreements, and the
   pass shown to fail on a planted divergence.
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
   issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
   track list that is otherwise complete but has this box open is not finished.
 
@@ -389,7 +389,49 @@ and the pair pass of the differential holds the four builds to one answer on it.
 
 ## Outcomes & Retrospective
 
-*Not yet — nothing has shipped.*
+Against the goals, one by one:
+
+- **`covers` descends into a nested identifier — met.** A nested `ref:` on both sides is compared with
+  `covers` on the decoded pair; a digest, a timestamp, text, a nested identifier facing a digest and a
+  nested pair at a refused scheme version stay byte for byte. Bound by nine `comparison` vectors.
+- **`samePackage` descends the same way — met**, on the same vectors.
+- **`relate` with `covers`, `coveredBy` and `samePackage` as its reductions — met.** 19 `relate` vectors;
+  `npm run test:relate` checks from the specification alone that their booleans follow from their results
+  and agree with the `comparison` group on the 11 pairs both hold. Rust computes `covers` and
+  `samePackage` as reductions of `relate`; TypeScript and Swift compute them directly, and the differential
+  holds the two approaches to one answer.
+- **A vector group binds every rule — met, and the goal was too narrow.** Every rule is bound, and every
+  suite passed — while the three implementations disagreed on two answers no vector named
+  (`sameIdentifier` on an unsupported scheme version; Swift comparing Unicode text by canonical
+  equivalence). An adversarial review found them by building 3025 pairs. The goal as written was satisfied
+  and insufficient; Track 5 (the differential's pair pass) is what closed the gap, and binding the last
+  unvectored Swift sites then surfaced a third divergence, in the canonical purl subpath.
+- **`main` never holds a specification an implementation cannot run — met.** All tracks landed on one
+  branch and merge together through #21.
+- **The public surface is declared and held, in both directions — met.** `openRPC` declares 13 methods
+  and 14 value types; each suite reads its surface from its compiler and `npm run test:surface` finds
+  undeclared public functions and missing aliases. Names now differ only by casing.
+
+**The success criteria** were run in full on the final branch: `tsc` clean, TypeScript 279/279, the
+grammar runners 129/129, `test:relate` and `test:openrpc` clean, Rust 15/15, Swift 937/937,
+`test:surface` with nothing missing, undeclared or unreadable, the differential at 197 inputs and 38809
+pairs × 4 implementations with no disagreement, and the governance gate at 58 checks, 0 failed. The first
+version of the criteria **overclaimed**: it said a `comparison` vector made the differential prove a pair,
+when the differential compared parse output only. The criterion was wrong in the optimistic direction, and
+Track 5 made it true.
+
+**Beyond the plan.** The scope grew in three places, each recorded in the Decision Log: Track 4 (the
+declared surface) was added mid-plan; identity became presence rather than spelling (refinement order, a
+nested identifier's own canonical form, the default version); and Track 5 was pulled before the merge
+instead of left as follow-up work. The nested-identifier guidance (`docs/reference`, "What an identifier
+carries") and ADR-0005's correction to it landed on the same branch.
+
+**Still open, inherited by later work:** the `unknown` locator's character limits and a `BuildError`
+message that omits the part (#16, item 2 — items 1 and 3 are now in the `identify` skill's Step 1 and the
+reference); the type-level names the surface checks do not
+compare across languages (`NestedQualifierValue` in TypeScript against `QualifierValue`); three older
+TypeScript test files that have never been type-checked; and whether the nested-identifier guidance
+becomes a grammar rule, decided on how the guidance holds up in use.
 
 ---
 
