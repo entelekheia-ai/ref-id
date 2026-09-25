@@ -2788,6 +2788,19 @@
      "locator": "npm/x@1.0.0?os=linux&arch=amd64",
      "canonical": "pkg:npm/x@1.0.0?arch=amd64&os=linux"
     }
+   },
+   {
+    "name": "a combining mark after / in a pkg subpath stays in the subpath — segments split on the byte /",
+    "input": "ref:pkg:npm/x@1.0.0/a/\u0301b",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "pkg",
+     "locator": "npm/x@1.0.0/a/\u0301b",
+     "canonical": "pkg:npm/x@1.0.0#a/%CC%81b"
+    }
    }
   ],
   "canonical": [
@@ -3245,6 +3258,14 @@
      ]
     },
     "expect": "admissible"
+   },
+   {
+    "name": "an envelope written under one Unicode spelling is not admissible under the other",
+    "requestedId": "ref:zzz:caf\u00e9",
+    "envelope": {
+     "id": "ref:zzz:cafe\u0301"
+    },
+    "expect": "refused"
    }
   ],
   "comparison": [

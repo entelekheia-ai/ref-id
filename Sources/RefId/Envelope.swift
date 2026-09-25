@@ -15,7 +15,7 @@ public func validateEnvelope(requestedId: String, envelope: Any?) throws -> Enve
     }
     // Byte for byte, never Swift's default `String ==` (Unicode canonical equivalence) — the same rule
     // `identifierEquivalence.comparison` states for comparing two identifiers.
-    guard let id = record[selfReference] as? String, id.utf8.elementsEqual(requestedId.utf8) else {
+    guard let id = record[selfReference] as? String, id.equalsBytes(requestedId) else {
         return EnvelopeResult(admissible: false, reason: "envelope.\(selfReference) does not match the requested identifier")
     }
 
