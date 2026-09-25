@@ -176,5 +176,5 @@ changed in response (commits `a4fe3c0`, `757e720`), and the crate fails the new 
 
 ## Closure
 
-- [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually
+- [x] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually
       runs; a dossier that looks otherwise finished but has this box open is not done.
