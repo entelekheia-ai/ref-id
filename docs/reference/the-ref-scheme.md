@@ -20,7 +20,7 @@ ref:[<version>:]<type>:<locator>[;<qualifier>=<value>]*[#<declared-name-path>[;<
 ```text
 ref:pkg:npm/@acme/scanner-core@0.1.0#Observation
 ref:pkg:npm/@acme/scanner-trait-citation-fidelity@0.0.1#citation-fidelity@1/not-invented
-ref:folder:acme-governance#learnings/a-chunk-carrying-no-answer-means-death-or-health
+ref:folder:acme-governance/learnings#a-chunk-carrying-no-answer-means-death-or-health
 ref:folder:acme-governance;state=swh:1:rev:7e29bb6000000000000000000000000000000000;by=sha256:41b9caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
@@ -130,6 +130,15 @@ with the same decomposition. What it changes is which **pairs** of identifiers w
 1.2.0 reader is not wrong about any single identifier and is wrong about some comparisons: handed
 `;a=1;b=2` and `;b=2;a=1` it reports two, where a 1.3.0 reader reports one. A consumer that only parses
 needs nothing; one that compares, dedupes or indexes identifiers is the one that upgrades.
+
+**1.4.0 is the version the registry should have moved at, and did not.** Everything from `url`, `unknown`,
+`tel`, `isbn` and `gtin` joining the dispatch — with `domain` and `dot-agent` retired — through the path
+moving into the `folder` and `pkg` locators, `relate`, and the `ai-model` locator opening on its provider,
+shipped in `@entelekheia/ref-id` 0.4.0 and 0.5.0 under a document that still called itself 1.3.0. Two
+releases therefore embedded two different registries with one `specVersion`, and a consumer pinning it
+could not tell them apart. 1.4.0 names that state, and adds that a repeated key the spec does not declare
+is `malformed` at the key rather than an error. A reader that pins `specVersion` and compares identifiers
+of those types must treat 1.3.0 as ambiguous and read the package version beside it.
 
 ## Parse statuses
 
@@ -624,7 +633,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.3.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.4.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension

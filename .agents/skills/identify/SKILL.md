@@ -36,14 +36,19 @@ cut is a word. Descending a level pushes the previous one into the locator, so a
 exactly one cut, and **choosing where to cut is choosing what is being named**:
 
 ```text
-ref:folder:acme-tools#docs/guide.md                 ← the item is the corpus, the cut is a file
+ref:folder:acme-tools/docs#guide.md                 ← the item is the directory, the cut is a file
 ref:folder:acme-tools/docs/guide.md#Setup           ← the item is the file, the cut is a heading
 ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20   ← a refinement narrows within the cut
 ```
 
-All three are correct; they name three different things. What is *not* correct is skipping a level —
-cutting at the corpus and hanging a heading on it, which is what produces one identifier for every
-`## Overview` in the tree, and leaves `state=` with nowhere to go but the corpus it is not about.
+All three are correct; they name three different things. What is *not* correct is skipping a level. A
+path in the fragment is one: `ref:folder:acme-tools#docs/guide.md` cuts from the corpus through a
+directory to a file, and gives the file a second spelling beside `acme-tools/docs#guide.md` that
+`sameIdentifier` reports as different. Cutting at the corpus and hanging a heading on it is the other —
+it produces one identifier for every `## Overview` in the tree, and leaves `state=` with nowhere to go
+but the corpus it is not about. **The fragment is the leaf; the locator carries the path down to its
+parent.** No parser enforces it, because the fragment's grammar is the minting side's (see the reference's
+*Fragment grammars*), so `mint` is where it holds.
 
 **A path in the locator is scope, not location.** The scope of a heading in a Markdown file *is* that
 file — unlike a code symbol, whose language gives it a qualified name and whose fragment grammar
