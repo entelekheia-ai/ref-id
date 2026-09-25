@@ -14,7 +14,7 @@
 import { decodeReserved, tableFor } from "./encoding.ts"
 import { fragmentPairGrammar, pattern, schemePrefix, statePairGrammar, topLevelGrammar } from "./grammar.ts"
 import { loadSpec, part, status, type RefIdSpec } from "./spec.ts"
-import type { Pair, ParsedFragment, ParseResult } from "./types.ts"
+import type { Fragment, Pair, ParseResult } from "./types.ts"
 import { assertImplemented, delegatedString, rangeHolds, validateLocator } from "./validators.ts"
 
 function malformed(spec: RefIdSpec, input: string, failedPart: string, base: Partial<ParseResult>): ParseResult {
@@ -60,7 +60,7 @@ function decomposeState(spec: RefIdSpec, raw: string): Decomposed<Pair[]> {
   return decomposePairs(spec, statePairGrammar(spec), raw.split(spec.grammar.state.separator), "state")
 }
 
-function decomposeFragment(spec: RefIdSpec, raw: string): Decomposed<ParsedFragment> {
+function decomposeFragment(spec: RefIdSpec, raw: string): Decomposed<Fragment> {
   const segments = raw.split(spec.grammar.fragment.separator)
   const path = segments[0] ?? ""
   if (path === "") {
@@ -151,7 +151,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   }
   head.qualifiers = qualifiers
 
-  let fragment: ParsedFragment | null = null
+  let fragment: Fragment | null = null
   if (fragmentRaw !== undefined) {
     const decomposed = decomposeFragment(spec, fragmentRaw)
     if (!decomposed.ok) {

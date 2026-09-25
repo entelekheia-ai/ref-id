@@ -66,21 +66,27 @@ is expected and is checked against the same vectors, never against this code.
 - **Each suite proves its own implementation; only the differential proves they agree with each other.**
   `npm run test:differential` runs **four implementations** — the Node build, the browser build, Rust and
   Swift — over every input the specification names, drawn from the
-  vector groups themselves, so the corpus grows with the spec, and fails on the first disagreement. The
+  vector groups themselves, so the corpus grows with the spec, and then over **every ordered pair** of
+  that corpus for `covers`, `samePackage`, `sameIdentifier` and `relate`; it fails on the first
+  disagreement. The pair pass exists because parse agreeing everywhere did not make comparison agree: two
+  divergences no vector named were found only by building pairs. The
   browser build is a row there rather than a suite of its own, because the failure it can reintroduce is
   the one this harness exists for, one build apart instead of one language apart. All
   four speak one line protocol (`packages/ref-id/parse-lines.ts`, with `--browser` selecting the browser
   entry, `cargo run --example parse_lines`,
-  `swift run ref-id-conformance --parse`), and all are run the same way for a reason: calling the
+  `swift run ref-id-conformance --parse`, each with a `--pairs` mode), and all are run the same way for a reason: calling the
   reference in-process would judge it by a path the ports never take. It runs in CI on the macOS runner,
   the only job where the three can coexist. A field no vector constrains can otherwise be decided three
   ways with every suite green, which is what happened to Package URL canonicalisation.
-- **The three agree on every answer and not yet on every name.** The public surfaces are not at parity —
-  `sameIdentifier` exists only in TypeScript — and nothing verifies that they should be, because the
-  specification declares no surface: it has no `operations`, `api` or `exports` key. The seven vector
-  groups are seven operations and every runner asserts it executes all of them, which is half the
-  mechanism; the half that is missing is a declared mapping from operation to group, so an operation with
-  no group of its own cannot go missing quietly.
+- **The public surface is declared in the specification, and each implementation is held to it.**
+  `spec/ref-id.json`'s `openRPC` key is one OpenRPC document: every operation (`x-vectors` names its
+  group, `x-rule` the key stating its rule) and every value type. Each suite reads its own surface from
+  its compiler — a `tsc`-checked generated file plus runtime exports, typed function-pointer bindings in
+  `crates/ref-id/tests/surface.rs`, typed references in the Swift runner — and fails on a missing
+  operation or a moved signature; `npm run test:surface` adds the other direction, a public function
+  nobody declared. The generated files come from `scripts/gen-surface-*.mjs`, which read the
+  specification alone, and each has a `--check` staleness guard. **A new public operation is a spec edit
+  first**: declare it in `openRPC`, regenerate, and only then implement it in all three.
 
 ## Source of truth
 

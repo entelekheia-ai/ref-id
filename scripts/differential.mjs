@@ -175,4 +175,66 @@ if (reference === null) {
 
 const suffix = known > 0 ? `, ${known} known purl-validity edge${known === 1 ? "" : "s"}` : ""
 console.log(`differential: ${inputs.length} inputs × ${ports.length} implementations, ${failures} disagreement${failures === 1 ? "" : "s"}${suffix}`)
-process.exit(failures === 0 ? 0 : 1)
+
+// ---------------------------------------------------------------------------------------------------
+// The pair pass (Plan-005, Track 5).
+//
+// Parse agreeing on every input did not make the comparisons agree. An adversarial review built 3025
+// pairs and found `sameIdentifier` answering differently on an identifier at an unsupported version, and
+// Swift comparing Unicode text by canonical equivalence where the others compare bytes — every suite
+// green, because the vectors name only the pairs somebody thought of. So every ordered pair of the same
+// corpus goes through every port, and every field of every answer must match the reference row.
+//
+// Two lines per pair rather than a separator, because the grammar admits a tab inside a locator.
+
+const pairPorts = [
+  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs"]],
+  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs", "--browser"]],
+  ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--pairs"]],
+  ["swift", "swift", ["run", "-q", "ref-id-conformance", "--pairs"]],
+]
+
+const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))
+const pairLines = pairs.flatMap(([a, b]) => [a, b])
+let pairFailures = 0
+let pairReference = null
+for (const [index, [name, command, args]] of pairPorts.entries()) {
+  const isReference = index === 0
+  let rows
+  try {
+    rows = port(command, args, pairLines)
+  } catch (error) {
+    console.error(`${name} (pairs): could not run — ${error.message}`)
+    pairFailures += 1
+    if (isReference) break
+    continue
+  }
+  if (rows.length !== pairs.length) {
+    console.error(`${name} (pairs): produced ${rows.length} rows for ${pairs.length} pairs`)
+    pairFailures += 1
+    if (isReference) break
+    continue
+  }
+  if (isReference) {
+    pairReference = rows
+    continue
+  }
+  let shown = 0
+  for (const [row, [a, b]] of pairs.entries()) {
+    for (const key of ["covers", "coversReversed", "samePackage", "sameIdentifier", "relate"]) {
+      const [mine, theirs] = [JSON.stringify(pairReference[row][key]), JSON.stringify(rows[row][key])]
+      if (mine === theirs) continue
+      pairFailures += 1
+      // Every disagreement counts; the first few are printed, because one defect usually disagrees on
+      // hundreds of pairs and the log would bury the cause under its echoes.
+      if (shown < 20) console.error(`${name} (pairs): ${a}  vs  ${b}\n  ${key}: reference ${mine}, ${name} ${theirs}`)
+      shown += 1
+    }
+  }
+}
+if (pairReference === null) {
+  console.error(`${pairPorts[0][0]} is the reference for pairs and it did not run; no pair was compared`)
+  process.exit(1)
+}
+console.log(`differential: ${pairs.length} pairs × ${pairPorts.length} implementations, ${pairFailures} disagreement${pairFailures === 1 ? "" : "s"}`)
+process.exit(failures === 0 && pairFailures === 0 ? 0 : 1)

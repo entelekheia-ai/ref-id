@@ -6,10 +6,13 @@ export type Pair = [key: string, value: string]
 /** One of `spec.statuses` — the vocabulary is data, so the type is open. */
 export type ParseStatus = string
 
-export interface ParsedFragment {
+export interface Fragment {
   path: string
   refinements: Pair[]
 }
+
+/** @deprecated Use `Fragment`. Kept as an alias for one minor (Plan-005, Track 2). */
+export type ParsedFragment = Fragment
 
 export interface ParseResult {
   input: string
@@ -28,12 +31,37 @@ export interface ParseResult {
   qualifiers: Pair[]
   /** The decoded identifier behind each qualifier value that nests one. */
   nested?: Record<string, string>
-  fragment: ParsedFragment | null
+  fragment: Fragment | null
   /** On `malformed`: which part failed — one of `spec.parts`. */
   part?: string
 }
 
 export type NestedQualifierValue = { nested: string }
+
+/** An identifier as a string, or the `ParseResult` `parse()` returned for one — every operation that
+ * takes an identifier takes either, and a pair may mix them (`spec.openRPC.components.schemas.IdentifierOrParsed`). */
+export type IdentifierOrParsed = string | ParseResult
+
+/** One relation between two identifiers in one dimension of `relate()`'s result. */
+export type Relation = "equal" | "covers" | "coveredBy" | "differ"
+
+/** One qualifier's relation; carries `nested` only where both values are nested `ref:` identifiers the
+ * operation accepts, in which case `relation` is that nested result reduced by `comparison.relate.reduction`. */
+export interface QualifierRelation {
+  relation: Relation
+  nested?: RelateResult
+}
+
+/** What `relate(a, b)` returns for a pair it accepts (`comparison.relate`); `null` for a pair it refuses. */
+export interface RelateResult {
+  type: Relation
+  version: Relation
+  locatorStem: Relation
+  locatorVersion: Relation
+  fragmentPath: Relation
+  fragmentRefinements: Record<string, Relation>
+  qualifiers: Record<string, QualifierRelation>
+}
 
 export interface BuildParts {
   type: string

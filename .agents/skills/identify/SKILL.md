@@ -80,6 +80,19 @@ ref:ai-model:example-app/org/repo;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=n
 
 The grammar parses both lines `ok`. This skill writes the first shape only.
 
+**A discriminator that must stay searchable belongs in the locator, not in a qualifier or the fragment.**
+`covers` treats the two sides of the identifier differently, on purpose: the locator stem covers by a
+whole-segment prefix, so a partial locator reaches every specific one beneath it, while the declared-name
+path, each refinement and each qualifier must be declared identically once the general side declares them
+at all (`comparison.covers.rule` in `spec/ref-id.json`). A partial identifier is therefore a query only over what sits in the
+locator — decide here whether the value being placed needs that kind of partial match, or whether an exact
+qualifier is enough.
+
+**Nesting is one level deep, and a nested identifier is a bare pointer.** A `ref:` value placed inside a
+qualifier — `by=`, `over=` — is compared by descending into it, but only one level: a nested value that
+itself nests another `ref:` is malformed. This skill writes the nested identifier as a bare pointer — a
+type, a locator and at most a fragment — as the reference advises under *What an identifier carries*.
+
 **The qualifiers are chosen here, before the script runs.** `state=` freezes the content the identifier
 was read against and takes the forms `swhid`, `git`, `content-hash` or `none` — never a released version,
 which the rule above keeps in the locator. `by=` names the instrument that produced a reading, as a

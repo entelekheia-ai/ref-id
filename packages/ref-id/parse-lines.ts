@@ -18,14 +18,22 @@
 // the differential harness is what holds the two answers against each other. A suite of its own would
 // compare each build against its own expectations, which is exactly the check that stayed green while
 // the three language ports canonicalised a Package URL three different ways.
+//
+// `--pairs` (Plan-005, Track 5) switches to the second pass an adversarial review demanded: the four
+// implementations agreed on every parse and still disagreed on comparisons no vector named. stdin then
+// carries two lines per pair — `a`, then `b`, escaped the same way `--parse` escapes a line — and stdout
+// carries one canonical-JSON line per pair: `covers`, `coversReversed` (`covers(b, a)`), `samePackage`,
+// `sameIdentifier` and `relate` (the full result, or `null`). Two lines rather than one line with a
+// separator, because the grammar admits a tab inside a locator.
 
 const withCanonical = process.argv.includes("--canonical")
 const asBrowser = process.argv.includes("--browser")
+const pairsMode = process.argv.includes("--pairs")
 
 // Dynamic, because the two entry points are the thing under test and a static import would pull both
 // module graphs into this process — including the Node one, whose filesystem loader is precisely what
 // the browser build does not have.
-const { canonicalise, parse, serialise } = asBrowser
+const { canonicalise, covers, parse, relate, samePackage, sameIdentifier, serialise } = asBrowser
   ? await import("./src/index.browser.ts")
   : await import("./src/index.ts")
 
@@ -36,11 +44,34 @@ const stdin: string = await new Promise((resolve) => {
   process.stdin.on("end", () => resolve(text))
 })
 
+const unescape = (line: string): string => line.replace(/\\n/g, "\n").replace(/\\r/g, "\r")
+
 let failures = 0
 const lines = stdin.split("\n").filter((line) => line.length > 0)
 
+if (pairsMode) {
+  if (lines.length % 2 !== 0) {
+    console.error(`parse-lines --pairs: ${lines.length} lines is not an even number of lines (two per pair)`)
+    process.exit(1)
+  }
+  for (let index = 0; index < lines.length; index += 2) {
+    const a = unescape(lines[index]!)
+    const b = unescape(lines[index + 1]!)
+    console.log(
+      canonicalise({
+        covers: covers(a, b),
+        coversReversed: covers(b, a),
+        samePackage: samePackage(a, b),
+        sameIdentifier: sameIdentifier(a, b),
+        relate: relate(a, b),
+      }),
+    )
+  }
+  process.exit(0)
+}
+
 for (const line of lines) {
-  const input = line.replace(/\\n/g, "\n").replace(/\\r/g, "\r")
+  const input = unescape(line)
   let result
   try {
     result = parse(input)

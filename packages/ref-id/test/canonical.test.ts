@@ -5,8 +5,7 @@
 
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { canonical, sameIdentifier } from "../src/canonical.ts"
-import { loadSpec, SerialiseError } from "../src/index.ts"
+import { canonical, loadSpec, sameIdentifier, SerialiseError } from "../src/index.ts"
 
 interface CanonicalVector {
   name: string

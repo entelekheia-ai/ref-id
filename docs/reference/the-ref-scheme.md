@@ -96,7 +96,8 @@ Bare digits, omitted for version 1. `version.default` is `1` and `version.suppor
 version 1 is the only identifier version this document defines. Every identifier written today therefore
 carries no version prefix, and an explicit `ref:1:` **MUST** parse to the same version as its omission — it
 is spelling, not a different identifier class. A parse **MUST** report which spelling was used
-(`explicitVersion`), because the identifier round-trips as written.
+(`explicitVersion`), because the identifier round-trips as written; the canonical form omits the default
+version, so `ref:1:pkg:npm/x` and `ref:pkg:npm/x` are one identifier to `sameIdentifier`.
 
 Digits and not a letter-led token, because a `type` **MUST** begin with a lowercase letter, so a leading
 digit can only be a version. The letter-led alternative parses without error and means something else:
@@ -206,7 +207,7 @@ When the status is `malformed`, the reported part is one of:
 | `tel` | a global number, `+` and up to 15 digits | ITU-T E.164, written as RFC 3966's `global-number-digits` — the leading `+` is required, so one number has one spelling | a telephone number: `ref:tel:+15551234567`. A visually separated spelling is refused, not repaired |
 | `isbn` | 10 or 13 digits, no hyphens | ISO 2108, pattern and check digit | a book number: `ref:isbn:9780306406157`. A 13-digit ISBN is also a GTIN-13 under the 978/979 prefixes; the two types overlap there deliberately and diverge at the 10-digit form |
 | `gtin` | 8, 12, 13 or 14 digits | GS1, pattern and the GS1 weighted-sum check digit | a trade item number, the number a retail barcode carries: `ref:gtin:00012345678905` (GTIN-8, GTIN-12/UPC-A, GTIN-13/EAN-13 and GTIN-14/ITF-14 are all admitted) |
-| `ai-model` | `provider/served-id` — the provider that executes the model as the first segment, then the id the caller hands it to select the model, verbatim | provider `[a-z0-9][a-z0-9._-]*`, then each served-id segment `[A-Za-z0-9][A-Za-z0-9._:@-]*` — declared-name. The provider is an [OpenTelemetry `gen_ai.provider.name`](https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/) well-known value where one applies (`anthropic`, `aws.bedrock`, `azure.ai.inference`, `gcp.vertex_ai`, `openai`, …) and the name of the runtime that executes the model otherwise — a server (`omlx`, `ollama`, `lm-studio`) or a library linked in-process (`mlx`, `llama.cpp`), since a process boundary is not part of what executed the model; an application that embeds and configures a runtime is itself the provider, with the engine as its instrument in `by=` (`;by=ref:pkg:…@version`, or `%3Bstate=none` on the nested identifier when the linked version is unknown); lowercase and without `:` or `@`, so no served id's tag or key can open the locator. The served id is deliberately permissive: no published grammar names a hosted API model (Package URL registers only artifact-registry namespaces such as `huggingface` and `mlflow`; CycloneDX and SPDX 3.0's `AIPackage` both delegate identity to an ordinary purl or free text; OpenTelemetry's `gen_ai.request.model` is explicitly free text), and coercing a served name breaks the round-trip that makes it an identifier at all. `:` (an Ollama tag), `/` (a hub-style namespace) and `@` (a quantisation key or revision pin) are all admitted, because a real serving process accepts each of them today; every segment opens on an alphanumeric, which refuses `..` and `//` | a model, named by who serves it and exactly as they serve it: `ref:ai-model:anthropic/claude-opus-5-5`, `ref:ai-model:azure.ai.inference/claude-opus-5-5` (the same served id through another provider — a different model), `ref:ai-model:ollama/llama3:8b`, `ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit`, `ref:ai-model:llama.cpp/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf` (in-process, no server: the served id is the name the weights' source declares, never a filesystem path). One segment names the provider alone and covers every model it serves; the machine a local runtime runs on travels as a qualifier, never in the locator |
+| `ai-model` | `provider/served-id` — the provider that executes the model as the first segment, then the id the caller hands it to select the model, verbatim | provider `[a-z0-9][a-z0-9._-]*`, then each served-id segment `[A-Za-z0-9][A-Za-z0-9._:@-]*` — declared-name. The provider is an [OpenTelemetry `gen_ai.provider.name`](https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/) well-known value where one applies (`anthropic`, `aws.bedrock`, `azure.ai.inference`, `gcp.vertex_ai`, `openai`, …) and the name of the runtime that executes the model otherwise — a server (`omlx`, `ollama`, `lm-studio`) or a library linked in-process (`mlx`, `llama.cpp`), since a process boundary is not part of what executed the model; an application that embeds and configures a runtime is itself the provider, with the engine as its instrument in `by=` as a bare pointer (`;by=ref:pkg:…@version`, or the living package with no version when the linked one is unknown — the unknown is a column of the consumer's record); lowercase and without `:` or `@`, so no served id's tag or key can open the locator. The served id is deliberately permissive: no published grammar names a hosted API model (Package URL registers only artifact-registry namespaces such as `huggingface` and `mlflow`; CycloneDX and SPDX 3.0's `AIPackage` both delegate identity to an ordinary purl or free text; OpenTelemetry's `gen_ai.request.model` is explicitly free text), and coercing a served name breaks the round-trip that makes it an identifier at all. `:` (an Ollama tag), `/` (a hub-style namespace) and `@` (a quantisation key or revision pin) are all admitted, because a real serving process accepts each of them today; every segment opens on an alphanumeric, which refuses `..` and `//` | a model, named by who serves it and exactly as they serve it: `ref:ai-model:anthropic/claude-opus-5-5`, `ref:ai-model:azure.ai.inference/claude-opus-5-5` (the same served id through another provider — a different model), `ref:ai-model:ollama/llama3:8b`, `ref:ai-model:omlx/mlx-community/Qwen3-1.7B-4bit`, `ref:ai-model:llama.cpp/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf` (in-process, no server: the served id is the name the weights' source declares, never a filesystem path). One segment names the provider alone and covers every model it serves; the machine a local runtime runs on travels as a qualifier, never in the locator |
 
 **The type names the naming system that owns the locator's grammar, and this table is the registry of
 types.** A type absent from it — `ref:spotify:track/4uLU6hMCjMI75M1A2tKUQC` — parses to `uncovered`,
@@ -406,8 +407,12 @@ Three things this does **not** change:
   as opposites and are not: a qualifier list is a keyed set with no order to lose, and a digest names a
   sequence whose order is declared content.
 
-**Refinements are not qualifiers here.** They sit on the fragment side and are positional — `lines=1,20`
-names a range — so `canonical` leaves them in the order they were written.
+**Refinement order does not distinguish either.** A qualifier is a filter on what the locator names and a
+refinement a filter on what the declared name selects, and filters combine with AND, so
+`#Setup;lines=10,20;item=2` and `#Setup;item=2;lines=10,20` are one identifier and the canonical form
+sorts refinements by key as it sorts qualifiers. The order *inside* one value is content: `lines=1,20` is a
+range. A nested identifier in a qualifier value is written in its own canonical form, so the order of its
+qualifiers does not distinguish the outer identifier.
 
 ### Refinements
 
@@ -423,6 +428,52 @@ ref:folder:acme-governance;state=swh:1:cnt:3404a00f00000000000000000000000000000
 A refinement value that fails its pattern is malformed, and the failing part is the refinement key —
 `#AGENTS.md;lines=ten` reports `lines`. A `lines=` value that matches the pattern's shape but names a
 reversed range — `lines=20,10` — is malformed at `lines` too; the validator checks order as well as digits.
+
+## Comparison
+
+`comparison` in the specification defines three relations equality cannot express, all computed on the
+parsed parts and never on the bytes. An identifier with no decomposition — `malformed`, or at a scheme
+version the implementation does not support — relates to nothing, itself included.
+
+| Relation | Answers | Direction |
+|---|---|---|
+| `covers(a, b)` | whether `a` is `b` with less declared — a partial identifier used as a query | asymmetric |
+| `samePackage(a, b)` | whether both name one released thing, at whatever version each declares | symmetric |
+| `relate(a, b)` | how the two relate in each dimension | mirrored |
+
+**`covers`** requires the type and scheme version to be equal and the first locator stem to reach the
+second — equal, or a whole-segment prefix, so `acme-tools` reaches `acme-tools/docs` and never
+`acme-tools-extra`. For the locator version, the declared-name path, each refinement and each qualifier,
+what the first leaves undeclared the second may declare, and what the first declares the second must
+declare identically. **`samePackage`** compares every part identically except the locator version, which
+it ignores — and only a type whose `dispatch` entry sets `versionTail` has one.
+
+**Both descend one level into a nested identifier.** Where a qualifier's value is a nested `ref:` on both
+sides, the pair is compared with the same relation on the decoded identifiers, so
+`…;by=ref:pkg:github/ggml-org/llama.cpp` covers `…;by=ref:pkg:github/ggml-org/llama.cpp@b10931`, and two
+releases of one engine are the same package. A digest, a timestamp, plain text, a nested identifier facing
+a digest, and a nested pair at a scheme version the relation refuses are compared byte for byte.
+
+**`relate` reports where, and the other two are its reductions.** Its result has five fixed dimensions —
+`type`, `version`, `locatorStem`, `locatorVersion`, `fragmentPath` — and two keyed ones,
+`fragmentRefinements` and `qualifiers`, carrying only the keys at least one side declares. Each holds one of
+`equal`, `covers`, `coveredBy`, `differ`; a qualifier whose value is a nested identifier on both sides also
+carries `nested`, the `relate` result of the decoded pair. Every dimension is computed on its own, so two
+different types still report their locators.
+
+```text
+relate(ref:folder:acme-tools;when=2026-01-01T00:00:00Z, ref:folder:acme-tools/docs/guide.md)
+  locatorStem: covers   qualifiers.when: coveredBy   everything else: equal
+  → reduces to differ: neither covers the other
+```
+
+A result reduces to `equal` when every relation in it is `equal`, to `covers` when each is `equal` or
+`covers`, to `coveredBy` for the mirror, and to `differ` otherwise. `covers(a, b)` is a reduction to
+`equal` or `covers` with the type and version equal; `samePackage(a, b)` is every dimension `equal` apart
+from the locator version, applying `samePackage` to each `nested` result. The `relate` vector group states
+full results and the three booleans for each pair; `npm run test:relate` checks, from the specification
+alone, that those booleans follow from the results and agree with the `comparison` group wherever the
+two groups hold the same pair.
 
 ## Sets are ordered
 
@@ -588,18 +639,39 @@ covers the UTF-8 bytes of the result.
 file carrying its own digest cannot be verified without first deciding which bytes to exclude, and that
 decision is a second canonicalisation nobody would test.
 
+**The public surface is declared inside the file, as one OpenRPC document under `openRPC`.** Each method
+is one operation every implementation exposes — its canonical name, parameters, result and errors — and
+`components.schemas` holds the value types (`ParseResult`, `BuildParts`, `RelateResult`, …) in JSON Schema
+draft-07. No JSON-RPC transport is implied; the format is used because an extracted `openRPC` value is a
+document any OpenRPC tool reads. Four extensions tie it to the rest of the file:
+
+| Extension | Holds |
+|---|---|
+| `x-rule` | a JSON Pointer into the whole specification naming the key that states the method's rule, `/comparison/covers` |
+| `x-vectors` | the vector group that binds the method, or `null` beside an `x-vectors-reason` |
+| `x-casing` | how each language spells a canonical name — `covers` stays `covers`, `samePackage` becomes `same_package` in Rust |
+| `x-extensions` | what a language exposes beyond the shared surface, such as the browser build's `SPEC_DIGEST` |
+
+A `$ref` resolves against the OpenRPC document; an `x-rule` against the whole specification.
+`npm run test:openrpc` validates the value against the OpenRPC meta-schema, resolves both kinds of pointer,
+and requires every vector group to be claimed by a method. Each implementation's own suite compares its
+public surface, read from its compiler, with the methods.
+
 ## Conformance vectors
 
-Five classes. Each fixes a different property, and a port is checked against all five rather than against
-any implementation's source.
+Eight classes. Each fixes a different property, and a port is checked against all eight rather than
+against any implementation's source.
 
 | Class | Vectors | Fixes |
 |---|---|---|
-| `parse` | 41 | what each input decomposes to — status, version and whether it was written explicitly, type, the reported locator, the string delegated to its validator for a dispatched type, the decoded nested identifier of any qualifier carrying one, qualifiers in order, fragment path and refinements, and, on failure, the failing part |
-| `roundtrip` | 15 | that re-serialising a parsed identifier returns the original bytes, encoding intact — for an `uncovered` and an `unsupported` identifier as much as for an `ok` one |
-| `build` | 9 | that assembling parts yields the canonical string, including that location never enters identity and that the builder applies the nested-value encoding — and that a locator carrying a reserved character, a fragment carrying the separator, or a nested identifier passed as a plain string is refused, naming the failing part |
+| `parse` | 129 | what each input decomposes to — status, version and whether it was written explicitly, type, the reported locator, the string delegated to its validator for a dispatched type, the decoded nested identifier of any qualifier carrying one, qualifiers in order, fragment path and refinements, and, on failure, the failing part |
+| `canonical` | 13 | that the canonical form of an identifier sorts its qualifiers and its refinements by key, writes a nested qualifier value in its own canonical form, and omits the version slot when it holds the default |
+| `roundtrip` | 23 | that re-serialising a parsed identifier returns the original bytes, encoding intact — for an `uncovered` and an `unsupported` identifier as much as for an `ok` one |
+| `build` | 15 | that assembling parts yields the canonical string, including that location never enters identity and that the builder applies the nested-value encoding — and that a locator carrying a reserved character, a fragment carrying the separator, or a nested identifier passed as a plain string is refused, naming the failing part |
 | `digest` | 7 | the sequence digest: order significant, no deduplication, the empty sequence, a member carrying the join character refused |
-| `envelope` | 11 | the admissibility invariant — recompute, self-reference, a `malformed` or `unsupported` requested identifier refused while an `uncovered` one is admissible |
+| `envelope` | 12 | the admissibility invariant — recompute, self-reference, a `malformed` or `unsupported` requested identifier refused while an `uncovered` one is admissible |
+| `comparison` | 44 | `covers`, `samePackage` and `sameIdentifier` on parsed pairs, including the descent into a nested qualifier value and the vectors ADR-0005's `by=` behaviour binds |
+| `relate` | 19 | the full per-dimension `relate` result for a pair, including a nested qualifier's own `relate` result, checked to reduce to the same `covers`/`coveredBy`/`samePackage` the `comparison` group expects for the same pair |
 
 At minimum the set covers:
 

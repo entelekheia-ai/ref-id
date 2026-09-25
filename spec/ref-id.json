@@ -166,7 +166,7 @@
    "delegate": "verbatim",
    "versionTail": false,
    "pattern": "^[a-z0-9][a-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._:@-]*)*$",
-   "declaredBy": "the provider that executes the model as the first segment, then the id the caller hands that provider to select it, verbatim. The provider is an OpenTelemetry gen_ai.provider.name well-known value where one applies (anthropic, aws.bedrock, azure.ai.inference, azure.ai.openai, gcp.vertex_ai, openai, …) and the name of the runtime that executes the model otherwise — a server the caller reaches (omlx, ollama, lm-studio) or a library linked into the caller's own process (mlx, llama.cpp), because the provider answers what executed the model and a process boundary is not part of that answer; one set of weights executed by two runtimes is two models. An application that embeds a runtime and configures it is itself the provider, for the same reason; the embedded engine is its instrument, recorded as by= with a nested identifier — a versioned package where one is known, state=none on it where the linked version is not. For a runtime linked in-process the served id is the name the weights' source declares — the hub repository it loads, and for a single-file format the repository followed by the file (org/repo/file.gguf) — never a filesystem path, which names where a machine keeps the file rather than the model, and whose leading '/' opens an empty segment the pattern refuses. The served id carries no revision: the weights are a separate identity (pkg:huggingface/…@revision). The provider segment admits lowercase letters, digits, '.', '_' and '-', so every well-known value fits and no served id's ':' tag or '@' key can open the locator. A locator of one segment names the provider alone and covers every model it serves. The served id is deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant in the served id and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2. The machine a local runtime runs on is not part of the identity; it travels as a qualifier.",
+   "declaredBy": "the provider that executes the model as the first segment, then the id the caller hands that provider to select it, verbatim. The provider is an OpenTelemetry gen_ai.provider.name well-known value where one applies (anthropic, aws.bedrock, azure.ai.inference, azure.ai.openai, gcp.vertex_ai, openai, …) and the name of the runtime that executes the model otherwise — a server the caller reaches (omlx, ollama, lm-studio) or a library linked into the caller's own process (mlx, llama.cpp), because the provider answers what executed the model and a process boundary is not part of that answer; one set of weights executed by two runtimes is two models. An application that embeds a runtime and configures it is itself the provider, for the same reason; the embedded engine is its instrument, recorded as by= with a nested identifier that is a bare pointer — a versioned package where the version is known, the living package where it is not, and the unknown kept in the consumer's own record rather than in the identifier. For a runtime linked in-process the served id is the name the weights' source declares — the hub repository it loads, and for a single-file format the repository followed by the file (org/repo/file.gguf) — never a filesystem path, which names where a machine keeps the file rather than the model, and whose leading '/' opens an empty segment the pattern refuses. The served id carries no revision: the weights are a separate identity (pkg:huggingface/…@revision). The provider segment admits lowercase letters, digits, '.', '_' and '-', so every well-known value fits and no served id's ':' tag or '@' key can open the locator. A locator of one segment names the provider alone and covers every model it serves. The served id is deliberately permissive: coercing a served name breaks the round-trip that makes it an identifier at all, so ':' (an Ollama tag), '/' (a hub-style namespace) and '@' (an LM Studio quantisation key, a revision pin) are all admitted, because a serving process accepts each of them today and rejecting one would be a defect rather than a safeguard. Every '/'-separated segment must open on an alphanumeric, which admits each of those and excludes '..', '//' and a trailing '/': the delegate is verbatim, so a consumer mapping a served id onto a path — a local weights cache — would otherwise inherit a traversal from a locator that parsed clean. Case is significant in the served id and there is no normalisation, which is a decision with no way back: two callers naming one model in two casings mint two identifiers, and adding a fold later would be a change to normalisation, which mints identifier version 2. The machine a local runtime runs on is not part of the identity; it travels as a qualifier.",
    "reference": "no published grammar names a hosted API model: Package URL registers artifact-registry namespaces only (huggingface, mlflow), CycloneDX carries the category as a component type and identifies with an ordinary purl, SPDX 3.0's AIPackage identifies by free-text name and delegates to packageUrl, and OpenTelemetry's gen_ai.request.model is explicitly free text — so this type is this specification's own, not a delegation. The provider axis follows OpenTelemetry, which keeps gen_ai.provider.name apart from the model name and requires a well-known value when one applies: https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/"
   }
  },
@@ -317,9 +317,9 @@
  },
  "identifierEquivalence": {
   "qualifierOrder": "insignificant",
-  "refinementOrder": "significant",
-  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key in UTF-16 code unit order; every other part verbatim, refinements included",
-  "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte",
+  "refinementOrder": "insignificant",
+  "canonicalForm": "re-serialise the parsed identifier with its qualifiers sorted by key and its refinements sorted by key, both in UTF-16 code unit order, and with a nested identifier in a qualifier value written in its own canonical form, and with the version slot omitted when it holds the default version — ref:1: and ref: are one version, so writing it or not does not distinguish; every other part verbatim. A qualifier and a refinement are each a filter — a qualifier on what the locator names, a refinement on what the declared name selects — and filters combine with AND, so neither order distinguishes. The order inside one value does: lines=1,20 is a range",
+  "comparison": "two identifiers name one thing when their canonical forms are equal byte for byte. An identifier with no decomposition — malformed, or at a scheme version the implementation does not support — has no canonical form to compare and names nothing: it is the same identifier as nothing, itself included, and the comparison answers false rather than raising",
   "reserialisation": "SHOULD preserve the order written; MUST NOT be relied on to tell two identifiers apart",
   "note": "distinct from `canonicalisation`, which is the form of THIS FILE for its own digest"
  },
@@ -336,14 +336,35 @@
   ],
   "samePackage": {
    "symmetry": "symmetric",
-   "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an @ belongs to the format and is part of the stem. Where a version is carried, an @ that opens a segment is a namespace and an @ inside a segment closes the name — the version runs to the next /, and the path after it stays in the stem, because one file at two releases is one file.",
+   "rule": "every dimension is compared identically except the locator version, which is ignored. A locator carries a version only where its type declares `versionTail`; elsewhere an @ belongs to the format and is part of the stem. Where a version is carried, an @ that opens a segment is a namespace and an @ inside a segment closes the name — the version runs to the next /, and the path after it stays in the stem, because one file at two releases is one file. A qualifier whose value on both sides is a nested `ref:` identifier is compared with this same relation on the decoded pair, so one engine at two releases is one engine. Any other qualifier value — a digest, a timestamp, plain text, or a nested identifier on one side only — is compared identically, and so is a nested pair this relation refuses.",
    "purpose": "whether two identifiers name the same released thing at whatever version each declares. Only a type declaring `versionTail` has a version dimension at all — three of the nine do — so for every other type this relation is equality, and its name is borrowed from the type that motivated it."
   },
   "covers": {
    "symmetry": "asymmetric — the general covers the specific, and the specific does not cover the general",
-   "rule": "the type and the scheme version must be equal, and the general locator stem must reach the specific one — equal, or a whole segment prefix of it, so a corpus reaches the files under it and never a sibling whose name merely begins with the same characters. For the locator version, the fragment path, each fragment refinement and each qualifier: what the first leaves undeclared, the second may declare freely; what the first declares, the second must declare identically.",
+   "rule": "the type and the scheme version must be equal, and the general locator stem must reach the specific one — equal, or a whole segment prefix of it, so a corpus reaches the files under it and never a sibling whose name merely begins with the same characters. For the locator version, the fragment path, each fragment refinement and each qualifier: what the first leaves undeclared, the second may declare freely; what the first declares, the second must declare identically. One exception: a qualifier whose value on both sides is a nested `ref:` identifier is compared with this same relation on the decoded pair — the first's nested identifier must cover the second's. The descent is one level deep, because nesting is. Any other qualifier value — a digest, a timestamp, plain text, or a nested identifier on one side only — must be identical, and so must a nested pair this relation refuses.",
    "purpose": "a partial identifier is a query — a store keyed by identifier answers a family by asking which of its keys the partial one covers",
    "reflexive": "every identifier this relation accepts covers itself"
+  },
+  "relate": {
+   "symmetry": "mirrored — relate(b, a) is relate(a, b) with every covers and coveredBy exchanged, at every level",
+   "relations": ["equal", "covers", "coveredBy", "differ"],
+   "result": {
+    "type": "the type dimension: equal or differ",
+    "version": "the scheme version dimension: equal or differ",
+    "locatorStem": "the locator stem: equal; covers when the first is a whole-segment prefix of the second; coveredBy for the mirror; differ otherwise",
+    "locatorVersion": "the locator version: equal when both declare the same one or neither declares one; covers when only the second declares one; coveredBy for the mirror; differ when both declare different ones",
+    "fragmentPath": "the declared-name path, by the same four cases as the locator version",
+    "fragmentRefinements": "an object with one member per refinement key either side declares, each related by the same four cases",
+    "qualifiers": "an object with one member per qualifier key either side declares, each an object with a relation by the same four cases on the raw value — except where the value is a nested ref: on both sides that this operation accepts, where the member also carries nested, the relate result of the decoded pair, and its relation is that result reduced by the rule below"
+   },
+   "rule": "every dimension is computed on its own, whatever the others found — two types that differ still report their locators — and the result always carries the five fixed dimensions, while a keyed dimension carries only the keys at least one side declares. A dimension no side declares is equal. An identifier covers refuses — malformed, or at a scheme version the implementation does not support — has no parts to relate, and the result is null.",
+   "reduction": "a result reduces to one relation: equal when every relation in it is equal; covers when every one is equal or covers; coveredBy when every one is equal or coveredBy; differ otherwise. Every relation means the five fixed dimensions, each refinement, and each qualifier's relation.",
+   "reductions": {
+    "covers": "the type and version are equal, and the result reduces to equal or covers",
+    "coveredBy": "covers(b, a)",
+    "samePackage": "the type, version, locator stem, fragment path and every refinement are equal, the locator version is ignored, and each qualifier is equal — or, where it carries nested, samePackage holds on that nested result"
+   },
+   "purpose": "a boolean says whether; relate says where. A consumer that types a graph edge by how two identifiers relate reads the dimensions, and covers, coveredBy and samePackage are reductions of the same result rather than three computations that could disagree"
   }
  },
  "canonicalisation": {
@@ -369,6 +390,821 @@
   "digestForms": "every form declaring digest: true",
   "invariant": "for every qualifier whose value is a digest, sets[qualifier] exists and digest(sets[qualifier]) equals it; and id equals the identifier the envelope was requested under",
   "onFailure": "refuse at ingestion"
+ },
+ "openRPC": {
+  "openrpc": "1.3.2",
+  "info": {
+   "title": "ref: identifier operations",
+   "version": "1.3.0",
+   "description": "The operations and value types every implementation exposes, as an OpenRPC document used for description only: no JSON-RPC transport is implied. A $ref resolves against this document; an x-rule is a JSON Pointer into the whole specification naming the key that states the operation's rule; x-vectors names the vector group that binds it, or null with x-vectors-reason. Names are canonical; each language spells them by x-casing, x-extensions lists what a language exposes beyond this surface; x-error-type names the one error type every language raises, whose kinds are components.errors; x-argument-labels on a method means Swift uses its parameter names as argument labels, where every other method takes unlabelled arguments; x-deprecated-aliases lists, per language, an earlier name a method is still exposed under for one minor release, spelled as that language spells it (with Swift argument labels); x-kind \"directory\" on a string schema means a filesystem path, which each language takes as its own path type; x-result-cached means the result is one shared instance for the process, which Rust returns as a 'static reference."
+  },
+  "x-casing": {
+   "typescript": "camelCase",
+   "rust": "snake_case",
+   "swift": "camelCase"
+  },
+  "x-extensions": {
+   "typescript-browser": [
+    "SPEC_DIGEST"
+   ],
+   "rust": [
+    "embedded_spec_text"
+   ],
+   "swift": [
+    "embeddedSpecURLs",
+    "sha256Hex"
+   ]
+  },
+  "methods": [
+   {
+    "name": "parse",
+    "summary": "Decompose an identifier into its parts. An input the grammar does not decompose is a result whose status says so, never an error.",
+    "params": [
+     {
+      "name": "input",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "result": {
+     "name": "parsed",
+     "schema": {
+      "$ref": "#/components/schemas/ParseResult"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/grammar",
+    "x-vectors": "parse"
+   },
+   {
+    "name": "serialise",
+    "summary": "Write a parse result back to the bytes it was read from.",
+    "params": [
+     {
+      "name": "parsed",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/ParseResult"
+      }
+     }
+    ],
+    "result": {
+     "name": "identifier",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Serialise"
+     }
+    ],
+    "x-rule": "/identifierEquivalence/reserialisation",
+    "x-vectors": "roundtrip"
+   },
+   {
+    "name": "build",
+    "summary": "Compose an identifier from its parts, refusing parts the grammar or a validator refuses.",
+    "params": [
+     {
+      "name": "parts",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/BuildParts"
+      }
+     }
+    ],
+    "result": {
+     "name": "identifier",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Build"
+     }
+    ],
+    "x-rule": "/dispatch",
+    "x-vectors": "build"
+   },
+   {
+    "name": "canonicalIdentifier",
+    "summary": "The canonical spelling of an identifier.",
+    "params": [
+     {
+      "name": "identifier",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "canonical",
+     "schema": {
+      "$ref": "#/components/schemas/Identifier"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Serialise"
+     }
+    ],
+    "x-rule": "/identifierEquivalence/canonicalForm",
+    "x-vectors": "canonical",
+    "x-deprecated-aliases": {
+     "typescript": [
+      "canonical"
+     ]
+    }
+   },
+   {
+    "name": "sameIdentifier",
+    "summary": "Whether two identifiers name one thing: their canonical spellings are equal byte for byte.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "same",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/identifierEquivalence/comparison",
+    "x-vectors": "comparison"
+   },
+   {
+    "name": "samePackage",
+    "summary": "Whether two identifiers name one released thing, at whatever version each declares.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "same",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/comparison/samePackage",
+    "x-vectors": "comparison"
+   },
+   {
+    "name": "covers",
+    "summary": "Whether the general identifier is the specific one with less declared.",
+    "params": [
+     {
+      "name": "general",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "specific",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "covered",
+     "schema": {
+      "type": "boolean"
+     }
+    },
+    "x-rule": "/comparison/covers",
+    "x-vectors": "comparison"
+   },
+   {
+    "name": "relate",
+    "summary": "How two identifiers relate in each dimension; null for a pair that has no parts to relate.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "relation",
+     "schema": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/RelateResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "x-rule": "/comparison/relate",
+    "x-vectors": "relate"
+   },
+   {
+    "name": "digest",
+    "summary": "The digest of a sequence of identifiers, in declared order, never deduplicated.",
+    "params": [
+     {
+      "name": "members",
+      "required": true,
+      "schema": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Identifier"
+       }
+      }
+     }
+    ],
+    "result": {
+     "name": "digest",
+     "schema": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/Digest"
+     }
+    ],
+    "x-rule": "/digest",
+    "x-vectors": "digest"
+   },
+   {
+    "name": "validateEnvelope",
+    "summary": "Whether an envelope is admissible for the identifier it was requested under.",
+    "params": [
+     {
+      "name": "requestedId",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/Identifier"
+      }
+     },
+     {
+      "name": "envelope",
+      "required": true,
+      "schema": {}
+     }
+    ],
+    "result": {
+     "name": "verdict",
+     "schema": {
+      "$ref": "#/components/schemas/EnvelopeResult"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/envelope",
+    "x-vectors": "envelope",
+    "x-argument-labels": true
+   },
+   {
+    "name": "canonicalise",
+    "summary": "The canonical JSON serialisation the specification's own digest is computed over.",
+    "params": [
+     {
+      "name": "value",
+      "required": true,
+      "schema": {}
+     }
+    ],
+    "result": {
+     "name": "json",
+     "schema": {
+      "type": "string"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     }
+    ],
+    "x-rule": "/canonicalisation",
+    "x-vectors": null,
+    "x-vectors-reason": "exercised by every implementation's specification-integrity test, which recomputes the sidecar digest through it",
+    "x-deprecated-aliases": {
+     "swift": [
+      "canonicalJSON(_:)"
+     ]
+    }
+   },
+   {
+    "name": "loadSpec",
+    "summary": "The specification this implementation embeds, verified against its digest.",
+    "params": [],
+    "result": {
+     "name": "spec",
+     "schema": {
+      "$ref": "#/components/schemas/Spec"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/specVersion",
+    "x-vectors": null,
+    "x-vectors-reason": "exercised by the specification-integrity tests, which alter one byte and one version and expect the refusal",
+    "x-result-cached": true
+   },
+   {
+    "name": "loadSpecFrom",
+    "summary": "A specification read from a directory holding ref-id.json and its sidecar, verified the same way.",
+    "params": [
+     {
+      "name": "directory",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "x-kind": "directory"
+      }
+     }
+    ],
+    "result": {
+     "name": "spec",
+     "schema": {
+      "$ref": "#/components/schemas/Spec"
+     }
+    },
+    "errors": [
+     {
+      "$ref": "#/components/errors/SpecIntegrity"
+     },
+     {
+      "$ref": "#/components/errors/SpecVersion"
+     }
+    ],
+    "x-rule": "/specVersion",
+    "x-vectors": null,
+    "x-vectors-reason": "as loadSpec",
+    "x-absent-from": [
+     "typescript-browser"
+    ],
+    "x-absent-reason": "a browser has no directory to read",
+    "x-deprecated-aliases": {
+     "swift": [
+      "loadSpec(from:)"
+     ]
+    }
+   }
+  ],
+  "components": {
+   "schemas": {
+    "Identifier": {
+     "type": "string",
+     "pattern": "^ref:"
+    },
+    "Pair": {
+     "description": "A key=value pair, in input order, value verbatim.",
+     "type": "array",
+     "items": [
+      {
+       "type": "string",
+       "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      {
+       "type": "string"
+      }
+     ],
+     "additionalItems": false,
+     "minItems": 2
+    },
+    "Fragment": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "path",
+      "refinements"
+     ],
+     "properties": {
+      "path": {
+       "type": "string",
+       "minLength": 1
+      },
+      "refinements": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Pair"
+       }
+      }
+     }
+    },
+    "ParseFields": {
+     "$comment": "Shared by ParseResult and ParseExpectation; kept apart so the two differ only in what they require.",
+     "properties": {
+      "input": {
+       "type": "string"
+      },
+      "status": {
+       "enum": [
+        "ok",
+        "malformed",
+        "uncovered",
+        "unsupported"
+       ]
+      },
+      "version": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "explicitVersion": {
+       "type": "boolean"
+      },
+      "versionText": {
+       "type": "string",
+       "pattern": "^[0-9]+$"
+      },
+      "type": {
+       "type": "string"
+      },
+      "locator": {
+       "type": "string"
+      },
+      "delegated": {
+       "type": "string"
+      },
+      "canonical": {
+       "type": "string"
+      },
+      "qualifiers": {
+       "type": "array",
+       "items": {
+        "$ref": "#/components/schemas/Pair"
+       }
+      },
+      "nested": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/Identifier"
+       }
+      },
+      "fragment": {
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/Fragment"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "part": {
+       "type": "string"
+      }
+     }
+    },
+    "ParseInvariants": {
+     "$comment": "What holds of every parse result, whichever fields a vector chooses to assert.",
+     "allOf": [
+      {
+       "if": {
+        "required": [
+         "status"
+        ],
+        "properties": {
+         "status": {
+          "const": "malformed"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "part"
+        ]
+       }
+      },
+      {
+       "if": {
+        "required": [
+         "part"
+        ],
+        "properties": {
+         "part": {
+          "const": "grammar"
+         }
+        }
+       },
+       "then": {
+        "$comment": "the grammar decomposed nothing, so there are no parts: both are the empty string",
+        "properties": {
+         "type": {
+          "const": ""
+         },
+         "locator": {
+          "const": ""
+         }
+        }
+       },
+       "else": {
+        "properties": {
+         "type": {
+          "pattern": "^[a-z][a-z0-9+.-]*$"
+         },
+         "locator": {
+          "minLength": 1
+         }
+        }
+       }
+      }
+     ]
+    },
+    "ParseResult": {
+     "description": "What parse() returns.",
+     "type": "object",
+     "allOf": [
+      {
+       "$ref": "#/components/schemas/ParseFields"
+      },
+      {
+       "$ref": "#/components/schemas/ParseInvariants"
+      }
+     ],
+     "propertyNames": {
+      "enum": [
+       "input",
+       "status",
+       "version",
+       "explicitVersion",
+       "versionText",
+       "type",
+       "locator",
+       "delegated",
+       "canonical",
+       "qualifiers",
+       "nested",
+       "fragment",
+       "part"
+      ]
+     },
+     "required": [
+      "input",
+      "status",
+      "version",
+      "explicitVersion",
+      "type",
+      "locator",
+      "qualifiers",
+      "fragment"
+     ]
+    },
+    "NestedQualifierValue": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "nested"
+     ],
+     "properties": {
+      "nested": {
+       "$ref": "#/components/schemas/Identifier"
+      }
+     }
+    },
+    "BuildParts": {
+     "description": "What build() takes. `location` never reaches the identifier.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "type",
+      "locator"
+     ],
+     "properties": {
+      "type": {
+       "type": "string"
+      },
+      "locator": {
+       "type": "string"
+      },
+      "qualifiers": {
+       "type": "array",
+       "items": {
+        "type": "array",
+        "items": [
+         {
+          "type": "string"
+         },
+         {
+          "oneOf": [
+           {
+            "type": "string"
+           },
+           {
+            "$ref": "#/components/schemas/NestedQualifierValue"
+           }
+          ]
+         }
+        ],
+        "additionalItems": false,
+        "minItems": 2
+       }
+      },
+      "fragment": {
+       "oneOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "path"
+         ],
+         "properties": {
+          "path": {
+           "type": "string"
+          },
+          "refinements": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Pair"
+           }
+          }
+         }
+        }
+       ]
+      },
+      "location": {}
+     }
+    },
+    "EnvelopeResult": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "admissible"
+     ],
+     "properties": {
+      "admissible": {
+       "type": "boolean"
+      },
+      "reason": {
+       "type": "string"
+      }
+     }
+    },
+    "Relation": {
+     "description": "One relation between two identifiers in one dimension.",
+     "enum": [
+      "equal",
+      "covers",
+      "coveredBy",
+      "differ"
+     ]
+    },
+    "QualifierRelation": {
+     "type": "object",
+     "required": [
+      "relation"
+     ],
+     "additionalProperties": false,
+     "properties": {
+      "relation": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "nested": {
+       "$ref": "#/components/schemas/RelateResult"
+      }
+     }
+    },
+    "RelateResult": {
+     "description": "What relate() returns for a pair it accepts; null for a pair it refuses.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "type",
+      "version",
+      "locatorStem",
+      "locatorVersion",
+      "fragmentPath",
+      "fragmentRefinements",
+      "qualifiers"
+     ],
+     "properties": {
+      "type": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "version": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "locatorStem": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "locatorVersion": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "fragmentPath": {
+       "$ref": "#/components/schemas/Relation"
+      },
+      "fragmentRefinements": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/Relation"
+       }
+      },
+      "qualifiers": {
+       "type": "object",
+       "additionalProperties": {
+        "$ref": "#/components/schemas/QualifierRelation"
+       }
+      }
+     }
+    },
+    "IdentifierOrParsed": {
+     "description": "An identifier as a string, or the result parse() returned for one. Every operation that takes an identifier takes either, and a pair may mix them.",
+     "oneOf": [
+      {
+       "$ref": "#/components/schemas/Identifier"
+      },
+      {
+       "$ref": "#/components/schemas/ParseResult"
+      }
+     ]
+    },
+    "Spec": {
+     "description": "The loaded specification, verified against its digest. Opaque: a caller reads it through the implementation, and no field of it is part of this surface.",
+     "type": "object"
+    }
+   },
+   "errors": {
+    "Build": {
+     "code": 1,
+     "message": "build refused its parts; the error names the refused part"
+    },
+    "Digest": {
+     "code": 2,
+     "message": "digest refused a member; the error names it"
+    },
+    "Serialise": {
+     "code": 3,
+     "message": "serialise refused a result it cannot write; the error names the part"
+    },
+    "SpecIntegrity": {
+     "code": 4,
+     "message": "the specification's bytes do not match its digest"
+    },
+    "SpecVersion": {
+     "code": 5,
+     "message": "the specification's major version is one this implementation does not support"
+    }
+   }
+  },
+  "x-error-type": "RefIdError"
  },
  "vectors": {
   "parse": [
@@ -1952,6 +2788,19 @@
      "locator": "npm/x@1.0.0?os=linux&arch=amd64",
      "canonical": "pkg:npm/x@1.0.0?arch=amd64&os=linux"
     }
+   },
+   {
+    "name": "a combining mark after / in a pkg subpath stays in the subpath — segments split on the byte /",
+    "input": "ref:pkg:npm/x@1.0.0/a/\u0301b",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "pkg",
+     "locator": "npm/x@1.0.0/a/\u0301b",
+     "canonical": "pkg:npm/x@1.0.0#a/%CC%81b"
+    }
    }
   ],
   "canonical": [
@@ -1991,19 +2840,29 @@
     "expect": "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation"
    },
    {
-    "name": "an explicit version survives canonicalisation verbatim",
+    "name": "the default version written explicitly is omitted — ref:1: and ref: are one version",
     "input": "ref:1:pkg:npm/x@1.0.0;state=none;by=sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "expect": "ref:1:pkg:npm/x@1.0.0;by=sha256:0000000000000000000000000000000000000000000000000000000000000000;state=none"
+    "expect": "ref:pkg:npm/x@1.0.0;by=sha256:0000000000000000000000000000000000000000000000000000000000000000;state=none"
    },
    {
-    "name": "refinements are positional and keep the order they were written",
+    "name": "the order inside a refinement value is content, the order between refinement keys is not",
     "input": "ref:folder:acme-governance;state=none#AGENTS.md;lines=1,20;item=3",
-    "expect": "ref:folder:acme-governance;state=none#AGENTS.md;lines=1,20;item=3"
+    "expect": "ref:folder:acme-governance;state=none#AGENTS.md;item=3;lines=1,20"
    },
    {
     "name": "qualifiers sort while the fragment beside them is untouched",
     "input": "ref:folder:acme-governance;when=2026-08-02T18:31:31.870Z;state=none#AGENTS.md;lines=1,20",
     "expect": "ref:folder:acme-governance;state=none;when=2026-08-02T18:31:31.870Z#AGENTS.md;lines=1,20"
+   },
+   {
+    "name": "refinements sort by key, as qualifiers do — each is a filter, and filters combine with AND",
+    "input": "ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20;item=2",
+    "expect": "ref:folder:acme-tools/docs/guide.md#Setup;item=2;lines=10,20"
+   },
+   {
+    "name": "a nested identifier's qualifiers sort inside its value",
+    "input": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bwhen=2026-01-01T00:00:00Z%3Bstate=none",
+    "expect": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=none%3Bwhen=2026-01-01T00:00:00Z"
    },
    {
     "name": "a malformed identifier has no canonical form",
@@ -2399,6 +3258,14 @@
      ]
     },
     "expect": "admissible"
+   },
+   {
+    "name": "an envelope written under one Unicode spelling is not admissible under the other",
+    "requestedId": "ref:zzz:caf\u00e9",
+    "envelope": {
+     "id": "ref:zzz:cafe\u0301"
+    },
+    "expect": "refused"
    }
   ],
   "comparison": [
@@ -2409,7 +3276,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": true
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    },
    {
@@ -2419,7 +3287,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2429,7 +3298,8 @@
     "expect": {
      "samePackage": true,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2439,7 +3309,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2449,7 +3320,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2459,7 +3331,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2469,7 +3342,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2479,7 +3353,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2489,17 +3364,107 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
-    "name": "a declared by= must match exactly — an unversioned engine does not cover a versioned one yet",
+    "name": "an unversioned engine in by= covers every release of it, and is the same package as each",
     "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
     "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
     "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "one engine at two releases in by= is the same package, and neither release covers the other",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10932",
+    "expect": {
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "two engines in by= are two instruments however the rest matches",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4",
+    "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a general identifier with a general by= covers a specific model run by a specific release",
+    "a": "ref:ai-model:example-app;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a nested identifier is compared on its parts — a by= with no declared name covers one that declares it",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0",
+    "b": "ref:folder:acme-tools;by=ref:pkg:npm/@acme/profiles@0.1.0%23profile/conformance@1",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "the descent is not particular to by= — a corpus in over= covers a folder inside it",
+    "a": "ref:folder:acme-tools;over=ref:folder:acme-governance",
+    "b": "ref:folder:acme-tools;over=ref:folder:acme-governance/learnings",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a digest in by= stays strict — two digests are compared byte for byte",
+    "a": "ref:folder:acme-tools;by=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools;by=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a nested identifier on one side and a digest on the other are two different values",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0",
+    "b": "ref:folder:acme-tools;by=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a nested pair of a version this relation refuses is compared byte for byte",
+    "a": "ref:folder:acme-tools;by=ref:2:pkg:npm/x",
+    "b": "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2509,7 +3474,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2519,7 +3485,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2529,7 +3496,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2539,7 +3507,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2549,7 +3518,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2559,7 +3529,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2569,7 +3540,8 @@
     "expect": {
      "samePackage": true,
      "covers": true,
-     "coversReversed": true
+     "coversReversed": true,
+     "sameIdentifier": true
     }
    },
    {
@@ -2579,7 +3551,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2589,7 +3562,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2599,7 +3573,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2609,7 +3584,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2619,7 +3595,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2629,7 +3606,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2639,7 +3617,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2649,7 +3628,8 @@
     "expect": {
      "samePackage": true,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2659,7 +3639,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2669,7 +3650,8 @@
     "expect": {
      "samePackage": false,
      "covers": false,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2679,7 +3661,8 @@
     "expect": {
      "samePackage": false,
      "covers": true,
-     "coversReversed": false
+     "coversReversed": false,
+     "sameIdentifier": false
     }
    },
    {
@@ -2687,6 +3670,514 @@
     "a": "ref:email:alguem@dominio.com",
     "b": "ref:email:alguemx@dominio.com",
     "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "two orders of the same qualifiers are the same identifier, byte for byte different",
+    "a": "ref:folder:acme-tools;when=2026-01-01T00:00:00Z;state=none",
+    "b": "ref:folder:acme-tools;state=none;when=2026-01-01T00:00:00Z",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   },
+   {
+    "name": "two orders of the same refinements are the same identifier",
+    "a": "ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20;item=2",
+    "b": "ref:folder:acme-tools/docs/guide.md#Setup;item=2;lines=10,20",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   },
+   {
+    "name": "two orders of a nested identifier's qualifiers are the same identifier",
+    "a": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bwhen=2026-01-01T00:00:00Z%3Bstate=none",
+    "b": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0%3Bstate=none%3Bwhen=2026-01-01T00:00:00Z",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   },
+   {
+    "name": "an identifier at an unsupported scheme version is not the same as itself",
+    "a": "ref:2:pkg:npm/x",
+    "b": "ref:2:pkg:npm/x",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "two Unicode spellings of one text are two identifiers — comparison is byte for byte",
+    "a": "ref:zzz:caf\u00e9",
+    "b": "ref:zzz:cafe\u0301",
+    "expect": {
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a segment boundary is the byte /, whatever follows it",
+    "a": "ref:zzz:a",
+    "b": "ref:zzz:a/\u0301b",
+    "expect": {
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "the default version written or omitted is the same identifier",
+    "a": "ref:1:pkg:npm/x@1.0.0",
+    "b": "ref:pkg:npm/x@1.0.0",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true,
+     "sameIdentifier": true
+    }
+   }
+  ],
+  "relate": [
+   {
+    "name": "identical identifiers are equal in every dimension",
+    "a": "ref:pkg:npm/x@1.0.0#Observation",
+    "b": "ref:pkg:npm/x@1.0.0#Observation",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true
+    }
+   },
+   {
+    "name": "two types differ in type, and the other dimensions are still reported",
+    "a": "ref:pkg:npm/x@1.0.0",
+    "b": "ref:folder:x",
+    "expect": {
+     "relate": {
+      "type": "differ",
+      "version": "equal",
+      "locatorStem": "differ",
+      "locatorVersion": "coveredBy",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a corpus covers a file inside it — the locator stem is a whole-segment prefix",
+    "a": "ref:folder:acme-tools",
+    "b": "ref:folder:acme-tools/docs/guide.md",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "covers",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a sibling that shares only its first characters differs in the locator stem",
+    "a": "ref:folder:acme-tools",
+    "b": "ref:folder:acme-tools-extra",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "differ",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a package with no version covers a release of it",
+    "a": "ref:pkg:npm/x",
+    "b": "ref:pkg:npm/x@1.0.0",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "covers",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "two releases differ in the locator version and nowhere else",
+    "a": "ref:pkg:npm/x@1.0.0",
+    "b": "ref:pkg:npm/x@2.0.0",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "differ",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "no declared name covers one",
+    "a": "ref:pkg:npm/x@1.0.0",
+    "b": "ref:pkg:npm/x@1.0.0#Observation",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "covers",
+      "fragmentRefinements": {},
+      "qualifiers": {}
+     },
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a declared name with no refinement covers one that narrows it",
+    "a": "ref:folder:acme-tools/docs/guide.md#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md#Setup;lines=10,20",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {
+       "lines": "covers"
+      },
+      "qualifiers": {}
+     },
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a qualifier the first leaves undeclared is covered",
+    "a": "ref:folder:acme-tools",
+    "b": "ref:folder:acme-tools;when=2026-01-01T00:00:00Z",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "when": {
+        "relation": "covers"
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a stem that generalises and a qualifier that specialises make the pair differ",
+    "a": "ref:folder:acme-tools;when=2026-01-01T00:00:00Z",
+    "b": "ref:folder:acme-tools/docs/guide.md",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "covers",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "when": {
+        "relation": "coveredBy"
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "the same engine in by= is equal, and its nested relation is reported",
+    "a": "ref:folder:acme-tools;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "b": "ref:folder:acme-tools;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "equal",
+        "nested": {
+         "type": "equal",
+         "version": "equal",
+         "locatorStem": "equal",
+         "locatorVersion": "equal",
+         "fragmentPath": "equal",
+         "fragmentRefinements": {},
+         "qualifiers": {}
+        }
+       }
+      }
+     },
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": true
+    }
+   },
+   {
+    "name": "an unversioned engine in by= covers a release of it",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "covers",
+        "nested": {
+         "type": "equal",
+         "version": "equal",
+         "locatorStem": "equal",
+         "locatorVersion": "covers",
+         "fragmentPath": "equal",
+         "fragmentRefinements": {},
+         "qualifiers": {}
+        }
+       }
+      }
+     },
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a released engine in by= is covered by the unversioned one",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "coveredBy",
+        "nested": {
+         "type": "equal",
+         "version": "equal",
+         "locatorStem": "equal",
+         "locatorVersion": "coveredBy",
+         "fragmentPath": "equal",
+         "fragmentRefinements": {},
+         "qualifiers": {}
+        }
+       }
+      }
+     },
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": true
+    }
+   },
+   {
+    "name": "two engines in by= differ, and the nested result says where",
+    "a": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:github/ggml-org/llama.cpp",
+    "b": "ref:ai-model:example-app/bartowski/SmolLM2-1.7B-Instruct-GGUF/SmolLM2-1.7B-Instruct-Q4_K_M.gguf;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "differ",
+        "nested": {
+         "type": "equal",
+         "version": "equal",
+         "locatorStem": "differ",
+         "locatorVersion": "covers",
+         "fragmentPath": "equal",
+         "fragmentRefinements": {},
+         "qualifiers": {}
+        }
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "one engine at two releases in by= differs only in the nested locator version",
+    "a": "ref:folder:acme-tools;by=ref:pkg:github/ggml-org/llama.cpp@b10931",
+    "b": "ref:folder:acme-tools;by=ref:pkg:github/ggml-org/llama.cpp@b10932",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "differ",
+        "nested": {
+         "type": "equal",
+         "version": "equal",
+         "locatorStem": "equal",
+         "locatorVersion": "differ",
+         "fragmentPath": "equal",
+         "fragmentRefinements": {},
+         "qualifiers": {}
+        }
+       }
+      }
+     },
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a digest in by= carries no nested result and is equal or differs",
+    "a": "ref:folder:acme-tools;by=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools;by=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "differ"
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a nested pair of a refused scheme version is compared byte for byte, with no nested result",
+    "a": "ref:folder:acme-tools;by=ref:2:pkg:npm/x",
+    "b": "ref:folder:acme-tools;by=ref:2:pkg:npm/x@1.0.0",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "differ"
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "a malformed identifier has no parts to relate",
+    "a": "ref:url:NOPE",
+    "b": "ref:url:NOPE",
+    "expect": {
+     "relate": null,
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
+    "name": "an unsupported scheme version has no parts this grammar can relate",
+    "a": "ref:2:pkg:npm/x@1.0.0",
+    "b": "ref:pkg:npm/x@1.0.0",
+    "expect": {
+     "relate": null,
      "samePackage": false,
      "covers": false,
      "coversReversed": false

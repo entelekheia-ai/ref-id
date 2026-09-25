@@ -13,7 +13,9 @@ public func validateEnvelope(requestedId: String, envelope: Any?) throws -> Enve
     guard let record = envelope as? [String: Any] else {
         return EnvelopeResult(admissible: false, reason: "envelope is not an object")
     }
-    guard let id = record[selfReference] as? String, id == requestedId else {
+    // Byte for byte, never Swift's default `String ==` (Unicode canonical equivalence) — the same rule
+    // `identifierEquivalence.comparison` states for comparing two identifiers.
+    guard let id = record[selfReference] as? String, id.equalsBytes(requestedId) else {
         return EnvelopeResult(admissible: false, reason: "envelope.\(selfReference) does not match the requested identifier")
     }
 

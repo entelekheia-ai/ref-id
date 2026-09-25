@@ -151,14 +151,20 @@ enum PackageURL {
     /// namespace segment and is part of the name; an `@` inside a segment closes the name and starts the
     /// version, which runs to the next `/` — everything after that `/` is the subpath. No such `@`, or
     /// one with nothing after it but the version, leaves the whole string as the base with no subpath.
+    ///
+    /// Walks `utf8` bytes, not `Character`s, for the same reason `Relations.split` does: `@` and `/` are
+    /// each one ASCII byte that never occurs as a continuation byte of another code point, so a byte scan
+    /// cannot mistake a combining mark for a boundary the way a grapheme-cluster walk can.
     private static func splitSubpath(_ delegated: String) -> (base: String, subpath: String?) {
-        let characters = Array(delegated)
-        guard characters.count > 1 else { return (delegated, nil) }
-        for index in 1..<characters.count {
-            guard characters[index] == "@", characters[index - 1] != "/" else { continue }
-            guard let slash = characters[index...].firstIndex(of: "/") else { return (delegated, nil) }
-            let base = String(characters[..<slash])
-            let subpath = String(characters[(slash + 1)...])
+        let bytes = Array(delegated.utf8)
+        let at = UInt8(ascii: "@")
+        let slash = UInt8(ascii: "/")
+        guard bytes.count > 1 else { return (delegated, nil) }
+        for index in 1..<bytes.count {
+            guard bytes[index] == at, bytes[index - 1] != slash else { continue }
+            guard let slashIndex = bytes[index...].firstIndex(of: slash) else { return (delegated, nil) }
+            let base = String(decoding: bytes[..<slashIndex], as: UTF8.self)
+            let subpath = String(decoding: bytes[(slashIndex + 1)...], as: UTF8.self)
             return (base, subpath.isEmpty ? nil : subpath)
         }
         return (delegated, nil)
@@ -173,8 +179,7 @@ enum PackageURL {
     /// The subpath's own canonical form: `.`/`..`/empty segments dropped, each remaining segment
     /// percent-encoded — purl-spec's subpath rule. `nil` when nothing survives the filter.
     private static func encodeSubpath(_ subpath: String) -> String? {
-        let segments = subpath.split(separator: "/", omittingEmptySubsequences: true)
-            .map(String.init)
+        let segments = subpath.split(byScalar: "/", omittingEmpty: true)
             .filter { $0 != "." && $0 != ".." }
         guard !segments.isEmpty else { return nil }
         return segments.map(percentEncode).joined(separator: "/")
@@ -182,32 +187,29 @@ enum PackageURL {
 
     private static func parse(_ purl: String) -> Parsed? {
         guard purl.hasPrefix("pkg:") else { return nil }
+        // Every delimiter search below is by Unicode scalar, for the reason `Bytes.swift` gives.
         var rest = String(purl.dropFirst(4))
         var qualifiers: String?
-        if let question = rest.firstIndex(of: "?") {
-            let query = rest[rest.index(after: question)...]
-            rest = String(rest[..<question])
-            for pair in query.split(separator: "&", omittingEmptySubsequences: false) {
-                guard let equals = pair.firstIndex(of: "="), pair.distance(from: pair.startIndex, to: equals) > 0 else { return nil }
+        if let (before, query) = rest.splitOnce(byScalar: "?") {
+            rest = before
+            for pair in query.split(byScalar: "&", omittingEmpty: false) {
+                guard let (key, _) = pair.splitOnce(byScalar: "="), !key.isEmpty else { return nil }
             }
-            qualifiers = String(query)
+            qualifiers = query
         }
-        while rest.hasPrefix("/") { rest = String(rest.dropFirst()) }
-        guard let slash = rest.firstIndex(of: "/") else { return nil }
-        let type = String(rest[..<slash])
+        while rest.unicodeScalars.first == "/" { rest = String(Substring(rest.unicodeScalars.dropFirst())) }
+        guard let (type, remainder) = rest.splitOnce(byScalar: "/") else { return nil }
         guard let first = type.first, first.isASCII, first.isLetter,
               type.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "+" || $0 == "-") }) else { return nil }
-        let remainder = String(rest[rest.index(after: slash)...])
         // The version is the `@` inside the LAST segment (the name); an `@` in a namespace segment — an npm
         // scope written unencoded, which the reference validators accept — is not a version separator.
-        var segments = remainder.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        var segments = remainder.split(byScalar: "/", omittingEmpty: false)
         guard var name = segments.popLast() else { return nil }
         var version: String?
-        if let at = name.firstIndex(of: "@") {
-            let tail = name[name.index(after: at)...]
+        if let (before, tail) = name.splitOnce(byScalar: "@") {
             guard !tail.isEmpty else { return nil }
-            version = String(tail)
-            name = String(name[..<at])
+            version = tail
+            name = before
         }
         guard !name.isEmpty else { return nil }
         return Parsed(type: type, namespace: segments, name: name, version: version, qualifiers: qualifiers)

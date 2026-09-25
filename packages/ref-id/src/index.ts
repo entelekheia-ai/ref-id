@@ -12,15 +12,28 @@ installSpecSource(loadSpecFromDisk)
 installHash(hashHexNode)
 
 export { build } from "./build.ts"
-export { canonical, sameIdentifier } from "./canonical.ts"
+export { canonical, canonicalIdentifier, sameIdentifier } from "./canonical.ts"
 export { digest } from "./digest.ts"
 export { validateEnvelope } from "./envelope.ts"
 export { BuildError, DigestError, RefIdError, SerialiseError } from "./errors.ts"
 export { parse } from "./parse.ts"
-export { covers, samePackage } from "./relations.ts"
+export { covers, relate, samePackage } from "./relations.ts"
 export { serialise } from "./serialise.ts"
-export { canonicalise, loadSpec, SpecIntegrityError, SpecVersionError, type RefIdSpec } from "./spec.ts"
+export { canonicalise, loadSpec, SpecIntegrityError, SpecVersionError, type RefIdSpec, type Spec } from "./spec.ts"
 // Disk-only, and therefore the one export the browser build does not carry: it takes a directory to
 // read a spec + sidecar pair from, which is a thing a browser does not have.
 export { loadSpecFrom } from "./spec.node.ts"
-export type { BuildParts, EnvelopeResult, NestedQualifierValue, Pair, ParsedFragment, ParseResult, ParseStatus } from "./types.ts"
+export type {
+  BuildParts,
+  EnvelopeResult,
+  Fragment,
+  IdentifierOrParsed,
+  NestedQualifierValue,
+  Pair,
+  ParsedFragment,
+  ParseResult,
+  ParseStatus,
+  QualifierRelation,
+  RelateResult,
+  Relation,
+} from "./types.ts"

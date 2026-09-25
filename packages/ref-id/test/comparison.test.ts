@@ -7,14 +7,13 @@
 
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { loadSpec } from "../src/index.ts"
-import { covers, samePackage } from "../src/relations.ts"
+import { covers, loadSpec, sameIdentifier, samePackage } from "../src/index.ts"
 
 interface ComparisonVector {
   name: string
   a: string
   b: string
-  expect: { samePackage: boolean; covers: boolean; coversReversed: boolean }
+  expect: { samePackage: boolean; covers: boolean; coversReversed: boolean; sameIdentifier: boolean }
 }
 
 const spec = loadSpec()
@@ -26,6 +25,7 @@ test("comparison: every vector holds in both directions", async (t) => {
       assert.equal(samePackage(vector.a, vector.b), vector.expect.samePackage, "samePackage(a, b)")
       assert.equal(covers(vector.a, vector.b), vector.expect.covers, "covers(a, b)")
       assert.equal(covers(vector.b, vector.a), vector.expect.coversReversed, "covers(b, a)")
+      assert.equal(sameIdentifier(vector.a, vector.b), vector.expect.sameIdentifier, "sameIdentifier(a, b)")
     })
   }
 })

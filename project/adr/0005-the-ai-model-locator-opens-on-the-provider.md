@@ -73,11 +73,13 @@ ref:ai-model:anthropic/claude-opus-5-5;effort=low
   defaults — is itself the provider, for the same reason `omlx` is the provider over the `mlx` it wraps:
   configuration shapes what the model answers. The embedded engine is recorded with the registered `by`
   qualifier (role *instrument*), whose value is a nested identifier, never a bare name:
-  `;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4`. A versioned package is preferred, because
-  an engine release can change the output. When the version linked is not known, the nested identifier
-  says so with `state=none` — `;by=ref:pkg:github/ggml-org/llama.cpp%3Bstate=none` — which keeps *unknown*
-  apart from *not declared* (the nested identifier with no version and no state, naming the living
-  package). A known commit without a release is `state=git:<sha>`.
+  `;by=ref:pkg:swift/github.com/ml-explore/mlx-swift-lm@3.31.4`. The nested identifier is a bare pointer —
+  a type, a locator and at most a fragment, with no qualifier of its own. A versioned package is preferred,
+  because an engine release can change the output, and the version is written when it is known. When it
+  is not, the pointer names the living package (`;by=ref:pkg:github/ggml-org/llama.cpp`), and *unknown* —
+  or a commit built without a release — is a column of the consumer's record beside the identifier. A
+  Package URL type that requires a version, such as `swift`, has no unversioned form at all, so its engine
+  is always named at a release.
 - The served id is the string the caller hands the provider to select the model, which keeps the
   round-trip that makes it an identifier. For a hosted API or a local server it is the model id in the
   request. For a runtime linked in-process it is the name the weights' source declares — the hub
@@ -139,11 +141,11 @@ id had three candidates:
   and its vectors.
 - **"The same model on any provider" is a query on the locator's tail, not an operation.** Neither
   `samePackage` nor `covers` expresses it; a store that needs it compares the segments after the first.
-- **"Everything any version of this engine produced" is not answered by `covers` today.** A qualifier the
-  first identifier declares must be declared identically by the second, so `;by=…/llama.cpp` does not
-  cover `;by=…/llama.cpp@b10931` even though the two nested identifiers stand in that relation. Until the
-  comparison descends into nested identifiers, a consumer answers it by comparing the nested `by` values
-  itself.
+- **"Everything any version of this engine produced" is a `covers` query where the engine has an
+  unversioned form.** The comparison descends into a nested identifier, so `;by=…/llama.cpp` covers
+  `;by=…/llama.cpp@b10931`. For an engine whose type requires a version, the same question is
+  `samePackage`, which ignores the version. "Everything an unrecorded build produced" is a query on the
+  consumer's column, because the identifier carries no unknown.
 - **A model and its weights are two identifiers.** `ref:ai-model:` names what answered; the weights are
   `ref:pkg:huggingface/<org>/<repo>@<revision>` (with `#<file>` for a single-file format). The served id
   carries no revision, so a store that must tell two revisions apart records the weights beside the model.

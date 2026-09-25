@@ -93,6 +93,53 @@ public struct EnvelopeResult: Equatable, Sendable {
     public let reason: String?
 }
 
+/// One relation between two identifiers in one dimension — `spec.comparison.relate.relations`.
+public enum Relation: String, Equatable, Sendable {
+    case equal
+    case covers
+    case coveredBy
+    case differ
+}
+
+/// A qualifier's relation, and — only where both values are a nested `ref:` this operation accepted —
+/// the nested pair's own `RelateResult`, whose reduction is this member's `relation`.
+public struct QualifierRelation: Equatable, Sendable {
+    public let relation: Relation
+    public let nested: RelateResult?
+    public init(relation: Relation, nested: RelateResult? = nil) {
+        self.relation = relation
+        self.nested = nested
+    }
+}
+
+/// What `relate` returns for a pair it accepts; `nil` for a pair it refuses — `spec.comparison.relate`.
+public struct RelateResult: Equatable, Sendable {
+    public let type: Relation
+    public let version: Relation
+    public let locatorStem: Relation
+    public let locatorVersion: Relation
+    public let fragmentPath: Relation
+    public let fragmentRefinements: [String: Relation]
+    public let qualifiers: [String: QualifierRelation]
+    public init(
+        type: Relation,
+        version: Relation,
+        locatorStem: Relation,
+        locatorVersion: Relation,
+        fragmentPath: Relation,
+        fragmentRefinements: [String: Relation],
+        qualifiers: [String: QualifierRelation]
+    ) {
+        self.type = type
+        self.version = version
+        self.locatorStem = locatorStem
+        self.locatorVersion = locatorVersion
+        self.fragmentPath = fragmentPath
+        self.fragmentRefinements = fragmentRefinements
+        self.qualifiers = qualifiers
+    }
+}
+
 /// Every error this package raises. `parse` raises none for an identifier problem.
 public enum RefIdError: Error, Equatable {
     /// `build` was given a part the grammar cannot carry.
