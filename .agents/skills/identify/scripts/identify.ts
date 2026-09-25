@@ -294,7 +294,7 @@ function mint(args: Map<string, string[]>): never {
   try {
     const identifier = refId.build({ type, locator, fragment, qualifiers })
     const parsed = refId.parse(identifier)
-    emit({ ref: refId.canonical(identifier), status: parsed.status, type, locator, fragment: fragment ?? null })
+    emit({ ref: refId.canonicalIdentifier(identifier), status: parsed.status, type, locator, fragment: fragment ?? null })
   } catch (error) {
     const failure = error as { part?: string; message?: string }
     emit(refuse("build-refused", failure.message ?? String(error), { part: failure.part ?? null, type, locator }))

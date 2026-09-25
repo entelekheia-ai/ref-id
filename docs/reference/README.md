@@ -5,5 +5,5 @@ configuration, CLI flags. The reader already knows what they want; help them loo
 no opinions. Mirror the code; when they diverge, the code wins.
 
 - [`the-ref-scheme.md`](the-ref-scheme.md) — the `ref:` identifier scheme and its envelope, rule by rule:
-  the expression, the version slot, parse statuses, encodings, qualifiers, the digest, and the five
-  conformance-vector classes. Explains `spec/ref-id.json`, which is the authority.
+  the expression, the version slot, parse statuses, encodings, qualifiers, comparison and `relate`, the
+  digest, and the eight conformance-vector classes. Explains `spec/ref-id.json`, which is the authority.

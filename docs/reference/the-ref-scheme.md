@@ -659,16 +659,19 @@ public surface, read from its compiler, with the methods.
 
 ## Conformance vectors
 
-Five classes. Each fixes a different property, and a port is checked against all five rather than against
-any implementation's source.
+Eight classes. Each fixes a different property, and a port is checked against all eight rather than
+against any implementation's source.
 
 | Class | Vectors | Fixes |
 |---|---|---|
-| `parse` | 41 | what each input decomposes to — status, version and whether it was written explicitly, type, the reported locator, the string delegated to its validator for a dispatched type, the decoded nested identifier of any qualifier carrying one, qualifiers in order, fragment path and refinements, and, on failure, the failing part |
-| `roundtrip` | 15 | that re-serialising a parsed identifier returns the original bytes, encoding intact — for an `uncovered` and an `unsupported` identifier as much as for an `ok` one |
-| `build` | 9 | that assembling parts yields the canonical string, including that location never enters identity and that the builder applies the nested-value encoding — and that a locator carrying a reserved character, a fragment carrying the separator, or a nested identifier passed as a plain string is refused, naming the failing part |
+| `parse` | 129 | what each input decomposes to — status, version and whether it was written explicitly, type, the reported locator, the string delegated to its validator for a dispatched type, the decoded nested identifier of any qualifier carrying one, qualifiers in order, fragment path and refinements, and, on failure, the failing part |
+| `canonical` | 13 | that the canonical form of an identifier sorts its qualifiers and its refinements by key, writes a nested qualifier value in its own canonical form, and omits the version slot when it holds the default |
+| `roundtrip` | 23 | that re-serialising a parsed identifier returns the original bytes, encoding intact — for an `uncovered` and an `unsupported` identifier as much as for an `ok` one |
+| `build` | 15 | that assembling parts yields the canonical string, including that location never enters identity and that the builder applies the nested-value encoding — and that a locator carrying a reserved character, a fragment carrying the separator, or a nested identifier passed as a plain string is refused, naming the failing part |
 | `digest` | 7 | the sequence digest: order significant, no deduplication, the empty sequence, a member carrying the join character refused |
-| `envelope` | 11 | the admissibility invariant — recompute, self-reference, a `malformed` or `unsupported` requested identifier refused while an `uncovered` one is admissible |
+| `envelope` | 12 | the admissibility invariant — recompute, self-reference, a `malformed` or `unsupported` requested identifier refused while an `uncovered` one is admissible |
+| `comparison` | 44 | `covers`, `samePackage` and `sameIdentifier` on parsed pairs, including the descent into a nested qualifier value and the vectors ADR-0005's `by=` behaviour binds |
+| `relate` | 19 | the full per-dimension `relate` result for a pair, including a nested qualifier's own `relate` result, checked to reduce to the same `covers`/`coveredBy`/`samePackage` the `comparison` group expects for the same pair |
 
 At minimum the set covers:
 

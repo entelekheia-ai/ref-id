@@ -3,7 +3,7 @@
 **The `ref:` identifier scheme, as a Rust crate held to the specification's conformance vectors.**
 An identifier names a thing by what somebody declared about it — a package, a folder, a domain, a mailbox, an agent — never by where a file happens to sit.
 
-The specification is data: `spec/ref-id.json` (grammar, tables, digest rules, 113 conformance vectors) is embedded in the crate byte-for-byte and verified against its digest at load. The crate implements the behaviour the vectors bind — parse, serialise, build, digest, and the envelope invariant — and restates none of the specification's tables.
+The specification is data: `spec/ref-id.json` (grammar, tables, digest rules, 262 conformance vectors) is embedded in the crate byte-for-byte and verified against its digest at load. The crate implements the behaviour the vectors bind — parse, serialise, build, comparison (`covers`, `same_package`, `same_identifier`, `relate`), digest, and the envelope invariant — and restates none of the specification's tables.
 
 ## Install
 
@@ -31,8 +31,11 @@ assert_eq!(serialise(&parsed)?, "ref:pkg:npm/@acme/scanner-core@0.1.0#Observatio
 The other entry points: `build(&BuildParts)` composes an identifier from declared parts and refuses
 what the grammar cannot carry; `digest(&[String])` hashes an ordered set of identifiers the way the
 specification prescribes; `validate_envelope(id, &json)` checks a stored record against the identifier
-it was requested under. `load_spec()` exposes the embedded specification, `load_spec_from(dir)` a
-directory holding `ref-id.json` and its `.sha256` sidecar.
+it was requested under. `covers(general, specific)`, `same_package(a, b)` and `same_identifier(a, b)`
+compare two identifiers — each also accepts a `&ParseResult` wherever a `&str` is accepted — and
+`relate(a, b)` reports the full per-dimension relation the other three reduce from. `canonical_identifier`
+and `canonicalise` produce canonical forms. `load_spec()` exposes the embedded specification,
+`load_spec_from(dir)` a directory holding `ref-id.json` and its `.sha256` sidecar.
 
 The scheme itself — the grammar, the types, the qualifiers `state`, `by`, `over` and `when`, the
 fragment grammars — is documented in the repository's `docs/reference/the-ref-scheme.md`.
