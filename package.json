@@ -17,7 +17,8 @@
     "test:surface": "node scripts/check-surface.mjs",
     "gen:spec": "node scripts/gen-spec.mjs",
     "release": "npm run build && changeset publish",
-    "version": "changeset version && sh scripts/sync-versions.sh",
+    "version": "changeset version && sh scripts/sync-versions.sh && node scripts/gen-readme-refs.mjs",
+    "test:readme-refs": "node scripts/gen-readme-refs.mjs --check",
     "pretest:differential": "npm run build --workspace @entelekheia/ref-id",
     "test:differential": "node --experimental-strip-types scripts/differential.mjs"
   },
