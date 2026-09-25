@@ -401,3 +401,8 @@ and the pair pass of the differential holds the four builds to one answer on it.
 
 - ADR-0005 — the `ai-model` locator opens on the provider; records the `by=` behaviour this plan changes.
 - `comparison` block of `spec/ref-id.json` — the rules and `dimensions` this plan extends.
+
+- Task dossiers closed and removed per the task lifecycle (`Planned → In Progress → Done → file removed, git history is the archive`):
+  - `git show 255ea4d064b2b3767d7f00e215bb4a96b5322699:project/tasks/023-typescript-surface-and-descent.md`
+  - `git show 255ea4d064b2b3767d7f00e215bb4a96b5322699:project/tasks/024-rust-surface-and-descent.md`
+  - `git show 255ea4d064b2b3767d7f00e215bb4a96b5322699:project/tasks/025-swift-surface-and-descent.md`
