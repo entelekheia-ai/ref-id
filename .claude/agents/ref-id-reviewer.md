@@ -90,7 +90,9 @@ Each is a way this code has been, or can be, wrong with the gates green:
 8. **The contract change without a `.changeset/*.md`**, and a Node builtin reaching the browser build. A
    change outside the published packages needs no changeset.
 9. **Tests without teeth.** When a change adds or rewrites tests, plant one fault at a time in the code
-   they cover and confirm a test fails for each. A fault no test catches is a finding.
+   they cover and confirm a test fails for each. A fault no test catches is a finding. The `identify`
+   suite runs whichever script `IDENTIFY_SCRIPT` names, because `identify.ts` resolves the repository
+   root from its own location and a copy elsewhere fails for that reason alone.
 
 ## The line protocols
 

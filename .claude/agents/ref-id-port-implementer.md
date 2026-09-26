@@ -35,8 +35,9 @@ under `project/tasks/` and the item numbers you own — and what the other agent
 If any of these is missing, stop and say which one.
 
 You start in the caller's directory, not in that worktree, and a `cd` does not carry over from one
-command to the next. Give every file tool an absolute path inside the worktree, and start every shell
-command with `cd <worktree> &&`.
+command to the next. The worktree the caller names wins over any working directory the environment
+reports. Give every file tool an absolute path inside it, and start every shell command with
+`cd <worktree> &&`.
 
 ## Your language
 
@@ -55,7 +56,8 @@ yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the othe
 ## Process
 
 1. Read `AGENTS.md`, then `.agents/rules/repo-guardrails.md`, then the brief.
-2. Run the whole gate before changing anything, one command per call, and keep the counts. Failures
+2. Run the whole gate before changing anything — a follow-up run included — one command per call, and
+   keep the counts. Failures
    that already exist are the baseline, not yours to explain away later. A gate that fails for the
    environment — a module not installed, a toolchain missing — is reported with its error, not worked
    around by editing files outside your column.
@@ -80,7 +82,10 @@ gone.
   and watch it fail. A finding that does not reproduce is not implemented: stop on it and report the
   probe you ran and its output. Arguing whether the finding is right is the caller's job, not yours.
 - **Then make that test pass,** and run the whole gate. A fix without a test that failed first is not
-  verified — it is a diff and a hope.
+  verified — it is a diff and a hope. A test that already passes before the fix is shown to fail against
+  a fault planted in a scratch copy, never in the tree. `identify.ts` resolves the repository root from
+  its own location, so its copy runs through the suite with `IDENTIFY_SCRIPT=<copy>` rather than by
+  moving the file.
 - **One finding at a time,** blockers first, running the gate after each, so a regression is
   attributable to the fix that caused it.
 - **Fix only the findings you were given.** Something else you notice goes in the report, not in the
