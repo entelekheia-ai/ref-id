@@ -50,6 +50,8 @@ jobs:
           npm test
           npm run test:grammar
           cargo test --quiet
+      - name: the identify skill's script resolves a corpus without leaking the caller's environment
+        run: npm run test:identify
 
   swift:
     runs-on: macos-latest

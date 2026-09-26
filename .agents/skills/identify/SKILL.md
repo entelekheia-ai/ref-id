@@ -176,7 +176,7 @@ Two consequences, both deliberate:
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.
 
-Four facts about how it runs, none of them visible from the command:
+Five facts about how it runs, none of them visible from the command:
 
 - **A corpus it resolves is unversioned, and that rule is scoped to corpus resolution.** `mint --path`
   builds the Package URL from the manifest's `name` and leaves its `version` behind, so a record's
@@ -189,6 +189,9 @@ Four facts about how it runs, none of them visible from the command:
   specification through the package, which is the same rule that governs the source.
 - **It guesses nothing.** Every question it cannot settle comes back as a named refusal carrying the
   evidence that produced it, so the next step answers one question instead of the whole problem.
+- **Its behaviour is held by `npm run test:identify`**, which builds throwaway repositories and manifests,
+  runs the script against them with an empty home directory and no network, and runs in CI. A change to
+  how `mint` names a corpus or writes a hint is a change to a test there first.
 
 ## Step 3 — Each refusal is answered by name
 
