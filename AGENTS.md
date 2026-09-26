@@ -105,6 +105,13 @@ is expected and is checked against the same vectors, never against this code.
 |---|---|---|
 | Rules (always-on or path-scoped) | `.agents/rules/<name>.md` | `.claude/rules/<name>.md` → `../../.agents/rules/<name>.md` |
 | Skills | `.agents/skills/<name>/SKILL.md` | `.claude/skills/<name>` → `../../.agents/skills/<name>` |
+| Subagents (Claude-only, no `.agents/` equivalent) | `.claude/agents/<name>.md` | directly |
+
+Two subagents carry the fixed half of the delegations this repository repeats: `ref-id-port-implementer` (one
+change in one of the three implementations, behind that language's gate) and `ref-id-reviewer`
+(read-only review before merge). Their frontmatter pins `model` and `effort`. A per-call `model` overrides the
+definition, so a call omits it — except to escalate `ref-id-port-implementer` to `opus` after its gate failed.
+Findings reach `ref-id-port-implementer` already triaged: deciding which review findings stand is the caller's.
 
 Agent tooling is the `vibe-ops` plugin — no per-repo copy of anything it ships. The one skill this
 repository owns is [`identify`](.agents/skills/identify/SKILL.md), which decides whether something can be
