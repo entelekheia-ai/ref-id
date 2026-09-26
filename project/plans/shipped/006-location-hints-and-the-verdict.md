@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-26 |
 | Author | Danilo Borges |
 | Related | ADR-0006 (location enters the identifier as a hint, never as identity) |
@@ -180,7 +180,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
       says what was answered), `.agents/skills/identify/SKILL.md` (the base-name paragraph, the refusal
       row's stale pattern, and the expiring paragraph about the missing declaration mechanism, which this
       plan makes wrong), and a changeset for a minor release.
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check. The plan file
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check. The plan file
       itself is kept. Stays unchecked until the plan is actually closed; a track list that is otherwise
       complete but has this box open is not finished.
 
