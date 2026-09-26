@@ -421,3 +421,210 @@ public func relate(_ a: ParseResult, _ b: ParseResult) -> RelateResult? {
     guard let spec = try? loadSpec() else { return nil }
     return relateCore(spec, read(spec, a), read(spec, b))
 }
+
+// MARK: - verdict
+
+/// The fixed dimensions `verdict`'s step one and step five walk, in the order `decidedBy` fixes them.
+private let fixedDimensions = ["type", "version", "locatorStem", "locatorVersion", "fragmentPath"]
+
+/// A qualifier's `verdict` facts, as declared at `spec.qualifiers.<key>.verdict` — read from the spec,
+/// never restated (`.agents/rules/repo-guardrails.md`). Absent entirely for a key with no `verdict`
+/// member, which is exactly `comparison.verdict.rule`'s "step three" population.
+private struct QualifierVerdictSpec {
+    let axis: String?
+    let conflict: VerdictIdentity?
+    let conflictWhenNeitherSideDeclaresKeys: [String]?
+    let conflictWhenNeitherSideDeclaresThen: VerdictIdentity?
+}
+
+private func qualifierVerdictSpec(_ spec: Spec, _ key: String) -> QualifierVerdictSpec? {
+    guard let entry = spec.dictionary("qualifiers")[key] as? [String: Any],
+          let verdict = entry["verdict"] as? [String: Any] else { return nil }
+    let axis = verdict["axis"] as? String
+    // A declared conflict decides distinct or not: any value other than "distinct" reads as undetermined,
+    // as the TypeScript and Rust ports read it, so a value added to the spec later cannot make one port
+    // fall through to step three while the others do not.
+    let decide = { (value: String) -> VerdictIdentity in value == "distinct" ? .distinct : .undetermined }
+    let conflict = (verdict["conflict"] as? String).map(decide)
+    var fallbackKeys: [String]?
+    var fallbackThen: VerdictIdentity?
+    if let fallback = verdict["conflictWhenNeitherSideDeclares"] as? [String: Any] {
+        fallbackKeys = fallback["keys"] as? [String]
+        fallbackThen = (fallback["then"] as? String).map(decide)
+    }
+    return QualifierVerdictSpec(
+        axis: axis,
+        conflict: conflict,
+        conflictWhenNeitherSideDeclaresKeys: fallbackKeys,
+        conflictWhenNeitherSideDeclaresThen: fallbackThen
+    )
+}
+
+/// `decidedBy`'s fixed order: the five dimensions in `fixedDimensions`'s order, then refinement keys,
+/// then qualifier keys, each of the latter two groups sorted by UTF-16 code unit order
+/// (`comparison.verdict.result.decidedBy`).
+private func orderDecided(_ paths: [String]) -> [String] {
+    let fixed = fixedDimensions.filter { paths.contains($0) }
+    let refinements = paths.filter { $0.hasPrefix("fragmentRefinements.") }.sorted(by: precedesByUTF16)
+    let qualifiers = paths.filter { $0.hasPrefix("qualifiers.") }.sorted(by: precedesByUTF16)
+    return fixed + refinements + qualifiers
+}
+
+private func relationForDimension(_ result: RelateResult, _ dimension: String) -> Relation {
+    switch dimension {
+    case "type": return result.type
+    case "version": return result.version
+    case "locatorStem": return result.locatorStem
+    case "locatorVersion": return result.locatorVersion
+    case "fragmentPath": return result.fragmentPath
+    default: return .equal
+    }
+}
+
+/// What two identifiers mean together once location qualifiers are hints rather than identity —
+/// `relate`'s result reduced onto an identity axis and a content axis, per `comparison.verdict.rule`.
+///
+/// `nil` for a pair `relate` refuses. Every qualifier fact this reduction needs — which keys carry a
+/// `content` axis, which carry `identity`, each one's `conflict`, and `conflictWhenNeitherSideDeclares`
+/// with its `keys` and `then` — is read from `spec.qualifiers[key].verdict`; a key with no `verdict`
+/// member follows the rule's step three (any qualifier or refinement that relates as `differ` makes
+/// identity `distinct`, exactly as it does for `covers`).
+///
+/// Mirrored: `verdict(b, a)` is this result with `covers` and `coveredBy` exchanged on the identity
+/// axis; the content axis and `decidedBy` are unchanged (`comparison.verdict.symmetry`).
+private func verdictCore(_ spec: Spec, _ x: ParseResult?, _ y: ParseResult?) -> VerdictResult? {
+    guard let x, let y, let related = relateCore(spec, x, y) else { return nil }
+    let xQualifiers = Set(x.qualifiers.map { $0.key })
+    let yQualifiers = Set(y.qualifiers.map { $0.key })
+
+    // The content axis: each qualifier whose verdict.axis is "content" (spec.qualifiers.*.verdict).
+    var contentEqual: [String] = []
+    var contentDiffer: [String] = []
+    var contentOneSide: [String] = []
+    for (key, relation) in related.qualifiers {
+        guard qualifierVerdictSpec(spec, key)?.axis == "content" else { continue }
+        let path = "qualifiers.\(key)"
+        switch relation.relation {
+        case .equal: contentEqual.append(path)
+        case .differ: contentDiffer.append(path)
+        default: contentOneSide.append(path) // covers or coveredBy: declared on one side only
+        }
+    }
+    let content: VerdictContent
+    let contentDecided: [String]
+    if !contentDiffer.isEmpty {
+        content = .different
+        contentDecided = contentDiffer
+    } else if !contentEqual.isEmpty {
+        content = .same
+        contentDecided = contentEqual
+    } else {
+        content = .unknown
+        contentDecided = contentOneSide
+    }
+
+    // The identity axis. Step one: the five fixed dimensions that relate as "differ".
+    var distinct: [String] = []
+    for dimension in fixedDimensions where relationForDimension(related, dimension) == .differ {
+        distinct.append(dimension)
+    }
+
+    // Step two: each identity-axis qualifier with a declared conflict, whose relation is "differ",
+    // decides by its conflict — or by conflictWhenNeitherSideDeclares.then when none of its listed
+    // keys is declared on either side ("declared" meaning present among that side's own parsed
+    // qualifiers). Step three: a qualifier with no verdict member, or a fragment refinement (which
+    // never has one), relating as "differ" makes identity distinct outright.
+    var undetermined: [String] = []
+    for (key, relation) in related.qualifiers {
+        let verdictSpec = qualifierVerdictSpec(spec, key)
+        if verdictSpec?.axis == "content" { continue }
+        let path = "qualifiers.\(key)"
+        guard relation.relation == .differ else { continue }
+        guard let conflict = verdictSpec?.conflict else {
+            distinct.append(path) // step three
+            continue
+        }
+        var decision = conflict // step two, default
+        if let fallbackKeys = verdictSpec?.conflictWhenNeitherSideDeclaresKeys,
+           let fallbackThen = verdictSpec?.conflictWhenNeitherSideDeclaresThen,
+           !fallbackKeys.contains(where: { xQualifiers.contains($0) || yQualifiers.contains($0) }) {
+            decision = fallbackThen
+        }
+        if decision == .distinct { distinct.append(path) } else { undetermined.append(path) }
+    }
+    for (key, relation) in related.fragmentRefinements where relation == .differ {
+        distinct.append("fragmentRefinements.\(key)")
+    }
+
+    let identity: VerdictIdentity
+    let identityDecided: [String]
+    if !distinct.isEmpty {
+        identity = .distinct
+        identityDecided = distinct
+    } else if !undetermined.isEmpty {
+        // Step four: an undetermined from step two, failing a distinct, makes identity undetermined —
+        // decided by the conflicting location keys alone.
+        identity = .undetermined
+        identityDecided = undetermined
+    } else {
+        // Step five: relate's result reduced with the content-axis qualifiers set aside. Every member
+        // reaching here relates as "equal", "covers" or "coveredBy" — a "differ" would already have
+        // been caught by steps one through three.
+        var members: [(path: String, relation: Relation)] = fixedDimensions.map { dimension in
+            (path: dimension, relation: relationForDimension(related, dimension))
+        }
+        for (key, relation) in related.fragmentRefinements {
+            members.append((path: "fragmentRefinements.\(key)", relation: relation))
+        }
+        for (key, relation) in related.qualifiers {
+            if qualifierVerdictSpec(spec, key)?.axis == "content" { continue }
+            members.append((path: "qualifiers.\(key)", relation: relation.relation))
+        }
+        let hasCovers = members.contains { $0.relation == .covers }
+        let hasCoveredBy = members.contains { $0.relation == .coveredBy }
+        if !hasCovers && !hasCoveredBy {
+            identity = .same
+            identityDecided = []
+        } else if hasCovers && !hasCoveredBy {
+            identity = .covers
+            identityDecided = members.filter { $0.relation == .covers }.map(\.path)
+        } else if hasCoveredBy && !hasCovers {
+            identity = .coveredBy
+            identityDecided = members.filter { $0.relation == .coveredBy }.map(\.path)
+        } else {
+            // Neither reaches the other: one side declares what the other leaves open in one place
+            // and the reverse in another, so nothing separates them.
+            identity = .undetermined
+            identityDecided = members.filter { $0.relation != .equal }.map(\.path)
+        }
+    }
+
+    return VerdictResult(
+        identity: identity,
+        content: content,
+        decidedBy: VerdictDecidedBy(identity: orderDecided(identityDecided), content: orderDecided(contentDecided))
+    )
+}
+
+/// How two identifiers mean together once location qualifiers are hints rather than identity —
+/// see `verdictCore` and `comparison.verdict.rule` for the full behaviour. `nil` for a pair `relate`
+/// refuses.
+public func verdict(_ a: String, _ b: String) -> VerdictResult? {
+    guard let spec = try? loadSpec() else { return nil }
+    return verdictCore(spec, read(spec, a), read(spec, b))
+}
+
+public func verdict(_ a: String, _ b: ParseResult) -> VerdictResult? {
+    guard let spec = try? loadSpec() else { return nil }
+    return verdictCore(spec, read(spec, a), read(spec, b))
+}
+
+public func verdict(_ a: ParseResult, _ b: String) -> VerdictResult? {
+    guard let spec = try? loadSpec() else { return nil }
+    return verdictCore(spec, read(spec, a), read(spec, b))
+}
+
+public func verdict(_ a: ParseResult, _ b: ParseResult) -> VerdictResult? {
+    guard let spec = try? loadSpec() else { return nil }
+    return verdictCore(spec, read(spec, a), read(spec, b))
+}

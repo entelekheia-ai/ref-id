@@ -67,7 +67,7 @@ is expected and is checked against the same vectors, never against this code.
   `npm run test:differential` runs **four implementations** — the Node build, the browser build, Rust and
   Swift — over every input the specification names, drawn from the
   vector groups themselves, so the corpus grows with the spec, and then over **every ordered pair** of
-  that corpus for `covers`, `samePackage`, `sameIdentifier` and `relate`; it fails on the first
+  that corpus for `covers`, `samePackage`, `sameIdentifier`, `relate` and `verdict`; it fails on the first
   disagreement. The pair pass exists because parse agreeing everywhere did not make comparison agree: two
   divergences no vector named were found only by building pairs. The
   browser build is a row there rather than a suite of its own, because the failure it can reintroduce is

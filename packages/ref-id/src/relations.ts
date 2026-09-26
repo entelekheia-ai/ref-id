@@ -8,7 +8,7 @@
 
 import { parse } from "./parse.ts"
 import { loadSpec, status, type RefIdSpec } from "./spec.ts"
-import type { Pair, ParseResult, QualifierRelation, RelateResult, Relation } from "./types.ts"
+import type { Pair, ParseResult, QualifierRelation, RelateResult, Relation, VerdictContent, VerdictIdentity, VerdictResult } from "./types.ts"
 
 /**
  * The locator without its version, and the version it carried.
@@ -279,5 +279,165 @@ export function relate(a: string | ParseResult, b: string | ParseResult): Relate
     fragmentPath: optionalRelation(x.fragment?.path, y.fragment?.path),
     fragmentRefinements,
     qualifiers,
+  }
+}
+
+/** The fixed dimensions `verdict`'s step one and step five walk, in the order `decidedBy` fixes them. */
+const FIXED_DIMENSIONS = ["type", "version", "locatorStem", "locatorVersion", "fragmentPath"] as const
+
+/** A qualifier's `verdict` facts, as declared at `spec.qualifiers.<key>.verdict` — read from the spec,
+ * never restated (`.agents/rules/repo-guardrails.md`). Absent entirely for a key with no `verdict`
+ * member, which is exactly `comparison.verdict.rule`'s "step three" population. */
+interface QualifierVerdictSpec {
+  axis?: "identity" | "content"
+  conflict?: VerdictIdentity
+  conflictWhenNeitherSideDeclares?: { keys: string[]; then: VerdictIdentity }
+}
+
+function qualifierVerdictSpec(spec: RefIdSpec, key: string): QualifierVerdictSpec | undefined {
+  const qualifiers = spec.qualifiers as unknown as Record<string, { verdict?: QualifierVerdictSpec }>
+  return qualifiers[key]?.verdict
+}
+
+/** `decidedBy`'s fixed order: the five dimensions in `FIXED_DIMENSIONS`'s order, then refinement keys,
+ * then qualifier keys, each of the latter two groups sorted by UTF-16 code unit order
+ * (`comparison.verdict.result.decidedBy`). */
+function orderDecided(paths: string[]): string[] {
+  const fixed = FIXED_DIMENSIONS.filter((dimension) => paths.includes(dimension))
+  const refinements = paths.filter((path) => path.startsWith("fragmentRefinements.")).sort()
+  const qualifiers = paths.filter((path) => path.startsWith("qualifiers.")).sort()
+  return [...fixed, ...refinements, ...qualifiers]
+}
+
+/**
+ * What two identifiers mean together once location qualifiers are hints rather than identity —
+ * `relate`'s result reduced onto an identity axis and a content axis, per `comparison.verdict.rule`.
+ *
+ * `null` for a pair `relate` refuses. Every qualifier fact this reduction needs — which keys carry a
+ * `content` axis, which carry `identity`, each one's `conflict`, and `conflictWhenNeitherSideDeclares`
+ * with its `keys` and `then` — is read from `spec.qualifiers[key].verdict`; a key with no `verdict`
+ * member follows the rule's step three (any qualifier or refinement that relates as `differ` makes
+ * identity `distinct`, exactly as it does for `covers`).
+ *
+ * Mirrored: `verdict(b, a)` is this result with `covers` and `coveredBy` exchanged on the identity axis;
+ * the content axis and `decidedBy` are unchanged (`comparison.verdict.symmetry`).
+ */
+export function verdict(a: string | ParseResult, b: string | ParseResult): VerdictResult | null {
+  const spec = loadSpec()
+  const related = relate(a, b)
+  if (!related) return null
+  const [x, y] = [read(a), read(b)]
+  if (!x || !y) return null
+  const xQualifiers = new Map(x.qualifiers)
+  const yQualifiers = new Map(y.qualifiers)
+
+  // The content axis: each qualifier whose verdict.axis is "content" (spec.qualifiers.*.verdict).
+  const contentEqual: string[] = []
+  const contentDiffer: string[] = []
+  const contentOneSide: string[] = []
+  for (const [key, relation] of Object.entries(related.qualifiers)) {
+    if (qualifierVerdictSpec(spec, key)?.axis !== "content") continue
+    const path = `qualifiers.${key}`
+    if (relation.relation === "equal") contentEqual.push(path)
+    else if (relation.relation === "differ") contentDiffer.push(path)
+    else contentOneSide.push(path) // covers or coveredBy: declared on one side only
+  }
+  let content: VerdictContent
+  let contentDecided: string[]
+  if (contentDiffer.length > 0) {
+    content = "different"
+    contentDecided = contentDiffer
+  } else if (contentEqual.length > 0) {
+    content = "same"
+    contentDecided = contentEqual
+  } else {
+    content = "unknown"
+    contentDecided = contentOneSide
+  }
+
+  // The identity axis. Step one: the five fixed dimensions that relate as "differ".
+  const distinct: string[] = []
+  for (const dimension of FIXED_DIMENSIONS) {
+    if (related[dimension] === "differ") distinct.push(dimension)
+  }
+
+  // Step two: each identity-axis qualifier with a declared conflict, whose relation is "differ", decides
+  // by its conflict — or by conflictWhenNeitherSideDeclares.then when none of its listed keys is
+  // declared on either side ("declared" meaning present among that side's own parsed qualifiers).
+  // Step three: a qualifier with no verdict member, or a fragment refinement (which never has one),
+  // relating as "differ" makes identity distinct outright.
+  const undetermined: string[] = []
+  for (const [key, relation] of Object.entries(related.qualifiers)) {
+    const verdictSpec = qualifierVerdictSpec(spec, key)
+    if (verdictSpec?.axis === "content") continue
+    const path = `qualifiers.${key}`
+    if (relation.relation !== "differ") continue
+    if (verdictSpec?.conflict === undefined) {
+      distinct.push(path) // step three
+      continue
+    }
+    let decision = verdictSpec.conflict // step two, default
+    const fallback = verdictSpec.conflictWhenNeitherSideDeclares
+    if (fallback && !fallback.keys.some((fallbackKey) => xQualifiers.has(fallbackKey) || yQualifiers.has(fallbackKey))) {
+      decision = fallback.then
+    }
+    if (decision === "distinct") distinct.push(path)
+    else undetermined.push(path)
+  }
+  for (const [key, relation] of Object.entries(related.fragmentRefinements)) {
+    if (relation === "differ") distinct.push(`fragmentRefinements.${key}`)
+  }
+
+  let identity: VerdictIdentity
+  let identityDecided: string[]
+  if (distinct.length > 0) {
+    identity = "distinct"
+    identityDecided = distinct
+  } else if (undetermined.length > 0) {
+    // Step four: an undetermined from step two, failing a distinct, makes identity undetermined —
+    // decided by the conflicting location keys alone.
+    identity = "undetermined"
+    identityDecided = undetermined
+  } else {
+    // Step five: relate's result reduced with the content-axis qualifiers set aside. Every member
+    // reaching here relates as "equal", "covers" or "coveredBy" — a "differ" would already have been
+    // caught by steps one through three.
+    const members: { path: string; relation: Relation }[] = FIXED_DIMENSIONS.map((dimension) => ({
+      path: dimension,
+      relation: related[dimension],
+    }))
+    for (const [key, relation] of Object.entries(related.fragmentRefinements)) {
+      members.push({ path: `fragmentRefinements.${key}`, relation })
+    }
+    for (const [key, relation] of Object.entries(related.qualifiers)) {
+      if (qualifierVerdictSpec(spec, key)?.axis === "content") continue
+      members.push({ path: `qualifiers.${key}`, relation: relation.relation })
+    }
+    const hasCovers = members.some((member) => member.relation === "covers")
+    const hasCoveredBy = members.some((member) => member.relation === "coveredBy")
+    if (!hasCovers && !hasCoveredBy) {
+      identity = "same"
+      identityDecided = []
+    } else if (hasCovers && !hasCoveredBy) {
+      identity = "covers"
+      identityDecided = members.filter((member) => member.relation === "covers").map((member) => member.path)
+    } else if (hasCoveredBy && !hasCovers) {
+      identity = "coveredBy"
+      identityDecided = members.filter((member) => member.relation === "coveredBy").map((member) => member.path)
+    } else {
+      // Neither reaches the other: one side declares what the other leaves open in one place and the
+      // reverse in another, so nothing separates them.
+      identity = "undetermined"
+      identityDecided = members.filter((member) => member.relation !== "equal").map((member) => member.path)
+    }
+  }
+
+  return {
+    identity,
+    content,
+    decidedBy: {
+      identity: orderDecided(identityDecided),
+      content: orderDecided(contentDecided),
+    },
   }
 }

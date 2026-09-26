@@ -41,6 +41,21 @@ func relateResultToJSON(_ result: RelateResult?) -> Any {
     result.map(relateResultToJSONObject) ?? NSNull()
 }
 
+/// A `VerdictResult` as the JSON object `spec.vectors.verdict`'s `expect.verdict` describes.
+func verdictResultToJSONObject(_ result: VerdictResult) -> [String: Any] {
+    [
+        "identity": result.identity.rawValue,
+        "content": result.content.rawValue,
+        "decidedBy": ["identity": result.decidedBy.identity, "content": result.decidedBy.content],
+    ]
+}
+
+/// `verdict`'s return as `--pairs`' protocol wants it on the wire: the object above, or JSON `null` for
+/// a pair `verdict` refuses.
+func verdictResultToJSON(_ result: VerdictResult?) -> Any {
+    result.map(verdictResultToJSONObject) ?? NSNull()
+}
+
 // `--parse`: read one identifier per line on stdin, print one canonical JSON result per line — the
 // surface the differential test against the TypeScript reference reads.
 if CommandLine.arguments.contains("--parse") {
@@ -89,6 +104,7 @@ if CommandLine.arguments.contains("--pairs") {
             "samePackage": samePackage(a, b),
             "sameIdentifier": sameIdentifier(a, b),
             "relate": relateResultToJSON(relate(a, b)),
+            "verdict": verdictResultToJSON(verdict(a, b)),
         ]
         print(try canonicalise(row))
         index += 2
@@ -135,7 +151,7 @@ func buildParts(_ json: [String: Any]) -> BuildParts {
 /// runner cannot yet run must say so, not stay silent.
 func checkEveryVectorGroupRuns() throws {
     let spec = try loadSpec()
-    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate"]
+    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict"]
     let missing = spec.vectorClasses().filter { !executed.contains($0) }.sorted()
     check(missing.isEmpty, "every-vector-group-runs: spec/ref-id.json declares vector groups this runner does not execute: \(missing)")
 }
@@ -169,6 +185,32 @@ func relateResultFromJSON(_ json: Any?) -> RelateResult? {
         type: type, version: version, locatorStem: locatorStem, locatorVersion: locatorVersion,
         fragmentPath: fragmentPath, fragmentRefinements: fragmentRefinements, qualifiers: qualifiers
     )
+}
+
+/// A `VerdictResult` (or `nil`, for a vector's `expect.verdict: null`) rebuilt from the vector's own
+/// JSON shape, so it can be compared against `verdict(a, b)` with `==` rather than field by field.
+func verdictResultFromJSON(_ json: Any?) -> VerdictResult? {
+    guard let dict = json as? [String: Any],
+          let identity = (dict["identity"] as? String).flatMap(VerdictIdentity.init(rawValue:)),
+          let content = (dict["content"] as? String).flatMap(VerdictContent.init(rawValue:)),
+          let decidedBy = dict["decidedBy"] as? [String: Any],
+          let decidedByIdentity = decidedBy["identity"] as? [String],
+          let decidedByContent = decidedBy["content"] as? [String]
+    else { return nil }
+    return VerdictResult(identity: identity, content: content, decidedBy: VerdictDecidedBy(identity: decidedByIdentity, content: decidedByContent))
+}
+
+/// `comparison.verdict.symmetry`: `verdict(b, a)` is `verdict(a, b)` with `covers` and `coveredBy`
+/// exchanged on the identity axis; the content axis and `decidedBy` stay exactly as they were.
+func mirroredVerdict(_ result: VerdictResult?) -> VerdictResult? {
+    guard let result else { return nil }
+    let identity: VerdictIdentity
+    switch result.identity {
+    case .covers: identity = .coveredBy
+    case .coveredBy: identity = .covers
+    default: identity = result.identity
+    }
+    return VerdictResult(identity: identity, content: result.content, decidedBy: result.decidedBy)
 }
 
 func run() throws {
@@ -265,6 +307,18 @@ func run() throws {
         check(samePackage(a, b) == (expect["samePackage"] as! Bool), "relate: \(name) — samePackage")
         check(covers(a, b) == (expect["covers"] as! Bool), "relate: \(name) — covers")
         check(covers(b, a) == (expect["coversReversed"] as! Bool), "relate: \(name) — coversReversed")
+    }
+
+    // verdict — every vector's result, plus its mirror per comparison.verdict.symmetry
+    for vector in try vectors("verdict") {
+        let name = vector["name"] as? String ?? "?"
+        let a = vector["a"] as! String
+        let b = vector["b"] as! String
+        let expect = vector["expect"] as! [String: Any]
+        let forward = verdict(a, b)
+        let wanted = verdictResultFromJSON(expect["verdict"])
+        check(forward == wanted, "verdict: \(name) — verdict(a, b)")
+        check(verdict(b, a) == mirroredVerdict(forward), "verdict: \(name) — verdict(b, a)")
     }
 
     // integrity: the embedded copy is the repository's spec (when run from the repository)

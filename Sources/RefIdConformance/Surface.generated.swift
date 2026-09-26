@@ -19,7 +19,7 @@ import RefId
 
 /// Every method name `openRPC.methods` declares (`x-casing.swift` is camelCase — canonical
 /// names as-is, so this is the spec's own method names, unchanged).
-let declaredMethods: [String] = ["parse", "serialise", "build", "canonicalIdentifier", "sameIdentifier", "samePackage", "covers", "relate", "digest", "validateEnvelope", "canonicalise", "loadSpec", "loadSpecFrom"]
+let declaredMethods: [String] = ["parse", "serialise", "build", "canonicalIdentifier", "sameIdentifier", "samePackage", "covers", "relate", "verdict", "digest", "validateEnvelope", "canonicalise", "loadSpec", "loadSpecFrom"]
 
 /// Binds every declared method to a typed reference. A line here that fails to compile says its
 /// own method is missing, or its label/type has moved, at that line's own comment.
@@ -50,6 +50,10 @@ func checkSurfaceReferences() {
     let _: (String, String) -> RelateResult? = relate(_:_:)
     // relate — IdentifierOrParsed: ParseResult variant
     let _: (ParseResult, ParseResult) -> RelateResult? = relate(_:_:)
+    // verdict — IdentifierOrParsed: String variant
+    let _: (String, String) -> VerdictResult? = verdict(_:_:)
+    // verdict — IdentifierOrParsed: ParseResult variant
+    let _: (ParseResult, ParseResult) -> VerdictResult? = verdict(_:_:)
     // digest
     let _: ([String]) throws -> String = digest(_:)
     // validateEnvelope

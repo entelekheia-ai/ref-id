@@ -65,6 +65,7 @@ const REF_TYPE = {
   BuildParts: "BuildParts",
   EnvelopeResult: "EnvelopeResult",
   RelateResult: "RelateResult", // no Swift type declared today — see report; the reference still names it verbatim.
+  VerdictResult: "VerdictResult",
   Spec: "Spec",
 }
 

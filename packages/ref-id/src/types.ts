@@ -63,6 +63,26 @@ export interface RelateResult {
   qualifiers: Record<string, QualifierRelation>
 }
 
+/** `verdict()`'s identity axis: whether the two name the same thing, as far as their parts can tell
+ * (`comparison.verdict.axes.identity`). */
+export type VerdictIdentity = "same" | "covers" | "coveredBy" | "distinct" | "undetermined"
+
+/** `verdict()`'s content axis: whether the two carry the same frozen bytes, read from the qualifiers
+ * whose `verdict.axis` is `content` (`comparison.verdict.axes.content`). */
+export type VerdictContent = "same" | "different" | "unknown"
+
+/** What `verdict(a, b)` returns for a pair `relate` accepts (`comparison.verdict`); `null` for a pair it
+ * refuses. `decidedBy` names, by path in `relate`'s result, the members that produced each axis's
+ * value — `comparison.verdict.result.decidedBy` states the order and the population rule per value. */
+export interface VerdictResult {
+  identity: VerdictIdentity
+  content: VerdictContent
+  decidedBy: {
+    identity: string[]
+    content: string[]
+  }
+}
+
 export interface BuildParts {
   type: string
   /** For a type-prefixed dispatch, either the bare group (`npm/x@1.0.0`) or the intact format string (`pkg:npm/x@1.0.0`). */

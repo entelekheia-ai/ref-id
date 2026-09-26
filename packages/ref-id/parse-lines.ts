@@ -23,7 +23,7 @@
 // implementations agreed on every parse and still disagreed on comparisons no vector named. stdin then
 // carries two lines per pair — `a`, then `b`, escaped the same way `--parse` escapes a line — and stdout
 // carries one canonical-JSON line per pair: `covers`, `coversReversed` (`covers(b, a)`), `samePackage`,
-// `sameIdentifier` and `relate` (the full result, or `null`). Two lines rather than one line with a
+// `sameIdentifier`, `relate` (the full result, or `null`) and `verdict` (the same). Two lines rather than one line with a
 // separator, because the grammar admits a tab inside a locator.
 
 const withCanonical = process.argv.includes("--canonical")
@@ -33,7 +33,7 @@ const pairsMode = process.argv.includes("--pairs")
 // Dynamic, because the two entry points are the thing under test and a static import would pull both
 // module graphs into this process — including the Node one, whose filesystem loader is precisely what
 // the browser build does not have.
-const { canonicalise, covers, parse, relate, samePackage, sameIdentifier, serialise } = asBrowser
+const { canonicalise, covers, parse, relate, samePackage, sameIdentifier, serialise, verdict } = asBrowser
   ? await import("./src/index.browser.ts")
   : await import("./src/index.ts")
 
@@ -67,6 +67,7 @@ if (pairsMode && lines.length % 2 !== 0) {
         samePackage: samePackage(a, b),
         sameIdentifier: sameIdentifier(a, b),
         relate: relate(a, b),
+        verdict: verdict(a, b),
       }),
     )
   }

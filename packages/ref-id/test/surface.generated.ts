@@ -6,8 +6,8 @@
 // each line below only compiles when the entry point's exported name has the type openRPC
 // declares for it, or is missing/misnamed entirely, which is exactly what a divergence is.
 
-import { BuildError, DigestError, RefIdError, SerialiseError, SpecIntegrityError, SpecVersionError, build, canonicalIdentifier, canonicalise, covers, digest, loadSpec, loadSpecFrom, parse, relate, sameIdentifier, samePackage, serialise, validateEnvelope } from "../src/index.ts"
-import type { BuildParts, EnvelopeResult, Fragment, IdentifierOrParsed, NestedQualifierValue, Pair, ParseResult, QualifierRelation, RelateResult, Relation, Spec } from "../src/index.ts"
+import { BuildError, DigestError, RefIdError, SerialiseError, SpecIntegrityError, SpecVersionError, build, canonicalIdentifier, canonicalise, covers, digest, loadSpec, loadSpecFrom, parse, relate, sameIdentifier, samePackage, serialise, validateEnvelope, verdict } from "../src/index.ts"
+import type { BuildParts, EnvelopeResult, Fragment, IdentifierOrParsed, NestedQualifierValue, Pair, ParseResult, QualifierRelation, RelateResult, Relation, Spec, VerdictResult } from "../src/index.ts"
 
 // --- one assignment per openRPC method: the imported function against its declared signature ---
 
@@ -19,6 +19,7 @@ const _sameIdentifier: (a: string | ParseResult, b: string | ParseResult) => boo
 const _samePackage: (a: string | ParseResult, b: string | ParseResult) => boolean = samePackage
 const _covers: (general: string | ParseResult, specific: string | ParseResult) => boolean = covers
 const _relate: (a: string | ParseResult, b: string | ParseResult) => RelateResult | null = relate
+const _verdict: (a: string | ParseResult, b: string | ParseResult) => VerdictResult | null = verdict
 const _digest: (members: readonly string[]) => string = digest
 const _validateEnvelope: (requestedId: string, envelope: unknown) => EnvelopeResult = validateEnvelope
 const _canonicalise: (value: unknown) => string = canonicalise
@@ -36,6 +37,7 @@ type _EnvelopeResult = EnvelopeResult
 type _Relation = Relation
 type _QualifierRelation = QualifierRelation
 type _RelateResult = RelateResult
+type _VerdictResult = VerdictResult
 type _IdentifierOrParsed = IdentifierOrParsed
 type _Spec = Spec
 

@@ -140,6 +140,16 @@ could not tell them apart. 1.4.0 names that state, and adds that a repeated key 
 is `malformed` at the key rather than an error. A reader that pins `specVersion` and compares identifiers
 of those types must treat 1.3.0 as ambiguous and read the package version beside it.
 
+**1.5.0 narrows two things a 1.4.0 reader admitted, and adds one relation.** `path=`, `origin=` and
+`corpus=` were unknown keys under 1.4.0 and carried through whatever their value; they are now declared
+location qualifiers, so a value outside their forms — a relative `path=`, an `origin=` carrying
+credentials or `.git` — is `malformed` at the key. Written after `#`, the same three keys were unknown
+refinements and carried through; a declared qualifier key on the fragment side is `malformed` at that key,
+whatever its value. A `folder` locator segment that is exactly `.` or `..` was `ok` and is now `malformed`
+at the locator. Everything else valid under 1.4.0 keeps its parse. The
+addition is `verdict`, which reads `relate` and says what a difference means once some qualifiers are
+hints rather than identity (see [ADR-0006](../../project/adr/0006-location-enters-the-identifier-as-a-hint-never-as-identity.md)).
+
 ## Parse statuses
 
 Quoted verbatim from `statuses`:
@@ -209,7 +219,7 @@ When the status is `malformed`, the reported part is one of:
 | Type | Locator form | Validated by | Use when |
 |---|---|---|---|
 | `pkg` | a Package URL, versioned or not | a Package URL parser, per the [Package URL specification](https://github.com/package-url/purl-spec) | the nearest manifest declares a name; unversioned, the Package URL names the living package and `state=` carries the frozen one |
-| `folder` | a declared corpus name, then one segment per directory down to the file | `^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)*$` | the file is not one a package manager ships, so no release contains it: `ref:folder:acme-tools/docs/guide.md#Setup`. A clean install of the package would not hold this file, and a `pkg` identifier for it would resolve to nothing |
+| `folder` | a claimed corpus name, then one segment per directory down to the file | a first segment `[A-Za-z0-9][A-Za-z0-9._-]*`, then segments of `[A-Za-z0-9._-]` that are never exactly `.` or `..` — a segment opening on `.` (`.github`) is an ordinary directory | the file is not one a package manager ships, so no release contains it: `ref:folder:acme-tools/docs/guide.md#Setup`. A clean install of the package would not hold this file, and a `pkg` identifier for it would resolve to nothing. The name is claimed by whoever writes the identifier; where it was found goes in the [location qualifiers](#location-qualifiers) |
 | `url` | `host(/segment)*(@version)?` — a host under the owner's control, then each path segment a name the owner declares beneath it | host labels per RFC 1123, lowercase, internationalised labels in punycode; a segment admits every character except `/`, `@`, `;`, `#` and `:` — the colon is excluded so an identifier spelled in another format's own convention (a version after a colon, a digest after a tilde) is refused rather than absorbed silently, with the version and digest inert inside a name; `~` is admitted alone, because a digest never appears without the colon that precedes it; an optional `@version` on the last segment | the thing exists *as* a host — a site, a portfolio, a case published under it: `ref:url:portfolio.example/case-xpto@2#results`. The package that builds the site keeps its own `pkg` identity |
 | `email` | an addr-spec as the first segment, then one segment per item served under it | RFC 5322 dot-atom local part on the first segment only, host as above | a mailbox identifies a person or a role, and the items served under it are declared by whoever serves them — a message by its RFC 5322 Message-ID, a thread by the id its provider minted: `ref:email:someone@mail.example/CADx9v7abc123@mail.gmail.com#Assunto`. The addr-spec is the first segment and nothing else, so an item id carrying an `@` is never mistaken for the mailbox. A Message-ID is written without the angle brackets the RFC surrounds it with, which is the form a mail API hands over |
 | `unknown` | a deferred species, `species:name(@version)?` | a declared-name pattern, permissive in its characters and strict in its shape: exactly one `:`, the one closing the species, and one `@`, trailing the last segment — so `acme:delivery/pro:be` and `acme:delivery/pro@be/x` are refused, and a composed label carrying either fits only in the fragment, where `covers` compares by equality | an authority this registry does not cover, named precisely instead of opaquely: `ref:unknown:doi:10.1000/182`, `ref:unknown:orcid:0000-0002-1825-0097`. Promoting the species to a type of its own later leaves the written identifier unchanged and moves only its status, from `uncovered` to `ok` |
@@ -256,11 +266,15 @@ Core form only — no SWHID qualifiers, and no abbreviation. An abbreviated hash
 value spelled `swh:1:rev:` followed by only seven hex characters is malformed at `state`. A `sha256:` value
 **MUST** match `^sha256:[0-9a-f]{64}$`.
 
-A corpus **MUST** be declared — one line in the repository's own configuration, frozen at creation — and
-**MUST NOT** be derived from a filesystem path. A path-derived corpus breaks whenever the same content is
-live under two roots at once, which a `file:` dependency between two repositories makes routine.
+A `pkg` corpus is declared by its manifest. A `folder` corpus name is **claimed** by whoever writes the
+identifier: nothing proves it, and it is never the whole of what locates the file. Where the name was
+found — a repository's `origin`, a directory on one machine, a manifest — goes beside it in the
+[location qualifiers](#location-qualifiers), which narrow where to search without deciding what is named.
+That is what keeps one content live under two roots at once, which a `file:` dependency between two
+repositories makes routine, from becoming two corpora: the two identifiers differ only in a hint, and
+[`verdict`](#comparison) reads the hint for what it is.
 
-The corpus of a file is the **nearest manifest that declares a name**, resolved by nearest ancestor — skipping any ancestor manifest whose own workspace or package configuration excludes the file, so a workspace root whose `workspaces` globs leave a subtree out is not that subtree's corpus — and written as an unversioned Package URL: `ref:pkg:npm/acme-tools#acme/adr@2/0019` names a record of the living package, and `state=` carries the frozen one. A `folder` corpus is for the subtrees no manifest reaches, declared **per subtree** in one line of the repository's own configuration. Measured over one
+The corpus of a file is the **nearest manifest that declares a name**, resolved by nearest ancestor — skipping any ancestor manifest whose own workspace or package configuration excludes the file, so a workspace root whose `workspaces` globs leave a subtree out is not that subtree's corpus — and written as an unversioned Package URL: `ref:pkg:npm/acme-tools#acme/adr@2/0019` names a record of the living package, and `state=` carries the frozen one. A `folder` corpus is for the files no release contains, named by a claim, with `corpus=` pointing at a declaration where one exists. Measured over one
 repository: 49 files under a public package and 154 above any package.
 
 ## Percent-encoding
@@ -305,12 +319,13 @@ qualifier key that carries it.
 | Role | Carried by | Changes when |
 |---|---|---|
 | **Identity** | `type`, `locator`, declared-name path | the format renames the thing |
-| **Location** | a path and a byte range | any edit — an attribute, never a key |
+| **Location** | `path=`, `origin=`, `corpus=` as hints; a byte range never | a clone, a move, a mirror — a hint, never identity |
 | **Freeze** | a SWHID in `;state=` | never |
 | **Moment** | an RFC 3339 timestamp in `;when=` | never — a second reading is a second moment |
 
-A file path **MUST NOT** appear in the identity of anything whose format declares a name. Location is an
-attribute of the node, recorded beside it. A builder given the same declared name reached through two
+A file path **MUST NOT** appear in the identity of anything whose format declares a name. Location enters
+an identifier only as a qualifier whose role is `location`, which narrows where to search and never decides
+by itself what is named ([ADR-0006](../../project/adr/0006-location-enters-the-identifier-as-a-hint-never-as-identity.md)). A builder given the same declared name reached through two
 different file paths **MUST** produce the identical identifier — that is the vector that separates this
 scheme from a path with decoration.
 
@@ -383,6 +398,31 @@ two sides **MUST NOT** trade contents.
 bound and turns the identifier into a batch header rather than a name. A `by=` value that is neither a
 nested `ref:` nor a `sha256:` digest **MUST** be reported malformed at `by`.
 
+### Location qualifiers
+
+Three qualifiers carry where the thing was found. Each appears at most once, a reader tries them in the
+order below, and none of them is identity: [`verdict`](#comparison) states how far each may separate two
+identifiers.
+
+| Qualifier | Value | A different value on each side |
+|---|---|---|
+| `path` | a directory on one machine, opening on a token — `~` (home), `{tmp}`, `{config}`, `{data}`, `{cache}`, mapped per OS in `forms.local-path.tokens` — or an absolute path outside every token, `c:/windows` | `undetermined`: one corpus lives in many clones. `distinct` only when neither side carries `origin=` or `state=` — a file whose identity is its place |
+| `origin` | the `https` address of the repository, in one spelling: lowercase ASCII path, no port, userinfo, dot segment or `.git` | `distinct`: two authorities |
+| `corpus` | where the name's declaration lives — a manifest relative to the root the other hints reach (`package.json`), or a nested `ref:` | `undetermined`: two declarations may point at one file |
+
+A `path=` segment that is exactly `.` or `..` is refused rather than resolved, and so is a relative path, a
+trailing separator and a backslash separator. **A builder MUST write a path under the user's home or
+temporary directory through its token**: the pattern cannot tell a user name from a directory name, so the
+obligation is the builder's. A second spelling of one repository in `origin=` would make it `distinct`
+from itself, which is why that form admits exactly one.
+
+```text
+ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup
+ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools#Setup
+ref:folder:acme-tools/src/x.ts;corpus=package.json
+ref:folder:system32/windows.dll;path=c:/windows
+```
+
 ### Qualifier order does not distinguish
 
 `;a=1;b=2` and `;b=2;a=1` are **the same identifier**. Two producers holding the same qualifiers name one
@@ -440,7 +480,7 @@ reversed range — `lines=20,10` — is malformed at `lines` too; the validator 
 
 ## Comparison
 
-`comparison` in the specification defines three relations equality cannot express, all computed on the
+`comparison` in the specification defines four relations equality cannot express, all computed on the
 parsed parts and never on the bytes. An identifier with no decomposition — `malformed`, or at a scheme
 version the implementation does not support — relates to nothing, itself included.
 
@@ -449,6 +489,7 @@ version the implementation does not support — relates to nothing, itself inclu
 | `covers(a, b)` | whether `a` is `b` with less declared — a partial identifier used as a query | asymmetric |
 | `samePackage(a, b)` | whether both name one released thing, at whatever version each declares | symmetric |
 | `relate(a, b)` | how the two relate in each dimension | mirrored |
+| `verdict(a, b)` | what the two mean together once location qualifiers are hints — an identity axis and a content axis | mirrored |
 
 **`covers`** requires the type and scheme version to be equal and the first locator stem to reach the
 second — equal, or a whole-segment prefix, so `acme-tools` reaches `acme-tools/docs` and never
@@ -483,6 +524,33 @@ from the locator version, applying `samePackage` to each `nested` result. The `r
 full results and the three booleans for each pair; `npm run test:relate` checks, from the specification
 alone, that those booleans follow from the results and agree with the `comparison` group wherever the
 two groups hold the same pair.
+
+**`verdict` reads `relate` and says what a difference means.** It returns an identity axis — `same`,
+`covers`, `coveredBy`, `distinct` or `undetermined` — a content axis — `same`, `different` or
+`unknown`, read from `state=` — and `decidedBy`, the members of the `relate` result that fixed each
+one. The rule is `comparison.verdict.rule` in five steps:
+
+1. A differing type, version, locator stem, locator version or fragment path makes identity `distinct`.
+2. A location qualifier present on both sides with different values decides by its declared conflict:
+   `origin=` is `distinct`, `path=` and `corpus=` are `undetermined` — and `path=` becomes
+   `distinct` when neither side declares `origin=` or `state=`.
+3. Any other qualifier or refinement that differs makes identity `distinct`, as it does for `covers`.
+4. Failing a `distinct`, an `undetermined` from step two stands.
+5. Otherwise the `relate` result reduces as above with `state=` set aside: a hint on one side only reads
+   as `covers` or `coveredBy`, and one side declaring what the other leaves open in one place and the
+   reverse in another is `undetermined`.
+
+```text
+verdict(…/guide.md;origin=https://github.com/acme/tools, …/guide.md;origin=https://github.com/acme/fork)
+  → identity: distinct   decidedBy.identity: [qualifiers.origin]
+verdict(…/guide.md;path=~/a, …/guide.md;path=~/b;origin=https://github.com/acme/tools)
+  → identity: undetermined   (a path conflict beside an origin= is two clones, not two things)
+verdict(…/guide.md;state=sha256:aa…, …/manual.md;state=sha256:aa…)
+  → identity: distinct   content: same   — one content under two names
+```
+
+`covers(a, b)` holds exactly when `verdict(a, b)` is `same` or `covers` and every `state=` the first
+declares is declared identically by the second, so the two never disagree on a pair.
 
 ## Sets are ordered
 
@@ -633,7 +701,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.4.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.5.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension
