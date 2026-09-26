@@ -139,11 +139,12 @@ spec mirrors in `Sources/RefId/Resources/` and `crates/ref-id/spec/` are refresh
 `node scripts/seal-spec.mjs` before either runs.
 
 **The minting tool.** `.agents/skills/identify/scripts/identify.ts` changes in four places. `folderCorpus`
-measures the path from the directory of the source that gave the name, and from `git rev-parse
---show-toplevel` when that source is the repository itself. The name comes, in order, from `--locator`,
-from the nearest recognised manifest whose name fits the pattern, recorded as `corpus=`, from the
-repository name in the `origin` remote, and last from the top-level directory's base
-name — the last two reported as `"nameSource": "claimed"`. `origin=` is recorded whenever a remote exists,
+measures the path from the directory of the source that gave the name. The name comes, in order, from
+`--locator`; inside a git repository, from the repository name in the `origin` remote, or the top-level
+directory's base name when there is no remote, with the path measured from `git rev-parse
+--show-toplevel`; and only outside any git repository, or when asked for explicitly, from the nearest
+recognised manifest whose name fits the pattern, recorded as `corpus=`. Every source but `--locator` is
+reported as `"nameSource": "claimed"`. `origin=` is recorded whenever a remote exists,
 rewritten from SSH to `https` and stripped of credentials. Visibility is measured by one anonymous
 `git ls-remote` with credentials and prompts disabled: exit `0` is `public`, anything else is `private`,
 and `--offline` makes it `unknown` without the network. When visibility is not `public`, the output
@@ -172,7 +173,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
       Design. The acceptance is the three measurements that motivated ADR-0006 coming out differently:
       the root `README.md` and `crates/ref-id/README.md` mint different identifiers; the same file minted
       from the main checkout and from a worktree relates as identity `same`; and no minted locator
-      contains a `..` segment.
+      contains a `..` segment. Task: tasks/030-identify-mint-records-location-hints.md
 - [ ] **Track 5 — The prose describes the present.** `docs/reference/the-ref-scheme.md` (the delegation
       table's `folder` row, the corpus paragraphs, a new section on location qualifiers and `verdict`),
       `docs/explanation/why-a-declared-name.md` (the rejected-alternatives entry points at ADR-0006 and
@@ -225,6 +226,14 @@ the same vector count, and `./scripts/check.sh` exits `0`.
   Rationale: a manifest already declares a corpus for `pkg`, and the unversioned case that falls to
   `folder` was implicit in the specification rather than written; naming it keeps the manifest's name
   instead of replacing it with a directory's.
+  Date / Author: 2026-09-26 / Danilo Borges
+- Decision: inside a git repository `mint` takes the name from the repository and measures the path from
+  its top level; a manifest supplies the name only outside any git repository or when asked for. This
+  reorders the entry above without withdrawing it.
+  Rationale: measured on this repository, a manifest-first order minted the root `README.md` and
+  `crates/ref-id/README.md` as `ref:folder:ref-id/README.md` with and without `corpus=`, which `verdict`
+  reads as `covers` — the repository and the crate claim one name, and two roots made two files one path.
+  Measuring from one root keeps the paths apart.
   Date / Author: 2026-09-26 / Danilo Borges
 
 - Decision: a location key declared on one side only follows `relate` — the side without it covers —
