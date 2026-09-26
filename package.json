@@ -12,6 +12,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:identify": "node --test .agents/skills/identify/scripts/identify.test.ts",
+    "test:agent-hooks": "node --test scripts/agent-hooks/git-read-only.test.mjs",
     "test:grammar": "python3 spec/conformance/grammar-check.py && perl spec/conformance/grammar-check.pl",
     "test:relate": "node scripts/check-relate.mjs",
     "test:openrpc": "node scripts/check-openrpc.mjs",

@@ -13,7 +13,9 @@ hooks:
       hooks:
         - type: command
           command: |
-            node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=(JSON.parse(s).tool_input||{}).command||"";if(/\bgit\b[^;&|\n]*\s(stash|checkout|switch|restore|reset|clean|add|commit|push)\b/.test(c)){console.error("ref-id-port-implementer: this git verb is blocked. Other agents have uncommitted work in this tree, and the caller commits.");process.exit(2)}})'
+            f="$CLAUDE_PROJECT_DIR/scripts/agent-hooks/git-read-only.mjs"; in=$(cat)
+            if [ -f "$f" ]; then printf "%s" "$in" | node "$f" ref-id-port-implementer; exit $?; fi
+            case "$in" in *git*) echo "ref-id-port-implementer: the git guard is missing under $CLAUDE_PROJECT_DIR, so a command that mentions git is refused." >&2; exit 2;; esac
     # The specification and every file generated from it are never edited by hand, whatever the brief
     # widens: the spec is the caller's, and a generated file edited to pass a gate hides the defect.
     - matcher: "Edit|Write|NotebookEdit"
