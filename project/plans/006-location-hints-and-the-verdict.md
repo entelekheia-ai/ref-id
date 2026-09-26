@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-26 |
 | Author | Danilo Borges |
 | Related | ADR-0006 (location enters the identifier as a hint, never as identity) |
@@ -152,7 +152,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
 
 ## Tracks
 
-- [ ] **Track 1 — The specification and its vectors.** Edit `spec/ref-id.json` by text substitution — it
+- [x] **Track 1 — The specification and its vectors.** Edit `spec/ref-id.json` by text substitution — it
       is hand-formatted, and a JSON round trip rewrites bytes nobody touched — then
       `node scripts/seal-spec.mjs`, the two mirrors, and `node scripts/gen-spec.mjs` for the browser
       constant. Vectors cover each `path=` token, each refusal (`..`, trailing `/`, relative path,
