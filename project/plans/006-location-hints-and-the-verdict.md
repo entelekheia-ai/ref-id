@@ -102,7 +102,9 @@ disagree without being able to separate what they name.
 `path=` values are validated by one pattern: an optional leading token from the closed set
 `~`, `{tmp}`, `{config}`, `{data}`, `{cache}`, then `/`-separated segments, no `.` or `..` segment, no
 trailing separator; or an absolute path outside every token, with a lowercase drive letter where there is
-one. `origin=` is an `https` URL with no userinfo. `corpus=` is either a relative path under the same
+one. `origin=` is an `https` URL in one spelling only — lowercase ASCII path, no port, no userinfo, no dot
+segment, no `.git` — because an `origin=` conflict decides `distinct` and a second spelling would separate
+one repository from itself. `corpus=` is either a relative path under the same
 segment rule or a nested `ref:` under the existing one-level nesting encoding.
 
 **A package manifest is a declaration `corpus=` can name.** The `pkg` entry already treats the nearest
@@ -229,6 +231,14 @@ the same vector count, and `./scripts/check.sh` exits `0`.
   rather than reading as `undetermined`, and ADR-0006's diagram was corrected on this branch before merge.
   Rationale: the specification reads a partial identifier as a query; answering `undetermined` there would
   make `verdict` and `covers` disagree on the same pair.
+  Date / Author: 2026-09-26 / Danilo Borges
+
+- Decision: `origin=` admits one spelling per repository — explicit-ASCII character classes, a lowercase
+  path, no port — and a remote that cannot be written that way is minted without `origin=`.
+  Rationale: the Track 1 review measured `\s` matching different characters in JavaScript, Rust, Swift and
+  Python, so the same identifier parsed differently by port; and case, a default port, `.GIT` and dot
+  segments each made one repository two `distinct` origins. Losing the hint for a rare remote costs less
+  than a false `distinct`.
   Date / Author: 2026-09-26 / Danilo Borges
 
 ## Outcomes & Retrospective

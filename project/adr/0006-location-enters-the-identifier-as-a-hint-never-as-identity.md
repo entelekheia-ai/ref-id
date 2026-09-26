@@ -99,11 +99,17 @@ decidedBy: the dimensions or qualifier keys that fixed each axis
 flowchart TD
     R["relate(a, b)"] --> I{"type, locator,<br/>fragment path"}
     I -- differ --> D1["identity: distinct"]
-    I -- "equal / covers" --> L{"a location key on<br/>both sides, values differ?"}
+    I -- "equal / covers / coveredBy" --> L{"a location key on<br/>both sides, values differ?"}
     L -- "origin=" --> D2["identity: distinct"]
     L -- "path= with no origin=<br/>and no state= on either side" --> D3["identity: distinct"]
-    L -- "path= / corpus= otherwise" --> U["identity: undetermined"]
-    L -- "none; every key agrees,<br/>or a key on one side only" --> S["identity: same / covers / coveredBy,<br/>as relate reduces it"]
+    L -- "path= / corpus= otherwise" --> O{"any other qualifier<br/>or refinement differs?"}
+    L -- "none" --> O
+    O -- yes --> D4["identity: distinct"]
+    O -- "no, and a location<br/>conflict was found" --> U["identity: undetermined"]
+    O -- "no conflict at all" --> RD{"relate reduced,<br/>state= set aside"}
+    RD -- "equal" --> S["identity: same"]
+    RD -- "covers / coveredBy" --> SC["identity: covers / coveredBy"]
+    RD -- "differ — each side<br/>declares what the other leaves open" --> U
     R --> C{"state= on both sides?"}
     C -- equal --> CS["content: same"]
     C -- differ --> CD["content: different"]

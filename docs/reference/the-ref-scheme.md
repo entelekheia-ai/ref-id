@@ -143,8 +143,10 @@ of those types must treat 1.3.0 as ambiguous and read the package version beside
 **1.5.0 narrows two things a 1.4.0 reader admitted, and adds one relation.** `path=`, `origin=` and
 `corpus=` were unknown keys under 1.4.0 and carried through whatever their value; they are now declared
 location qualifiers, so a value outside their forms — a relative `path=`, an `origin=` carrying
-credentials or `.git` — is `malformed` at the key. A `folder` locator segment that is exactly `.` or `..`
-was `ok` and is now `malformed` at the locator. Everything else valid under 1.4.0 keeps its parse. The
+credentials or `.git` — is `malformed` at the key. Written after `#`, the same three keys were unknown
+refinements and carried through; a declared qualifier key on the fragment side is `malformed` at that key,
+whatever its value. A `folder` locator segment that is exactly `.` or `..` was `ok` and is now `malformed`
+at the locator. Everything else valid under 1.4.0 keeps its parse. The
 addition is `verdict`, which reads `relate` and says what a difference means once some qualifiers are
 hints rather than identity (see [ADR-0006](../../project/adr/0006-location-enters-the-identifier-as-a-hint-never-as-identity.md)).
 

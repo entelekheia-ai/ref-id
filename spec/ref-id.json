@@ -332,12 +332,12 @@
    "reference": "a directory on one machine where the named item was found: a token from the closed set above followed by segments, or an absolute path outside every token — `c:/windows`, `/usr/lib`. The separator is /, a drive letter is lowercase, a trailing separator and a relative path are refused, and a segment that is exactly . or .. is refused rather than resolved, so parsing never needs the filesystem. A builder MUST write a path under the user's home or temporary directory through its token, so a user name never reaches an identifier; the pattern cannot tell, which is why the obligation is the builder's. The token set is closed and moves only with the specification version."
   },
   "origin-url": {
-   "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?::[0-9]{1,5})?(?:/[^/;#%?@\\s\\\\]+)*/(?:[^/;#%?@\\s\\\\]*(?:[^/;#%?@\\s\\\\t]|[^/;#%?@\\s\\\\i]t|[^/;#%?@\\s\\\\g]it|[^/;#%?@\\s\\\\.]git)|t|it|git)$",
-   "reference": "the https address of the repository the item was found in: lowercase host, optional port, at least one path segment, and no userinfo, query, fragment, trailing separator or .git suffix — each of those would let two spellings of one repository compare as two. A builder rewrites an SSH remote (git@host:org/repo.git) to this form and strips credentials before writing it."
+   "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?:/(?:[a-z0-9_~!$&'()*+,=-][a-z0-9._~!$&'()*+,=-]*|\\.[a-z0-9_~!$&'()*+,=-][a-z0-9._~!$&'()*+,=-]*|\\.\\.[a-z0-9._~!$&'()*+,=-]+))*/(?:[a-z0-9._~!$&'()*+,=-]*[a-su-z0-9_~!$&'()*+,=-]|[a-z0-9._~!$&'()*+,=-]*[a-z0-9_~!$&'()*+,=-]\\.+|\\.\\.\\.+|t|it|git|[a-z0-9._~!$&'()*+,=-]*[a-hj-z0-9._~!$&'()*+,=-]t|[a-z0-9._~!$&'()*+,=-]*[a-fh-z0-9._~!$&'()*+,=-]it|[a-z0-9._~!$&'()*+,=-]*[a-z0-9_~!$&'()*+,=-]git)$",
+   "reference": "the https address of the repository the item was found in: a lowercase host, then at least one path segment of lowercase ASCII letters, digits and the unreserved and sub-delimiter characters of RFC 3986, and nothing else — no port, userinfo, query, fragment, percent-encoding, trailing separator, uppercase letter, `.` or `..` segment, or .git suffix. Each excluded form is a second spelling of one repository, and an origin= conflict decides distinct, so a second spelling would separate one repository from itself. Every character class is explicit ASCII, so the five engines agree on every input. A builder rewrites an SSH remote (git@host:org/repo.git) to this form, drops the default port, strips credentials and the .git suffix, and lowercases the path before writing it; a remote that still does not fit — a non-default port, a percent-encoded name — is written without origin= rather than forced into it."
   },
   "relative-path": {
-   "pattern": "^(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+)(?:/(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+))*$",
-   "reference": "a file relative to the root the other location hints reach — a package manifest such as package.json or Cargo.toml that declares the name. No segment is exactly . or .., and no segment carries a :, so a value holding a colon is read only as a nested ref:."
+   "pattern": "^(?:[^/;#%:{}~\\\\\\r\\n.][^/;#%:{}\\\\\\r\\n]*|\\.[^/;#%:{}\\\\\\r\\n.][^/;#%:{}\\\\\\r\\n]*|\\.\\.[^/;#%:{}\\\\\\r\\n]+)(?:/(?:[^/;#%:{}\\\\\\r\\n.][^/;#%:{}\\\\\\r\\n]*|\\.[^/;#%:{}\\\\\\r\\n.][^/;#%:{}\\\\\\r\\n]*|\\.\\.[^/;#%:{}\\\\\\r\\n]+))*$",
+   "reference": "a file relative to the root the other location hints reach — a package manifest such as package.json or Cargo.toml that declares the name. No segment is exactly . or .., no segment carries a :, { or }, and the first segment does not open on ~ — so a value holding a colon is read only as a nested ref:, and nothing here can be mistaken for a local-path token."
   }
  },
  "refinements": {
@@ -435,7 +435,7 @@
    "result": {
     "identity": "whether the two name the same thing, as far as their parts can tell",
     "content": "whether the two carry the same frozen bytes, read from the qualifiers whose verdict axis is content",
-    "decidedBy": "an object with an identity list and a content list, each naming the members of relate's result that produced that axis's value, by their path in that result: `type`, `version`, `locatorStem`, `locatorVersion`, `fragmentPath`, then `fragmentRefinements.<key>` and `qualifiers.<key>`. The order is fixed: the five dimensions in that order, then refinement keys, then qualifier keys, each group sorted by UTF-16 code unit order. For identity: distinct lists every member that made it distinct; undetermined, when step two decided it, the conflicting location keys alone, and when step five decided it, every member whose relation is not equal; covers and coveredBy every member relating as covers or coveredBy; same, none. For content: same lists the content-axis keys that are equal, different those that differ, unknown those declared on one side only — empty when neither side declares one"
+    "decidedBy": "an object with an identity list and a content list, each naming the members of relate's result that produced that axis's value, by their path in that result: `type`, `version`, `locatorStem`, `locatorVersion`, `fragmentPath`, then `fragmentRefinements.<key>` and `qualifiers.<key>`. The order is fixed: the five dimensions in that order, then refinement keys, then qualifier keys, each group sorted by UTF-16 code unit order. For identity: distinct lists every member that made it distinct; undetermined, when step two decided it, the conflicting location keys alone, and when step five decided it, every member whose relation is not equal; covers and coveredBy every member relating as covers or coveredBy; same, none. For content: same lists the content-axis keys that are equal, different those that differ, unknown those declared on one side only — empty when neither side declares one. A content-axis key is never listed in decidedBy.identity, and an identity-axis key never in decidedBy.content"
    },
    "rule": "verdict reads relate(a, b); a pair relate refuses has no verdict, and the result is null. The content axis reads each qualifier whose `verdict.axis` is content: equal on both sides is same, different values is different, and a key on one side only or on neither is unknown — several such keys give different if any differs, same if at least one is equal and none differs, unknown otherwise. The identity axis reads everything else. Step one: if the type, the version, the locator stem, the locator version or the fragment path relates as differ, identity is distinct, decided by that dimension. Step two: each qualifier with `verdict.axis` identity whose relation is differ — both sides declare it, with different values — decides by its `verdict.conflict`; where it declares `conflictWhenNeitherSideDeclares`, that conflict becomes its `then` when none of the listed keys is declared on either side. A distinct from any of them makes identity distinct. Step three: any other qualifier or refinement that relates as differ makes identity distinct, as it does for covers. Step four: failing a distinct, an undetermined from step two makes identity undetermined. Step five: otherwise identity is relate's result reduced with the content-axis qualifiers set aside — equal becomes same, covers and coveredBy stay, so a hint declared on one side only reads as covers or coveredBy exactly as covers reads it. A reduction to differ can only come, at this step, from one side declaring what the other leaves open in one place and the reverse in another; neither reaches the other, nothing separates them, and identity is undetermined. decidedBy.identity lists every dimension and key that produced the chosen value, and is empty when identity is same.",
    "purpose": "relate says where two identifiers differ; verdict says what that difference means once some parts are hints rather than identity. Two checkouts of one repository at two local paths, two declarations pointing at one file, and one file carried under two names are each a different answer, and a boolean has room for none of them",
@@ -3218,6 +3218,54 @@
      "status": "malformed",
      "part": "path"
     }
+   },
+   {
+    "name": "an uppercase letter in origin= is malformed — hosts that fold case would make one repository two",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/Acme/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a port in origin= is malformed — the default one is a second spelling",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com:443/acme/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a dot segment in origin= is malformed — a URL parser would resolve it away",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/..",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a character outside ASCII in origin= is malformed in every engine",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acmetools",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a corpus= path opening on ~ is malformed — it would read as the home token",
+    "input": "ref:folder:acme-tools/docs/guide.md;corpus=~/package.json",
+    "expect": {
+     "status": "malformed",
+     "part": "corpus"
+    }
+   },
+   {
+    "name": "a location key after # is malformed — it is a qualifier, never a refinement",
+    "input": "ref:folder:acme-tools/docs/guide.md#Setup;origin=https://github.com/acme/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
    }
   ],
   "canonical": [
@@ -4938,6 +4986,25 @@
     "b": "ref:folder:acme-tools/docs/guide.md",
     "expect": {
      "verdict": null
+    }
+   },
+   {
+    "name": "a state= on one side is listed in decidedBy.content and never in decidedBy.identity",
+    "a": "ref:folder:acme-tools/docs/guide.md;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools",
+    "expect": {
+     "verdict": {
+      "identity": "covers",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
     }
    }
   ]
