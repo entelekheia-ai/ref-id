@@ -14,6 +14,27 @@ hooks:
         - type: command
           command: |
             node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=(JSON.parse(s).tool_input||{}).command||"";if(/\bgit\b[^;&|\n]*\s(stash|checkout|switch|restore|reset|clean|add|commit|push)\b/.test(c)){console.error("ref-id-port-implementer: this git verb is blocked. Other agents have uncommitted work in this tree, and the caller commits.");process.exit(2)}})'
+    # The specification and every file generated from it are never edited by hand, whatever the brief
+    # widens: the spec is the caller's, and a generated file edited to pass a gate hides the defect.
+    - matcher: "Edit|Write|NotebookEdit"
+      hooks:
+        - type: command
+          command: |
+            node -e '
+            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+              const p=(JSON.parse(s).tool_input||{}).file_path||"";
+              const never=[
+                /\/spec\/ref-id\.json(\.sha256)?$/,
+                /\/Sources\/RefId\/Resources\//,
+                /\/crates\/ref-id\/spec\//,
+                /\/packages\/ref-id\/spec\//,
+                /\/packages\/ref-id\/src\/spec\.browser\.ts$/,
+                /\/packages\/ref-id\/test\/surface\.generated\.ts$/,
+                /\/crates\/ref-id\/tests\/surface\.rs$/,
+                /\/Sources\/RefIdConformance\/Surface\.generated\.swift$/,
+              ];
+              if(never.some(r=>r.test(p))){console.error("ref-id-port-implementer: "+p+" is the specification or a file generated from it, never edited by hand. If the gate needs it changed, stop and report.");process.exit(2)}
+            })'
 ---
 
 You implement one change in one implementation of the `ref:` scheme, and you prove it with that
@@ -49,6 +70,9 @@ reports. Give every file tool an absolute path inside it, and start every shell 
 
 The Swift gate is an executable, not a test target: Command Line Tools ship neither XCTest nor the Swift
 Testing macros. Do not add a test target to get around it.
+
+A hook refuses any edit to the "Generated" column and to `spec/`, whatever the brief says. It
+watches the edit tools only, so a shell redirect into one of those files is still on you.
 
 The brief may widen or narrow the "may write" column; the brief wins. Nothing outside that column is
 yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the other two languages.
