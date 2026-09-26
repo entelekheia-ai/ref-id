@@ -15,8 +15,8 @@ changes nothing.
 
 Four terms are used throughout. The **locator** is the segment after the type, handed verbatim to that
 type's validator. The **fragment** is what follows `#`: the declared name inside the corpus. A
-**qualifier** is a `key=value` pair after `;`. The **corpus** is whatever declares the name — a manifest,
-or a subtree declared in the repository configuration.
+**qualifier** is a `key=value` pair after `;`. The **corpus** is whatever names the subtree — a manifest
+that declares a name, or, for `folder`, a name claimed by whoever writes the identifier.
 
 ## Step 1 — The target is established as a node, or the work stops here
 
@@ -145,8 +145,8 @@ decides it: does a clean install of the package contain this file?**
 
 | The package manager ships it | It does not |
 |---|---|
-| `ref:pkg:npm/x@1.0.0/README.md#Install` | `ref:folder:x/test/parse.test.ts#vectors` |
-| The version is part of the name, because that release is where the file is | The package directory is the root, and its **base name** is the corpus name |
+| `ref:pkg:npm/x@1.0.0/README.md#Install` | `ref:folder:x/packages/x/test/parse.test.ts;origin=https://github.com/acme/x#vectors` |
+| The version is part of the name, because that release is where the file is | The repository is the root: its name opens the locator, and `origin=` says where it lives |
 
 The question is answered by `npm pack --dry-run --json` — the list a publish would actually upload, so
 the `files` field, the ignore files and every npm default are npm's answer and not a re-implementation
@@ -155,13 +155,20 @@ does not contain resolves to nothing.
 
 Two consequences, both deliberate:
 
-- **The corpus name is the directory's base name, never the manifest's `name`.** A scoped package name
-  (`@acme/tools`) cannot be a declared corpus name, and cutting it to its last segment would put two
-  scopes under one corpus. `--root` overrides the root for a subtree no manifest describes.
-- **Nothing is written to disk to record the name, and nothing needs to be.** `ref:folder:xpto/etc`
-  matches inside `xpto` and nowhere else; a reader that wants the bytes has to locate `xpto` itself,
-  exactly as a reader of `ref:pkg:npm/x@1.0.0` has to reach a registry. The identifier names; resolving
-  is the reader's half, and the scheme promises nothing about it.
+- **Inside a git repository the name is the repository's, and the path runs from its top level.** The
+  name is the last segment of the `origin` remote, or the top level's own name when there is no remote,
+  so every clone and every worktree of one repository mints the same locator, and two files at the same
+  path under two packages of one repository never collide. A manifest supplies the name only outside any
+  git repository, or with `--name-from-manifest`, and then `corpus=` records which manifest; a scoped
+  name (`@acme/tools`) does not fit the `folder` pattern and is skipped. `--root` names the root by hand.
+- **Where the name was found travels beside it, as location qualifiers.** `origin=` is written whenever
+  a remote fits its one spelling; `path=` only with `--path-hint` or when there is no remote, always
+  through a token (`~`, `{tmp}`, …) so no user name reaches the identifier. The output reports
+  `nameSource` (`given` or `claimed`) and `nameFrom`.
+- **A private origin is shown, never hidden or silently kept.** Visibility is one anonymous
+  `git ls-remote`; when the repository is not readable anonymously — or `--offline` skipped the check —
+  the output carries `variants.private` (with `origin=` and any `path=`), `variants.public` (without
+  either) and a `warning`. `ref` is the private variant; choosing the public one is the caller's act.
 
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.
@@ -185,7 +192,7 @@ Four facts about how it runs, none of them visible from the command:
 | Refusal | What it means | What answers it |
 |---|---|---|
 | `no-such-path` | nothing is at that path | correct the path |
-| `no-corpus` | no manifest reaching the target declares a name; `skipped` lists each one and why | pass `--type folder --locator <name>`, with a name matching `^[A-Za-z0-9][A-Za-z0-9._-]*$` — and read the paragraph below before choosing it |
+| `no-corpus` | no manifest reaching the target declares a name; `skipped` lists each one and why | pass `--root <directory>`, or `--type folder --locator <name>/<path>` with a name that fits `dispatch.folder.pattern` — it happens only outside any git repository, where no manifest reaching the target declares a name |
 | `manifest-not-purl-mappable` | a Swift package is named by its source host and organisation, which the manifest never carries | pass `--type pkg --locator swift/<host>/<org>/<name>` |
 | `target-undeclared` | the corpus resolved; which declared name inside it is the target is still open | choose from `declaredNames`, or pass `--corpus` when the package itself is the target |
 | `uncovered-type` | the type parses and no validator owns its locator | go to Step 5, or choose a registered type |
@@ -195,12 +202,12 @@ Four facts about how it runs, none of them visible from the command:
 version rule with nothing to place: it exists only where no manifest declares a name, so its subtree was
 published under no version.
 
-**A `folder` corpus has no declaration mechanism yet.** The specification says the name is declared by
-"one line in the repository configuration, per subtree, nearest ancestor wins", and names no file, no
-format and no key — checked across `spec/ref-id.json` and `docs/` on 2026-09-15, which found the sentence
-and nothing that implements it. So a `folder` locator is supplied on the command line today, and where the
-name came from belongs beside the identifier wherever it is stored. A subtree that needs one repeatedly is
-the case that should produce the mechanism rather than another hand-passed name.
+**A `folder` name is a claim, and no declaration file is required.** ADR-0006 keeps the identifier
+self-contained: an identifier travels alone, and a file it depended on would not travel with it. Where a
+declaration does exist — a manifest, a record reached by a nested `ref:` — `corpus=` points at it. When
+the name the repository or manifest supplied does not fit `dispatch.folder.pattern`, the script refuses
+with `corpus-name-unusable`; pass `--root <directory>`, or `--type folder --locator <name>/<path>` with
+a name that fits.
 
 **`target-undeclared` on a governed record returns an empty candidate list, and that is correct rather
 than a failure.** A governed record's declared name has the form
@@ -303,9 +310,9 @@ the case that would correct this step.
 declares the form of its own name inside the file, that emptiness becomes a defect rather than a fact, and
 Step 3 is where the correction goes.
 
-**The `folder` paragraph in Step 3 expires the day the declaration mechanism exists.** It asserts that the
-specification names a repository configuration and defines none. A file, format or key that implements it
-makes that paragraph wrong rather than merely dated, and the refusal row above it changes with it.
+**Step 2's name order and Step 3's `folder` paragraph follow ADR-0006.** A change to where a `folder`
+name comes from, or to the location qualifiers the script writes, is a spec change first; these two
+passages move with it.
 
 **Step 1's rules are stated over identity and exercised by one mode.** Each one is checked against the
 manual `--type`/`--locator` path as well as `mint --path`, because the two modes reach different halves of

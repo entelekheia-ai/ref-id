@@ -174,7 +174,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
       the root `README.md` and `crates/ref-id/README.md` mint different identifiers; the same file minted
       from the main checkout and from a worktree relates as identity `same`; and no minted locator
       contains a `..` segment. Task: tasks/030-identify-mint-records-location-hints.md
-- [ ] **Track 5 — The prose describes the present.** `docs/reference/the-ref-scheme.md` (the delegation
+- [x] **Track 5 — The prose describes the present.** `docs/reference/the-ref-scheme.md` (the delegation
       table's `folder` row, the corpus paragraphs, a new section on location qualifiers and `verdict`),
       `docs/explanation/why-a-declared-name.md` (the rejected-alternatives entry points at ADR-0006 and
       says what was answered), `.agents/skills/identify/SKILL.md` (the base-name paragraph, the refusal

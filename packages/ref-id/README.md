@@ -39,9 +39,9 @@ npm install @entelekheia/ref-id
 ## Usage
 
 The entry points are `parse`, `serialise`, `build`, `canonicalise`, `loadSpec`, `digest`,
-`validateEnvelope`, `sameIdentifier`, `canonicalIdentifier`, `samePackage`, `covers` and `relate`; their
+`validateEnvelope`, `sameIdentifier`, `canonicalIdentifier`, `samePackage`, `covers`, `relate` and `verdict`; their
 contracts are the vectors in `spec/ref-id.json` (`parse`, `roundtrip`, `build`, `digest`, `envelope`,
-`canonical`, `comparison`, `relate`). An unknown locator type parses and degrades to `uncovered`; it never
+`canonical`, `comparison`, `relate`, `verdict`). An unknown locator type parses and degrades to `uncovered`; it never
 throws.
 
 Three questions get three answers, and they are not interchangeable:
@@ -72,6 +72,13 @@ each dimension — type, version, locator stem, locator version, the declared na
 each qualifier — as `"equal" | "covers" | "coveredBy" | "differ"`, or `null` for a pair it refuses.
 `covers`, `samePackage` (and their mirror) are reductions of this same result, never a second computation
 that could disagree with it.
+
+`verdict(a, b)` says what a difference means once some qualifiers are hints rather than identity: the
+location qualifiers `path=`, `origin=` and `corpus=` narrow where to search without deciding what is
+named. It returns an `identity` axis (`"same" | "covers" | "coveredBy" | "distinct" | "undetermined"`),
+a `content` axis read from `state=` (`"same" | "different" | "unknown"`) and `decidedBy`, or `null` for a
+pair `relate` refuses. Two clones of one repository at two local paths come out `undetermined`, two
+`origin=` values `distinct`, and one content under two names `distinct` with `content: "same"`.
 
 **An identifier is a reference, not a copy of the record.** Read it as
 `search(in: <type>:<locator>, for: #<declared name>, with: ;<qualifiers>)`: the first two are the pointer,

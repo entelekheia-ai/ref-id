@@ -192,10 +192,19 @@ two corpora at once.
 One corpus per repository also failed: measured over one repository, 49 files sit under a public package
 and 154 above any package. Corpus is per subtree, by nearest ancestor.
 
-**Does not reopen.** The corpus is declared, and declaration is what all three failures point at. A manifest
-is a declaration: the nearest package manifest that declares a name is the corpus, as an unversioned
-Package URL, so "discovering" the corpus means finding that manifest, never deriving it from the path.
-`folder` remains for the subtrees no manifest reaches.
+**Does not reopen as identity.** A manifest is a declaration: the nearest package manifest that declares a
+name is the corpus, as an unversioned Package URL, so "discovering" a `pkg` corpus means finding that
+manifest, never deriving it from the path.
+
+**Answered for `folder`, by [ADR-0006](../../project/adr/0006-location-enters-the-identifier-as-a-hint-never-as-identity.md).**
+The three failures each assumed the derived name was the whole identity. A `folder` name is now a claim of
+whoever writes the identifier, and where it was found travels beside it as a location qualifier that
+narrows the search without deciding what is named. A machine's layout reaches only `path=`, whose conflict
+is `undetermined`; a repository with no remote writes no `origin=`; and the same content under two corpora
+through a `file:` link is what `verdict`'s content axis reports, as `content: same` under two names. So a
+tool **may** offer a name taken from a remote or a directory — provided it reports the name as claimed and
+records the hints it used. A declaration file per subtree was weighed and refused: an identifier is shared
+alone, and a file it depends on does not travel with it.
 
 ### An integrity qualifier on the reference
 
