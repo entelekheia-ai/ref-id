@@ -414,6 +414,57 @@ test("an SSH remote names the same corpus and origin= as its https equivalent", 
   })
 })
 
+test("a scp-form SSH remote whose origin= is refused still folds its fallback corpus name to lowercase", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      // `ssh://git@github.com:22/Acme/Tools.git` fails looksLikeDnsHost's port-and-userinfo-free host
+      // extraction not at all — it is refused because normaliseOrigin never accepts a non-default port —
+      // so the corpus name here can only come from the fallback (lastSegmentName), never from
+      // normaliseOrigin's result. Issue #36 requires the two to fold case the same way regardless of which
+      // one supplies the name.
+      initRepo(repo, { remote: "ssh://git@github.com:22/Acme/Tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.equal(json.locator, "tools/a.md", `ref was ${json.ref}`)
+      assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("git+ssh:// and ssh+git:// aliases never reach origin=, the same as ssh://", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      for (const scheme of ["git+ssh", "ssh+git"]) {
+        const repo = join(dir, `repo-${scheme}`)
+        initRepo(repo, { remote: `${scheme}://git@github.com-work/acme/tools.git` })
+        writeFileSync(join(repo, "a.md"), "hi\n")
+        commitAll(repo)
+        const { exitCode, json } = run(
+          ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+          baseEnv(home),
+        )
+        assert.equal(exitCode, 0)
+        assert.ok(!json.ref.includes("origin="), `${scheme}: ref was ${json.ref}`)
+        assert.equal(json.locator, "tools/a.md", `${scheme}: ref was ${json.ref}`)
+        assert.match(json.originOmitted, /github\.com-work/, `${scheme}: ${json.originOmitted}`)
+        assert.match(json.originOmitted, /local alias from ssh config/, `${scheme}: ${json.originOmitted}`)
+      }
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
 test("a mixed-case https remote folds into a lowercase corpus name, matching origin=", () => {
   withTmp((dir) => {
     const home = tmpDir("identify-home-")
@@ -458,7 +509,7 @@ test("an SSH host alias with a suffix omits origin=, naming the alias", () => {
   })
 })
 
-test("a single-word SSH alias omits origin=, naming the alias", () => {
+test("a single-word SSH host omits origin=, naming it, with the generic message (a single label never fits origin-url, alias or not)", () => {
   withTmp((dir) => {
     const home = tmpDir("identify-home-")
     try {
@@ -474,7 +525,32 @@ test("a single-word SSH alias omits origin=, naming the alias", () => {
       assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
       assert.equal(typeof json.originOmitted, "string")
       assert.match(json.originOmitted, /\bwork\b/)
-      assert.match(json.originOmitted, /local alias from ssh config/)
+      // A bare label carries no dot, so it fails `origin-url` on shape alone, with or without the alias
+      // check — the alias wording is reserved for a host that would otherwise have passed (issue #37 note).
+      assert.match(json.originOmitted, /does not fit origin-url/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("an IP-literal SSH remote omits origin= with the generic message, never the alias wording", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "git@192.168.1.10:acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
+      assert.equal(typeof json.originOmitted, "string")
+      assert.match(json.originOmitted, /does not fit origin-url/)
+      assert.doesNotMatch(json.originOmitted, /local alias from ssh config/)
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
@@ -498,6 +574,29 @@ test("an ssh:// URL with an alias host omits origin=, naming the alias", () => {
       assert.equal(typeof json.originOmitted, "string")
       assert.match(json.originOmitted, /github\.com-work/)
       assert.match(json.originOmitted, /local alias from ssh config/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("the alias message never contains a remote's userinfo", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "ssh://tok:secret@github.com-work/acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json, stdout } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.equal(typeof json.originOmitted, "string")
+      assert.match(json.originOmitted, /local alias from ssh config/)
+      assert.ok(!stdout.includes("secret"), "the credential must never reach the alias message")
+      assert.ok(!stdout.includes("tok:secret"))
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
