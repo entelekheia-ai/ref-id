@@ -5,11 +5,11 @@
 //
 // `--pairs` (Plan-005 Track 5) switches to a second protocol on the same escaping: stdin carries two
 // lines per pair, `a` then `b`; stdout carries one line per pair, the canonical JSON of
-// `{covers, coversReversed, samePackage, sameIdentifier, relate}`, where `coversReversed` is
-// `covers(b, a)` and `relate` is the full result or `null`. Two lines per pair rather than a separator,
-// because the grammar admits a tab in a locator.
+// `{covers, coversReversed, samePackage, sameIdentifier, relate, verdict}`, where `coversReversed` is
+// `covers(b, a)` and `relate`/`verdict` are the full result or `null`. Two lines per pair rather than a
+// separator, because the grammar admits a tab in a locator.
 
-use ref_id::{canonicalise, covers, parse, relate, same_identifier, same_package, serialise};
+use ref_id::{canonicalise, covers, parse, relate, same_identifier, same_package, serialise, verdict};
 use serde_json::Value;
 use std::io::BufRead;
 
@@ -49,10 +49,10 @@ fn run_default(with_canonical: bool) -> i32 {
 }
 
 /// Two lines in, one canonical JSON line out — `{covers, coversReversed, samePackage, sameIdentifier,
-/// relate}` — for every complete pair. None of the five ever raises: `covers`/`samePackage`/
-/// `sameIdentifier` answer `false` and `relate` answers `null` for whatever they refuse, so there is
-/// nothing here to report as a per-pair failure. A trailing unpaired line — stdin ending after an odd
-/// number of lines — has nothing to compare it against and is dropped rather than guessed at.
+/// relate, verdict}` — for every complete pair. None of the six ever raises: `covers`/`samePackage`/
+/// `sameIdentifier` answer `false` and `relate`/`verdict` answer `null` for whatever they refuse, so
+/// there is nothing here to report as a per-pair failure. A trailing unpaired line — stdin ending after
+/// an odd number of lines — has nothing to compare it against and is dropped rather than guessed at.
 fn run_pairs() -> i32 {
     let mut lines = std::io::stdin().lock().lines();
     loop {
@@ -67,6 +67,7 @@ fn run_pairs() -> i32 {
             "samePackage": same_package(&a, &b),
             "sameIdentifier": same_identifier(&a, &b),
             "relate": relate(&a, &b).map(|r| r.to_json()).unwrap_or(Value::Null),
+            "verdict": verdict(&a, &b).map(|v| v.to_json()).unwrap_or(Value::Null),
         });
         println!("{}", canonicalise(&result).unwrap());
     }

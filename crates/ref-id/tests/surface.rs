@@ -41,6 +41,10 @@ const _: fn(&ref_id::ParseResult, &ref_id::ParseResult) -> bool = ref_id::covers
 const _: fn(&str, &str) -> Option<ref_id::RelateResult> = ref_id::relate;
 const _: fn(&ref_id::ParseResult, &ref_id::ParseResult) -> Option<ref_id::RelateResult> = ref_id::relate;
 
+// verdict -> ref_id::verdict
+const _: fn(&str, &str) -> Option<ref_id::VerdictResult> = ref_id::verdict;
+const _: fn(&ref_id::ParseResult, &ref_id::ParseResult) -> Option<ref_id::VerdictResult> = ref_id::verdict;
+
 // digest -> ref_id::digest
 const _: fn(&[String]) -> Result<String, ref_id::RefIdError> = ref_id::digest;
 
@@ -57,7 +61,7 @@ const _: fn() -> Result<&'static ref_id::Spec, ref_id::RefIdError> = ref_id::loa
 const _: fn(&std::path::Path) -> Result<ref_id::Spec, ref_id::RefIdError> = ref_id::load_spec_from;
 
 /// The methods `openRPC` declares, spelled the way this language spells them (`x-casing.rust`).
-pub const DECLARED: &[&str] = &["parse", "serialise", "build", "canonical_identifier", "same_identifier", "same_package", "covers", "relate", "digest", "validate_envelope", "canonicalise", "load_spec", "load_spec_from"];
+pub const DECLARED: &[&str] = &["parse", "serialise", "build", "canonical_identifier", "same_identifier", "same_package", "covers", "relate", "verdict", "digest", "validate_envelope", "canonicalise", "load_spec", "load_spec_from"];
 
 /// A spec change without regeneration fails here even where every signature still happens to compile.
 #[test]

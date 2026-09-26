@@ -140,6 +140,48 @@ public struct RelateResult: Equatable, Sendable {
     }
 }
 
+/// `verdict()`'s identity axis: whether the two name the same thing, as far as their parts can tell
+/// (`comparison.verdict.axes.identity`).
+public enum VerdictIdentity: String, Equatable, Sendable {
+    case same
+    case covers
+    case coveredBy
+    case distinct
+    case undetermined
+}
+
+/// `verdict()`'s content axis: whether the two carry the same frozen bytes, read from the qualifiers
+/// whose `verdict.axis` is `content` (`comparison.verdict.axes.content`).
+public enum VerdictContent: String, Equatable, Sendable {
+    case same
+    case different
+    case unknown
+}
+
+/// `VerdictResult.decidedBy` — by path in `relate`'s result, the members that produced each axis's
+/// value (`comparison.verdict.result.decidedBy` states the order and the population rule per value).
+public struct VerdictDecidedBy: Equatable, Sendable {
+    public let identity: [String]
+    public let content: [String]
+    public init(identity: [String], content: [String]) {
+        self.identity = identity
+        self.content = content
+    }
+}
+
+/// What `verdict(a, b)` returns for a pair `relate` accepts (`comparison.verdict`); `nil` for a pair it
+/// refuses.
+public struct VerdictResult: Equatable, Sendable {
+    public let identity: VerdictIdentity
+    public let content: VerdictContent
+    public let decidedBy: VerdictDecidedBy
+    public init(identity: VerdictIdentity, content: VerdictContent, decidedBy: VerdictDecidedBy) {
+        self.identity = identity
+        self.content = content
+        self.decidedBy = decidedBy
+    }
+}
+
 /// Every error this package raises. `parse` raises none for an identifier problem.
 public enum RefIdError: Error, Equatable {
     /// `build` was given a part the grammar cannot carry.

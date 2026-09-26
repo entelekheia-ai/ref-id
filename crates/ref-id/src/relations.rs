@@ -438,3 +438,259 @@ pub fn covers<A: IdentifierArg + ?Sized, B: IdentifierArg + ?Sized>(general: &A,
     let (Some(x), Some(y)) = (read(spec, general), read(spec, specific)) else { return false };
     matches!(reduce(&relate_result(spec, &x, &y)), Relation::Equal | Relation::Covers)
 }
+
+/// The fixed dimensions `verdict`'s step one and step five walk, in the order `decidedBy` fixes them
+/// (`comparison.verdict.result.decidedBy`).
+const FIXED_DIMENSIONS: [&str; 5] = ["type", "version", "locatorStem", "locatorVersion", "fragmentPath"];
+
+/// One of the five fixed dimensions of a [`RelateResult`], read by its `decidedBy` path name rather than
+/// by field — the path names are the specification's vocabulary, the struct fields are Rust's.
+fn fixed_relation(result: &RelateResult, dimension: &str) -> Relation {
+    match dimension {
+        "type" => result.r#type,
+        "version" => result.version,
+        "locatorStem" => result.locator_stem,
+        "locatorVersion" => result.locator_version,
+        "fragmentPath" => result.fragment_path,
+        _ => unreachable!("fixed_relation called with a non-fixed dimension: {dimension}"),
+    }
+}
+
+/// A qualifier's `verdict.axis`, read from `spec.qualifiers.<key>.verdict` — never restated
+/// (`.agents/rules/repo-guardrails.md`). `None` for a key with no `verdict` member, exactly
+/// `comparison.verdict.rule`'s "step three" population.
+fn qualifier_verdict_axis<'a>(spec: &'a Spec, key: &str) -> Option<&'a str> {
+    spec.value(&["qualifiers", key, "verdict", "axis"]).and_then(Value::as_str)
+}
+
+/// A qualifier's `verdict.conflict`, or `None` when the key has no `verdict` member at all (step three:
+/// any qualifier or refinement relating as `differ` with no `conflict` to consult makes identity
+/// distinct outright).
+fn qualifier_verdict_conflict<'a>(spec: &'a Spec, key: &str) -> Option<&'a str> {
+    spec.value(&["qualifiers", key, "verdict", "conflict"]).and_then(Value::as_str)
+}
+
+/// A qualifier's `verdict.conflictWhenNeitherSideDeclares` (`keys`, `then`), when declared.
+fn qualifier_verdict_fallback(spec: &Spec, key: &str) -> Option<(Vec<String>, String)> {
+    let node = spec.value(&["qualifiers", key, "verdict", "conflictWhenNeitherSideDeclares"])?;
+    let keys = node.get("keys")?.as_array()?.iter().filter_map(Value::as_str).map(String::from).collect();
+    let then = node.get("then")?.as_str()?.to_string();
+    Some((keys, then))
+}
+
+/// `decidedBy`'s fixed order: the five dimensions in [`FIXED_DIMENSIONS`]'s order, then refinement keys,
+/// then qualifier keys, each of the latter two groups sorted by UTF-16 code unit order.
+fn order_decided(paths: &[String]) -> Vec<String> {
+    let fixed: Vec<String> = FIXED_DIMENSIONS.iter().filter(|dimension| paths.iter().any(|path| path == *dimension)).map(|s| s.to_string()).collect();
+    let mut refinements: Vec<String> = paths.iter().filter(|path| path.starts_with("fragmentRefinements.")).cloned().collect();
+    refinements.sort_by(|a, b| by_key(a, b));
+    let mut qualifiers: Vec<String> = paths.iter().filter(|path| path.starts_with("qualifiers.")).cloned().collect();
+    qualifiers.sort_by(|a, b| by_key(a, b));
+    let mut out = fixed;
+    out.extend(refinements);
+    out.extend(qualifiers);
+    out
+}
+
+/// Identity axis outcome — `comparison.verdict.axes.identity`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerdictIdentity {
+    Same,
+    Covers,
+    CoveredBy,
+    Distinct,
+    Undetermined,
+}
+
+impl VerdictIdentity {
+    fn as_str(self) -> &'static str {
+        match self {
+            VerdictIdentity::Same => "same",
+            VerdictIdentity::Covers => "covers",
+            VerdictIdentity::CoveredBy => "coveredBy",
+            VerdictIdentity::Distinct => "distinct",
+            VerdictIdentity::Undetermined => "undetermined",
+        }
+    }
+}
+
+/// Content axis outcome — `comparison.verdict.axes.content`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerdictContent {
+    Same,
+    Different,
+    Unknown,
+}
+
+impl VerdictContent {
+    fn as_str(self) -> &'static str {
+        match self {
+            VerdictContent::Same => "same",
+            VerdictContent::Different => "different",
+            VerdictContent::Unknown => "unknown",
+        }
+    }
+}
+
+/// Which members of `relate`'s result decided each axis, by their `decidedBy` path —
+/// `comparison.verdict.result.decidedBy`.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct VerdictDecidedBy {
+    pub identity: Vec<String>,
+    pub content: Vec<String>,
+}
+
+/// What `verdict` returns for a pair `relate` accepts — `comparison.verdict.result`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerdictResult {
+    pub identity: VerdictIdentity,
+    pub content: VerdictContent,
+    pub decided_by: VerdictDecidedBy,
+}
+
+impl VerdictResult {
+    /// The JSON shape the specification's `verdict` vectors describe.
+    pub fn to_json(&self) -> Value {
+        serde_json::json!({
+            "identity": self.identity.as_str(),
+            "content": self.content.as_str(),
+            "decidedBy": {
+                "identity": self.decided_by.identity,
+                "content": self.decided_by.content,
+            },
+        })
+    }
+}
+
+/// What two identifiers mean together once location qualifiers are hints rather than identity —
+/// `relate`'s result reduced onto an identity axis and a content axis, per `comparison.verdict.rule`.
+///
+/// `None` for a pair `relate` refuses. Every qualifier fact this reduction needs — which keys carry a
+/// `content` axis, which carry `identity`, each one's `conflict`, and `conflictWhenNeitherSideDeclares`
+/// with its `keys` and `then` — is read from `spec.qualifiers[key].verdict`; a key with no `verdict`
+/// member follows the rule's step three (any qualifier or refinement that relates as `differ` makes
+/// identity `distinct`, exactly as it does for `covers`).
+///
+/// Mirrored: `verdict(b, a)` is this result with `covers` and `coveredBy` exchanged on the identity axis;
+/// the content axis and `decidedBy` are unchanged (`comparison.verdict.symmetry`). Ported from
+/// `packages/ref-id/src/relations.ts`'s `verdict`.
+pub fn verdict<A: IdentifierArg + ?Sized, B: IdentifierArg + ?Sized>(a: &A, b: &B) -> Option<VerdictResult> {
+    let spec = load_spec().ok()?;
+    let related = relate(a, b)?;
+    let x = read(spec, a)?;
+    let y = read(spec, b)?;
+
+    // The content axis: each qualifier whose verdict.axis is "content" (spec.qualifiers.*.verdict).
+    let mut content_equal: Vec<String> = Vec::new();
+    let mut content_differ: Vec<String> = Vec::new();
+    let mut content_one_side: Vec<String> = Vec::new();
+    for (key, relation) in &related.qualifiers {
+        if qualifier_verdict_axis(spec, key) != Some("content") {
+            continue;
+        }
+        let path = format!("qualifiers.{key}");
+        match relation.relation {
+            Relation::Equal => content_equal.push(path),
+            Relation::Differ => content_differ.push(path),
+            _ => content_one_side.push(path), // covers or coveredBy: declared on one side only
+        }
+    }
+    let (content, content_decided) = if !content_differ.is_empty() {
+        (VerdictContent::Different, content_differ)
+    } else if !content_equal.is_empty() {
+        (VerdictContent::Same, content_equal)
+    } else {
+        (VerdictContent::Unknown, content_one_side)
+    };
+
+    // The identity axis. Step one: the five fixed dimensions that relate as "differ".
+    let mut distinct: Vec<String> = Vec::new();
+    for dimension in FIXED_DIMENSIONS {
+        if fixed_relation(&related, dimension) == Relation::Differ {
+            distinct.push(dimension.to_string());
+        }
+    }
+
+    // Step two: each identity-axis qualifier with a declared conflict, whose relation is "differ",
+    // decides by its conflict — or by conflictWhenNeitherSideDeclares.then when none of its listed keys
+    // is declared on either side ("declared" meaning present among that side's own parsed qualifiers).
+    // Step three: a qualifier with no verdict member, or a fragment refinement (which never has one),
+    // relating as "differ" makes identity distinct outright.
+    let mut undetermined: Vec<String> = Vec::new();
+    for (key, relation) in &related.qualifiers {
+        if qualifier_verdict_axis(spec, key) == Some("content") {
+            continue;
+        }
+        let path = format!("qualifiers.{key}");
+        if relation.relation != Relation::Differ {
+            continue;
+        }
+        let Some(conflict) = qualifier_verdict_conflict(spec, key) else {
+            distinct.push(path); // step three
+            continue;
+        };
+        let mut decision = conflict.to_string(); // step two, default
+        if let Some((fallback_keys, then)) = qualifier_verdict_fallback(spec, key) {
+            let declared = fallback_keys
+                .iter()
+                .any(|fallback_key| x.qualifiers.iter().any(|p| &p.key == fallback_key) || y.qualifiers.iter().any(|p| &p.key == fallback_key));
+            if !declared {
+                decision = then;
+            }
+        }
+        if decision == "distinct" {
+            distinct.push(path);
+        } else {
+            undetermined.push(path);
+        }
+    }
+    for (key, relation) in &related.fragment_refinements {
+        if *relation == Relation::Differ {
+            distinct.push(format!("fragmentRefinements.{key}"));
+        }
+    }
+
+    let (identity, identity_decided) = if !distinct.is_empty() {
+        (VerdictIdentity::Distinct, distinct)
+    } else if !undetermined.is_empty() {
+        // Step four: an undetermined from step two, failing a distinct, makes identity undetermined —
+        // decided by the conflicting location keys alone.
+        (VerdictIdentity::Undetermined, undetermined)
+    } else {
+        // Step five: relate's result reduced with the content-axis qualifiers set aside. Every member
+        // reaching here relates as "equal", "covers" or "coveredBy" — a "differ" would already have been
+        // caught by steps one through three.
+        let mut members: Vec<(String, Relation)> = FIXED_DIMENSIONS.iter().map(|dimension| (dimension.to_string(), fixed_relation(&related, dimension))).collect();
+        for (key, relation) in &related.fragment_refinements {
+            members.push((format!("fragmentRefinements.{key}"), *relation));
+        }
+        for (key, relation) in &related.qualifiers {
+            if qualifier_verdict_axis(spec, key) == Some("content") {
+                continue;
+            }
+            members.push((format!("qualifiers.{key}"), relation.relation));
+        }
+        let has_covers = members.iter().any(|(_, relation)| *relation == Relation::Covers);
+        let has_covered_by = members.iter().any(|(_, relation)| *relation == Relation::CoveredBy);
+        if !has_covers && !has_covered_by {
+            (VerdictIdentity::Same, Vec::new())
+        } else if has_covers && !has_covered_by {
+            (VerdictIdentity::Covers, members.iter().filter(|(_, relation)| *relation == Relation::Covers).map(|(path, _)| path.clone()).collect())
+        } else if has_covered_by && !has_covers {
+            (VerdictIdentity::CoveredBy, members.iter().filter(|(_, relation)| *relation == Relation::CoveredBy).map(|(path, _)| path.clone()).collect())
+        } else {
+            // Neither reaches the other: one side declares what the other leaves open in one place and
+            // the reverse in another, so nothing separates them.
+            (VerdictIdentity::Undetermined, members.iter().filter(|(_, relation)| *relation != Relation::Equal).map(|(path, _)| path.clone()).collect())
+        }
+    };
+
+    Some(VerdictResult {
+        identity,
+        content,
+        decided_by: VerdictDecidedBy {
+            identity: order_decided(&identity_decided),
+            content: order_decided(&content_decided),
+        },
+    })
+}

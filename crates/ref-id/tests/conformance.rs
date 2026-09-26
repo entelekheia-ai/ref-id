@@ -43,7 +43,7 @@ fn build_parts(json: &Value) -> BuildParts {
 #[test]
 fn every_vector_group_runs() {
     let spec = load_spec().unwrap();
-    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate"];
+    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict"];
     let mut missing: Vec<String> = spec.vector_classes().into_iter().filter(|c| !executed.contains(&c.as_str())).collect();
     missing.sort();
     assert!(missing.is_empty(), "spec/ref-id.json declares vector groups this runner does not execute: {missing:?}");

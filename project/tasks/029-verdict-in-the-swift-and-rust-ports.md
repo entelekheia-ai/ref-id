@@ -97,15 +97,28 @@ is forbidden, and stopping red with the reason is acceptable.
 The differential (`npm run test:differential`) needs both ports and is run by the orchestrator after both
 land.
 
-- [ ] P0 — item 1: Rust `verdict`
-- [ ] P0 — item 2: Rust runner, surface, pairs
-- [ ] P0 — item 3: Swift `verdict`
-- [ ] P0 — item 4: Swift runner, surface, pairs
-- [ ] P0 — orchestrator: `npm run test:differential` with all four implementations
+- [x] P0 — item 1: Rust `verdict`
+- [x] P0 — item 2: Rust runner, surface, pairs
+- [x] P0 — item 3: Swift `verdict`
+- [x] P0 — item 4: Swift runner, surface, pairs
+- [x] P0 — orchestrator: `npm run test:differential` with all four implementations
 
 ## Surprises & Discoveries
 
-*None yet.*
+- Observation: `scripts/gen-surface-swift.mjs` maps each openRPC `$ref` to a Swift type through a
+  hand-kept table (`REF_TYPE`), so a new result type makes the generator throw until the table gains it —
+  the dossier told the Swift agent to regenerate and forbade `scripts/`, which made the instruction
+  impossible. The agent hand-wrote the file and said so; the orchestrator added `VerdictResult` to the
+  table and the regenerated file was byte-identical to the hand-written one.
+  Evidence: `node scripts/gen-surface-swift.mjs` → "no Swift mapping declared for \$ref VerdictResult".
+- Observation: `verdict` parses each side a second time after `relate` has, in all three
+  implementations, because the `conflictWhenNeitherSideDeclares` test reads each side's own qualifiers
+  rather than the related result.
+  Evidence: `packages/ref-id/src/relations.ts` (`read(a)`, `read(b)` after `relate`), mirrored in the Rust
+  and Swift ports.
+- Observation: with all four implementations, the differential agreed on 226 inputs and 51,076 ordered
+  pairs, `verdict` included.
+  Evidence: `npm run test:differential`, 2026-09-26.
 
 ## Closure
 

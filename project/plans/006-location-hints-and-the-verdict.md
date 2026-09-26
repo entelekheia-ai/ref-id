@@ -165,7 +165,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
 - [x] **Track 2 — `verdict` and the `folder` pattern in TypeScript.** `verdict` in `relations.ts`, its
       exports, and the conformance runner reading the new vectors. The acceptance is `npm test` green in
       `packages/ref-id` with every new vector exercised. Task: tasks/028-verdict-in-the-typescript-reference.md
-- [ ] **Track 3 — The Swift and Rust ports.** The same operation and pattern in `Sources/RefId` and
+- [x] **Track 3 — The Swift and Rust ports.** The same operation and pattern in `Sources/RefId` and
       `crates/ref-id`, each behind its own runner. The acceptance is `swift run ref-id-conformance`
       passing every vector and `cargo test` green, with the differential against the TypeScript reference
       showing no new disagreement. Task: tasks/029-verdict-in-the-swift-and-rust-ports.md
