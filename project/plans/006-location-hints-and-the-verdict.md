@@ -161,7 +161,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
       the verdict table including the three readings of `state=`. `specVersion` moves to `1.5.0`. An
       `opus` adversarial review of the spec diff runs before Track 2 starts. The acceptance is the review
       returning no blocker and the grammar checks in `spec/conformance/` still passing.
-- [ ] **Track 2 — `verdict` and the `folder` pattern in TypeScript.** `verdict` in `relations.ts`, its
+- [x] **Track 2 — `verdict` and the `folder` pattern in TypeScript.** `verdict` in `relations.ts`, its
       exports, and the conformance runner reading the new vectors. The acceptance is `npm test` green in
       `packages/ref-id` with every new vector exercised. Task: tasks/028-verdict-in-the-typescript-reference.md
 - [ ] **Track 3 — The Swift and Rust ports.** The same operation and pattern in `Sources/RefId` and

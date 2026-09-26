@@ -100,16 +100,34 @@ test:surface` at the root reports no divergence for TypeScript. A vector that lo
 the rule text that contradicts it — changing a vector to make a test pass is not an acceptable outcome, and
 stopping red with the reason is.
 
-- [ ] P0 — item 2: `VerdictResult` type
-- [ ] P0 — item 1: `verdict` and its exports
-- [ ] P0 — item 4: regenerate the surface file
-- [ ] P0 — item 3: `test/verdict.test.ts`, then `npm run build && npm test`
+- [x] P0 — item 2: `VerdictResult` type
+- [x] P0 — item 1: `verdict` and its exports
+- [x] P0 — item 4: regenerate the surface file
+- [x] P0 — item 3: `test/verdict.test.ts`, then `npm run build && npm test`
 
 ## Surprises & Discoveries
 
 - Observation: the `folder` half of the track needs no code — the parser reads the locator pattern from
   the spec.
   Evidence: all 21 new parse vectors pass in `packages/ref-id` before any source change (2026-09-26).
+- Observation: step two's "distinct" and step three's "distinct" both feed the same `decidedBy.identity`
+  list, and only step two/three members that individually resolved to "distinct" are listed — a step-two
+  qualifier that resolved to "undetermined" (e.g. `path` beside a deciding `origin` conflict) is dropped
+  from `decidedBy` once the overall verdict is `distinct`, never merged in as a second, softer signal.
+  Evidence: vector "an origin conflict decides distinct even beside a path conflict" expects
+  `decidedBy.identity: ["qualifiers.origin"]` alone, though `path` also relates as `differ` (spec
+  `comparison.verdict.rule`, step two).
+- Observation: content-axis qualifiers (only `state` today) are fully excluded from every identity step —
+  a `state=` differing between two otherwise-identical names never makes identity `distinct`; it only
+  ever appears in `decidedBy.content`. Confirmed by reading `spec.qualifiers.state.verdict` (`{"axis":
+  "content"}`, no `conflict`) and by vectors 14–16, where identical names with differing `state=` values
+  report `identity: "same"`.
+- Observation: `conflictWhenNeitherSideDeclares.keys` ("declared on either side") is read against each
+  side's own parsed qualifiers, not against `relate()`'s reduced per-key relation — a key present on one
+  side only (e.g. `state=` on `a` alone) still counts as "declared", which keeps the `path` conflict at
+  its default `undetermined` instead of falling to the `then: "distinct"` fallback.
+  Evidence: vector "a state= on one side keeps two local paths undetermined" (spec
+  `qualifiers.path.verdict.conflictWhenNeitherSideDeclares`).
 
 ## Closure
 
