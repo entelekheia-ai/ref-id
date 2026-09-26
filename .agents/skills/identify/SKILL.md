@@ -158,13 +158,21 @@ Two consequences, both deliberate:
 - **Inside a git repository the name is the repository's, and the path runs from its top level.** The
   name is the last segment of the `origin` remote, or the top level's own name when there is no remote,
   so every clone and every worktree of one repository mints the same locator, and two files at the same
-  path under two packages of one repository never collide. A manifest supplies the name only outside any
-  git repository, or with `--name-from-manifest`, and then `corpus=` records which manifest; a scoped
-  name (`@acme/tools`) does not fit the `folder` pattern and is skipped. `--root` names the root by hand.
+  path under two packages of one repository never collide. The name folds case the way `origin=` does,
+  whether or not the remote ends up carrying `origin=` — an alias remote refused for `origin=` still
+  lowercases the same name its `https://` equivalent would — so two clones whose remotes differ only in
+  case, or an SSH alias beside its non-alias spelling, mint the same locator. A file identified before this
+  rule from a mixed-case remote gets a new locator when minted again. A manifest
+  supplies the name only outside any git repository, or with `--name-from-manifest`, and then `corpus=`
+  records which manifest; a scoped name (`@acme/tools`) does not fit the `folder` pattern and is skipped.
+  `--root` names the root by hand.
 - **Where the name was found travels beside it, as location qualifiers.** `origin=` is written whenever
   a remote fits its one spelling; `path=` only with `--path-hint` or when there is no remote, always
   through a token (`~`, `{tmp}`, …) so no user name reaches the identifier. The output reports
-  `nameSource` (`given` or `claimed`) and `nameFrom`.
+  `nameSource` (`given` or `claimed`) and `nameFrom`. An SSH remote whose host does not look like a DNS
+  name is refused as a local alias, before any rewrite — a shape test, not a lookup, so an alias spelled
+  with dots and letters only (`work.github.com`) passes it and still mints `origin=`, indistinguishable
+  from a real host of that shape.
 - **A private origin is shown, never hidden or silently kept.** Visibility is one `git ls-remote` run with
   nothing of the caller's — no git config, no home directory, no SSH agent, https only — so a URL rewrite
   or a stored credential cannot make a private repository look public; when the repository is not readable anonymously — or `--offline` skipped the check —
