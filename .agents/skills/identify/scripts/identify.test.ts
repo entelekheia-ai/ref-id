@@ -414,6 +414,116 @@ test("an SSH remote names the same corpus and origin= as its https equivalent", 
   })
 })
 
+test("a mixed-case https remote folds into a lowercase corpus name, matching origin=", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "https://GitHub.com/Acme/Tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.equal(json.locator, "tools/a.md")
+      assert.ok(json.ref.includes("origin=https://github.com/acme/tools"), `ref was ${json.ref}`)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("an SSH host alias with a suffix omits origin=, naming the alias", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "git@github.com-work:acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
+      assert.equal(typeof json.originOmitted, "string")
+      assert.match(json.originOmitted, /github\.com-work/)
+      assert.match(json.originOmitted, /local alias from ssh config/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("a single-word SSH alias omits origin=, naming the alias", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "git@work:acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
+      assert.equal(typeof json.originOmitted, "string")
+      assert.match(json.originOmitted, /\bwork\b/)
+      assert.match(json.originOmitted, /local alias from ssh config/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("an ssh:// URL with an alias host omits origin=, naming the alias", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "ssh://github.com-work/acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(!json.ref.includes("origin="), `ref was ${json.ref}`)
+      assert.equal(typeof json.originOmitted, "string")
+      assert.match(json.originOmitted, /github\.com-work/)
+      assert.match(json.originOmitted, /local alias from ssh config/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("an SSH host whose last label is an IDN xn-- label is accepted", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "git@example.xn--p1ai:acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(json.ref.includes("origin=https://example.xn--p1ai/acme/tools"), `ref was ${json.ref}`)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
 test("a remote made with `git remote set-url --add` names the corpus and origin= from the first value, not the last", () => {
   withTmp((dir) => {
     const home = tmpDir("identify-home-")

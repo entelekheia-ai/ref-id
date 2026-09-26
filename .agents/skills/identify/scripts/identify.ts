@@ -219,6 +219,30 @@ function folderCorpus(target: string, root: string, name: string): { locator: st
 
 // ---------------------------------------------------------------- location hints (ADR-0006, Plan-006 Track 4)
 
+/** The host of an SSH remote — scp form `user@host:path`, or an `ssh://` URL — with any port and userinfo
+ * dropped, or `undefined` for any other spelling (including `https://`, which carries no alias risk this
+ * check exists for). */
+function sshRemoteHost(remote: string): string | undefined {
+  const candidate = remote.trim()
+  if (/^ssh:\/\//i.test(candidate)) {
+    return candidate.match(/^ssh:\/\/(?:[^@/]+@)?([^/:]+)/i)?.[1]
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) return undefined
+  return candidate.match(/^(?:[\w.-]+@)?([^/:@]+):(.+)$/)?.[1]
+}
+
+/** Whether `host` looks like a real DNS name rather than a local SSH config alias (`github.com-work`,
+ * `work`): it carries at least one dot, and its last label is either letters only (2–63 of them) or an IDN
+ * `xn--` label. This is a shape test, never a lookup — nothing here resolves the host or reads `ssh -G` or
+ * any ssh config, so a real host this shape rejects (a bare IPv4/IPv6 literal, a single-label intranet
+ * name) is refused the same as an alias would be. */
+function looksLikeDnsHost(host: string): boolean {
+  const labels = host.split(".")
+  if (labels.length < 2) return false
+  const last = labels[labels.length - 1]
+  return /^[a-z]{2,63}$/i.test(last) || /^xn--/i.test(last)
+}
+
 /** The git top level containing `target`, or `undefined` outside any repository. */
 function gitTopLevel(target: string): string | undefined {
   const dir = statSync(target).isDirectory() ? target : dirname(target)
@@ -234,8 +258,9 @@ function gitTopLevel(target: string): string | undefined {
 
 /** The `origin` remote's URL as the repository records it — `undefined` when there is none. Read from the
  * configuration rather than through `git remote get-url`, which applies the caller's `url.*.insteadOf`
- * rewrites: a mirror or an SSH alias configured on one machine would otherwise become the repository's
- * `origin=`, naming another authority and exposing a host that belongs to that machine alone.
+ * rewrites: a mirror configured on one machine would otherwise become the repository's `origin=`, naming
+ * another authority that belongs to that machine alone. An SSH host alias stored in the remote itself
+ * (not a rewrite) is a different case, caught downstream by `normaliseOrigin`.
  * `remote.origin.url` is multi-valued once `git remote set-url --add` has run, and
  * `git config --get` answers with the last value written, while `git remote get-url` (and `fetch`) use
  * the first — so this reads every value with `--get-all` and takes the first non-empty line, still
@@ -262,8 +287,11 @@ function redactRemote(remote: string): string {
 }
 
 /** The repository name a remote URL names — its last path segment, `.git` and trailing slashes dropped —
- * read from the redacted remote so it works whether or not the remote normalises into `origin=`'s
- * pattern, and so no credential can become the name. */
+ * read from the redacted remote, case kept as written. This is the fallback corpus name, used only when
+ * `normaliseOrigin` returns `undefined` for the same remote (issue #37's SSH alias, a non-default port, an
+ * unrecognised spelling): the corpus name otherwise comes from `normaliseOrigin`'s result, already
+ * lowercased the way `origin=` is, so the two never disagree in case. Read from the redacted remote either
+ * way, so no credential can become the name. */
 function lastSegmentName(remote: string): string | undefined {
   const redacted = redactRemote(remote).replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*/i, "")
   const stripped = redacted.replace(/\/+$/, "").replace(/\.git$/i, "")
@@ -275,10 +303,17 @@ function lastSegmentName(remote: string): string | undefined {
  * stripped, `.git` and a trailing separator dropped, the whole string lowercased — or `undefined` when
  * the result still does not fit `spec.forms["origin-url"].pattern`, which is read from the spec and
  * never restated. A remote written some other way (a non-default port, a percent-encoded name) is
- * reported without `origin=` rather than forced into it (Plan-006 Decision Log).
+ * reported without `origin=` rather than forced into it (Plan-006 Decision Log). An SSH remote (scp form
+ * or `ssh://`) is also refused, before any rewrite, when its host does not look like a DNS name
+ * (`looksLikeDnsHost`) — a host that is a local alias from `~/.ssh/config` (`github.com-work`, `work`)
+ * names a machine only that config resolves, and the same repository cloned elsewhere would mint a
+ * different `origin=` from it. Nothing here resolves the alias (`ssh -G`) or reads any ssh config; it is a
+ * shape test that refuses the alias rather than following it (issue #37).
  */
 function normaliseOrigin(remote: string): string | undefined {
   let candidate = remote.trim()
+  const sshHost = sshRemoteHost(candidate)
+  if (sshHost !== undefined && !looksLikeDnsHost(sshHost)) return undefined
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
     candidate = candidate.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "https://")
   } else {
@@ -397,7 +432,11 @@ function locationBasis(
   }
   const fromRepository = (): Basis | undefined => {
     if (!toplevel) return undefined
-    const fromOrigin = originRaw ? lastSegmentName(originRaw) : undefined
+    // The corpus name folds case the way `origin=` does (issue #36): both must come from the same
+    // spelling of the remote, or two clones differing only in the remote's case mint two identities for
+    // one repository. `lastSegmentName` of the raw remote is only the fallback, for a remote
+    // `normaliseOrigin` refuses (an SSH alias, a non-default port, an unrecognised spelling).
+    const fromOrigin = originRaw ? (normaliseOrigin(originRaw)?.split("/").pop() ?? lastSegmentName(originRaw)) : undefined
     return fromOrigin
       ? { root: toplevel, name: fromOrigin, nameFrom: "origin" }
       : { root: toplevel, name: basename(toplevel), nameFrom: "toplevel" }
@@ -578,7 +617,12 @@ function mint(args: Map<string, string[]>): never {
 
     const originValue = originRaw ? normaliseOrigin(originRaw) : undefined
     if (originRaw && !originValue) {
-      report.originOmitted = `the remote (${redactRemote(originRaw)}) does not fit origin-url`
+      const redacted = redactRemote(originRaw)
+      const sshHost = sshRemoteHost(redacted)
+      report.originOmitted =
+        sshHost !== undefined && !looksLikeDnsHost(sshHost)
+          ? `the remote's SSH host (${sshHost}) looks like a local alias from ssh config, not a DNS name`
+          : `the remote (${redacted}) does not fit origin-url`
     }
     // `path=` is written only when asked for, or when there is no remote to derive `origin=` from — a
     // repository already names itself through `origin=`, so `path=` would only repeat that information

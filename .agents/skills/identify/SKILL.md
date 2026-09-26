@@ -158,9 +158,12 @@ Two consequences, both deliberate:
 - **Inside a git repository the name is the repository's, and the path runs from its top level.** The
   name is the last segment of the `origin` remote, or the top level's own name when there is no remote,
   so every clone and every worktree of one repository mints the same locator, and two files at the same
-  path under two packages of one repository never collide. A manifest supplies the name only outside any
-  git repository, or with `--name-from-manifest`, and then `corpus=` records which manifest; a scoped
-  name (`@acme/tools`) does not fit the `folder` pattern and is skipped. `--root` names the root by hand.
+  path under two packages of one repository never collide. The name folds case the way `origin=` does, so
+  two clones whose remotes differ only in case mint the same locator. A file identified before this rule
+  from a mixed-case remote gets a new locator when minted again. A manifest
+  supplies the name only outside any git repository, or with `--name-from-manifest`, and then `corpus=`
+  records which manifest; a scoped name (`@acme/tools`) does not fit the `folder` pattern and is skipped.
+  `--root` names the root by hand.
 - **Where the name was found travels beside it, as location qualifiers.** `origin=` is written whenever
   a remote fits its one spelling; `path=` only with `--path-hint` or when there is no remote, always
   through a token (`~`, `{tmp}`, …) so no user name reaches the identifier. The output reports
