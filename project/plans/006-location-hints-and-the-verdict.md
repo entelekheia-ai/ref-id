@@ -271,6 +271,28 @@ dependent pattern and an ambiguous `decidedBy`); the branch review found five de
 acceptance measurement exercised, including a credential reaching stdout and a visibility check that the
 caller's git configuration could turn into a false `public`. All were fixed with a probe before and after.
 
+**Against the goals, one by one.** (1) The specification declares the `location` role, the three
+qualifiers, their forms and the five `path=` tokens, and no longer mentions a repository configuration —
+met. (2) A `folder` locator or `path=` value with a `.` or `..` segment is `malformed` in every port —
+met, bound by parse vectors all four implementations run. (3) `verdict` exists in three languages and
+agrees on every vector and on every ordered pair the differential builds — met. (4) `mint` measures from
+the repository's top level, records hints, reports a claimed name, and emits variants for a non-public
+origin — met, with the name order reversed from the first draft (repository before manifest). (5) The
+reference, the explanation and the skill describe the present — met; the package and crate READMEs and
+`AGENTS.md` were updated too. Every success criterion was run at closure and passed.
+
+**Two acceptance criteria were wrong, both in the direction of promising too little.** Track 2's
+acceptance assumed the `folder` pattern needed code; it needed none, because the parser reads the pattern
+from the specification. Track 4's five measurements were all met while five defects sat outside them, and
+only a review found those; a criterion list for a tool that shells out to git and the network should name
+its hostile inputs, not only its happy paths.
+
+**Still open, and who inherits it.** `identify.ts` has no test file (Open questions). `when=` keeps its
+existing reading in `verdict` until a consumer needs another. One fact from the work — that an anonymous
+`git ls-remote` needs global and system config, the home directory and the SSH agent excluded — holds
+beyond this repository and is left to the maintainer's cross-repository learnings. The `publishedAs`
+defect named in Out of scope (a crate-shipped file minted as `folder`) is untouched.
+
 ---
 
 ## Open questions
