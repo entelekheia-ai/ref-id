@@ -15,6 +15,43 @@ hooks:
         - type: command
           command: |
             node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=(JSON.parse(s).tool_input||{}).command||"";if(/\bgit\b[^;&|\n]*\s(stash|commit|push)\b/.test(c)){console.error("ref-id-reviewer: git stash, commit and push are blocked. A review writes nothing, and the stash is shared with every other worktree.");process.exit(2)}})'
+        # Installs dependencies before any command, and again whenever package-lock.json changes (after a
+        # checkout of the change or of its base). Only inside an isolated worktree, never a main checkout.
+        - type: command
+          timeout: 600
+          command: |
+            node -e '
+            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+              const fs=require("fs"),path=require("path"),cp=require("child_process"),crypto=require("crypto");
+              let root;
+              try{root=cp.execFileSync("git",["-C",JSON.parse(s).cwd,"rev-parse","--show-toplevel"],{encoding:"utf8"}).trim()}catch{process.exit(0)}
+              if(!root.includes("/.claude/worktrees/"))process.exit(0);
+              const lock=path.join(root,"package-lock.json");
+              if(!fs.existsSync(lock))process.exit(0);
+              const sha=crypto.createHash("sha256").update(fs.readFileSync(lock)).digest("hex");
+              const stamp=path.join(root,"node_modules",".installed-lock-sha256");
+              if(fs.existsSync(stamp)&&fs.readFileSync(stamp,"utf8")===sha)process.exit(0);
+              const r=cp.spawnSync("npm",["ci","--no-audit","--no-fund"],{cwd:root,stdio:"ignore"});
+              if(r.status===0)fs.writeFileSync(stamp,sha);
+            })'
+  Stop:
+    # Refuses to finish on a worktree that is dirty or left on a detached HEAD: either one keeps Claude Code
+    # from removing the worktree when the review ends.
+    - hooks:
+        - type: command
+          command: |
+            node -e '
+            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+              const j=JSON.parse(s);if(j.stop_hook_active)process.exit(0);
+              const cp=require("child_process"),path=require("path");
+              const git=(...a)=>cp.execFileSync("git",["-C",j.cwd,...a],{encoding:"utf8"}).trim();
+              let dirty,branch,root;
+              try{dirty=git("status","--porcelain");branch=git("branch","--show-current");root=git("rev-parse","--show-toplevel")}catch{process.exit(0)}
+              const problems=[];
+              if(dirty)problems.push("uncommitted or untracked files remain:\n"+dirty.slice(0,1500));
+              if(!branch)problems.push("HEAD is detached: switch back with `git switch worktree-"+path.basename(root)+"` (or the branch you started on).");
+              if(problems.length){console.error("ref-id-reviewer: leave the worktree as you found it before finishing. "+problems.join("\n"));process.exit(2)}
+            })'
 ---
 
 You review one change to the `ref:` scheme looking for the places where it is wrong while every gate
@@ -45,12 +82,16 @@ You start in a fresh worktree of the default branch, with no installed dependenc
 - **Check the change out there**: `git checkout --detach <head>`. To compare against the base, check the
   base out in the same worktree, one after the other. Your worktree is yours: checking out, planting a
   fault in a file to see whether a test catches it, and restoring with `git checkout -- .` are all fine.
-- **Install before the first gate**: `npm ci` at the root. Do not symlink another checkout's
-  `node_modules` — it may be installed from a different lockfile, and a gate then fails for the
-  environment instead of for the change. For Rust, pointing `CARGO_TARGET_DIR` at the main checkout's
-  `target/` (`$(git rev-parse --path-format=absolute --git-common-dir)/../target`) saves a cold build.
-- **Leave it clean**: before finishing, restore every file you changed and delete anything untracked you
-  created, so the worktree is removed automatically.
+- **Dependencies**: a hook runs `npm ci` before your first command, and again whenever
+  `package-lock.json` changes after a checkout. If a gate still fails with a missing module, the hook is
+  not active — run `npm ci` at the root yourself. Do not symlink another checkout's `node_modules`: it may
+  be installed from a different lockfile, and a gate then fails for the environment instead of for the
+  change. For Rust, pointing `CARGO_TARGET_DIR` at the main checkout's `target/`
+  (`$(git rev-parse --path-format=absolute --git-common-dir)/../target`) saves a cold build.
+- **Leave it as you found it**: before finishing, restore every file you changed, delete anything
+  untracked you created, and switch back from the detached HEAD to the branch you started on (note it
+  with `git branch --show-current` before the first checkout). A dirty tree or a detached HEAD keeps the
+  worktree from being removed, and a hook refuses to let you finish on either.
 - Probes that are not edits to the tree — scratch programs, input files — go in `mktemp -d`.
 - `git stash`, `commit` and `push` are blocked. The stash is shared with every other worktree.
 
@@ -149,7 +190,7 @@ the victim wrongly believes afterwards.
    `node -e`, a planted fault.
 5. **Try to refute each finding before reporting it.** Look for the vector, the guard or the caller that
    makes it harmless. What survives is reported; what does not goes under "Declined".
-6. Leave the worktree clean.
+6. Leave the worktree as you found it: clean, and on the branch you started on.
 
 ## Report
 
