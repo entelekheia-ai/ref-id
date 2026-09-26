@@ -232,10 +232,13 @@ function gitTopLevel(target: string): string | undefined {
   }
 }
 
-/** The `origin` remote's raw URL, whatever form it is written in — `undefined` when there is none. */
+/** The `origin` remote's URL as the repository records it — `undefined` when there is none. Read from the
+ * configuration rather than through `git remote get-url`, which applies the caller's `url.*.insteadOf`
+ * rewrites: a mirror or an SSH alias configured on one machine would otherwise become the repository's
+ * `origin=`, naming another authority and exposing a host that belongs to that machine alone. */
 function gitOrigin(toplevel: string): string | undefined {
   try {
-    return execFileSync("git", ["-C", toplevel, "remote", "get-url", "origin"], {
+    return execFileSync("git", ["-C", toplevel, "config", "--get", "remote.origin.url"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()
