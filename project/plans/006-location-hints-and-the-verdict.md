@@ -252,11 +252,31 @@ the same vector count, and `./scripts/check.sh` exits `0`.
 
 ## Outcomes & Retrospective
 
-*Nothing shipped yet.*
+**2026-09-26 — all five tracks landed on one branch.** Spec 1.5.0 carries the `location` role, the three
+qualifiers and `comparison.verdict`; `verdict` exists in TypeScript, Rust and Swift, and the differential
+over four implementations agrees on 226 inputs and 51,076 ordered pairs. `mint` names a `folder` corpus
+from the repository and writes `origin=`, `path=` and the public/private variants. The three
+measurements that motivated ADR-0006 now come out as intended: the root and crate `README.md` are
+`distinct`, one file from a worktree and from the main checkout is `same`, and no minted locator carries
+`..`.
+
+What changed from the design as first written, each recorded above: a hint on one side only reads as
+`covers` rather than `undetermined`; `origin=` admits one spelling only, after the Track 1 review
+measured `\s` meaning different characters in different engines; `mint` takes the name from the
+repository before any manifest. The `folder` half of Track 2 needed no code — the parser already reads the
+locator pattern from the spec.
+
+Two reviews found what the gates did not. The Track 1 review found two blockers in the spec (an engine-
+dependent pattern and an ambiguous `decidedBy`); the branch review found five defects in `mint` that no
+acceptance measurement exercised, including a credential reaching stdout and a visibility check that the
+caller's git configuration could turn into a false `public`. All were fixed with a probe before and after.
 
 ---
 
 ## Open questions
+
+`identify.ts` has no test file. Every defect the branch review found in `mint` sat outside the five
+acceptance measurements, and nothing will catch the next one; its probes are the obvious first tests.
 
 Whether `when=` should get a verdict rule of its own. Today it falls in the last row of the table — two
 different moments are identity `distinct`, as `relate` and `covers` already treat them — while two readings
