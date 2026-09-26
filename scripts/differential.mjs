@@ -221,7 +221,7 @@ for (const [index, [name, command, args]] of pairPorts.entries()) {
   }
   let shown = 0
   for (const [row, [a, b]] of pairs.entries()) {
-    for (const key of ["covers", "coversReversed", "samePackage", "sameIdentifier", "relate"]) {
+    for (const key of ["covers", "coversReversed", "samePackage", "sameIdentifier", "relate", "verdict"]) {
       const [mine, theirs] = [JSON.stringify(pairReference[row][key]), JSON.stringify(rows[row][key])]
       if (mine === theirs) continue
       pairFailures += 1
