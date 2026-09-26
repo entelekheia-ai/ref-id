@@ -288,3 +288,8 @@ the existing reading until a consumer needs `when=` to mean something else.
 - ADR-0006 — location enters the identifier as a hint, never as identity.
 - ADR-0001 — the specification is one data file the package consumes.
 - Plan-005 — `relate`, the relation `verdict` reduces.
+
+- Task dossiers closed and removed per the task lifecycle (`Planned → In Progress → Done → file removed, git history is the archive`):
+  - `git show 89a6da1197f611ca341fb2b71ea08177ba2c2705:project/tasks/028-verdict-in-the-typescript-reference.md`
+  - `git show 89a6da1197f611ca341fb2b71ea08177ba2c2705:project/tasks/029-verdict-in-the-swift-and-rust-ports.md`
+  - `git show 89a6da1197f611ca341fb2b71ea08177ba2c2705:project/tasks/030-identify-mint-records-location-hints.md`
