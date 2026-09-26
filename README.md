@@ -66,9 +66,9 @@ embeds: pin `specVersion` through it rather than through the package version.
 
 | Port | Identifier |
 |---|---|
-| `@entelekheia/ref-id` (npm) | `ref:pkg:npm/@entelekheia/ref-id@0.5.0#spec@1.4.0` |
-| `ref-id` (crates.io) | `ref:pkg:cargo/ref-id@0.5.0#spec@1.4.0` |
-| `RefId` (Swift Package Manager) | `ref:pkg:swift/github.com/entelekheia-ai/ref-id@0.5.0#spec@1.4.0` |
+| `@entelekheia/ref-id` (npm) | `ref:pkg:npm/@entelekheia/ref-id@0.6.0#spec@1.5.0` |
+| `ref-id` (crates.io) | `ref:pkg:cargo/ref-id@0.6.0#spec@1.5.0` |
+| `RefId` (Swift Package Manager) | `ref:pkg:swift/github.com/entelekheia-ai/ref-id@0.6.0#spec@1.5.0` |
 
 <!-- ref-ids:end -->
 
