@@ -167,7 +167,7 @@ carries `variants.private` (with `origin=` and any `path=`) and `variants.public
 - [ ] **Track 3 — The Swift and Rust ports.** The same operation and pattern in `Sources/RefId` and
       `crates/ref-id`, each behind its own runner. The acceptance is `swift run ref-id-conformance`
       passing every vector and `cargo test` green, with the differential against the TypeScript reference
-      showing no new disagreement.
+      showing no new disagreement. Task: tasks/029-verdict-in-the-swift-and-rust-ports.md
 - [ ] **Track 4 — `mint` records hints and variants.** The four changes to `identify.ts` described in
       Design. The acceptance is the three measurements that motivated ADR-0006 coming out differently:
       the root `README.md` and `crates/ref-id/README.md` mint different identifiers; the same file minted
