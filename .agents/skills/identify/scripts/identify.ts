@@ -235,13 +235,21 @@ function gitTopLevel(target: string): string | undefined {
 /** The `origin` remote's URL as the repository records it — `undefined` when there is none. Read from the
  * configuration rather than through `git remote get-url`, which applies the caller's `url.*.insteadOf`
  * rewrites: a mirror or an SSH alias configured on one machine would otherwise become the repository's
- * `origin=`, naming another authority and exposing a host that belongs to that machine alone. */
+ * `origin=`, naming another authority and exposing a host that belongs to that machine alone.
+ * `remote.origin.url` is multi-valued once `git remote set-url --add` has run, and
+ * `git config --get` answers with the last value written, while `git remote get-url` (and `fetch`) use
+ * the first — so this reads every value with `--get-all` and takes the first non-empty line, still
+ * without applying any `insteadOf` rewrite. */
 function gitOrigin(toplevel: string): string | undefined {
   try {
-    return execFileSync("git", ["-C", toplevel, "config", "--get", "remote.origin.url"], {
+    const values = execFileSync("git", ["-C", toplevel, "config", "--get-all", "remote.origin.url"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
-    }).trim()
+    })
+    return values
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0)
   } catch {
     return undefined
   }

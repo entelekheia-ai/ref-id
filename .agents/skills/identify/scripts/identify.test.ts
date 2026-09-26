@@ -192,9 +192,9 @@ test("a non-default port drops origin=; the default port is stripped and origin=
 test("a global insteadOf rewrite to a local bare repo never turns a private origin public", () => {
   withTmp((dir) => {
     // The alias below only ever reaches the isolated `ls-remote` this script runs to check visibility:
-    // the repo's own remote is stored with a different case, so the ambient `git remote get-url` lookup
-    // (unisolated, and identical in both the reviewed and the pre-review script) does not itself apply
-    // the rewrite — only an unisolated visibility check would.
+    // the repo's own remote is stored with a different case, so the ambient `git config --get-all
+    // remote.origin.url` lookup (unisolated, and identical in both the reviewed and the pre-review
+    // script) does not itself apply the rewrite — only an unisolated visibility check would.
     const bareBase = join(dir, "rewrite-base")
     const barePath = join(bareBase, "org", "repo")
     mkdirSync(barePath, { recursive: true })
@@ -385,6 +385,53 @@ test("origin= is the remote the repository records, not the caller's insteadOf r
       assert.equal(exitCode, 0)
       assert.ok(json.ref.includes("origin=https://github.com/acme/tools"), `ref was ${json.ref}`)
       assert.ok(!stdout.includes("mirror.example.invalid"), "a machine-local rewrite must not reach the identifier")
+      // The `.git` suffix on the remote names the corpus, not the locator: `tools`, not `tools.git`.
+      assert.equal(json.locator, "tools/a.md")
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("an SSH remote names the same corpus and origin= as its https equivalent", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "git@github.com:acme/tools.git" })
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      assert.ok(json.ref.includes("origin=https://github.com/acme/tools"), `ref was ${json.ref}`)
+      assert.equal(json.locator, "tools/a.md")
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+test("a remote made with `git remote set-url --add` names the corpus and origin= from the first value, not the last", () => {
+  withTmp((dir) => {
+    const home = tmpDir("identify-home-")
+    try {
+      const repo = join(dir, "repo")
+      initRepo(repo, { remote: "https://github.com/acme/first" })
+      git(repo, "remote", "set-url", "--add", "origin", "https://github.com/acme/second")
+      writeFileSync(join(repo, "a.md"), "hi\n")
+      commitAll(repo)
+      const { exitCode, json } = run(
+        ["mint", "--path", join(repo, "a.md"), "--fragment", "x", "--offline"],
+        baseEnv(home),
+      )
+      assert.equal(exitCode, 0)
+      // `git config --get` alone would answer with the last value written (`second`); `git remote
+      // get-url` and `fetch` both use the first, which is the value this locator and origin= must match.
+      assert.ok(json.ref.includes("origin=https://github.com/acme/first"), `ref was ${json.ref}`)
+      assert.equal(json.locator, "first/a.md")
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
