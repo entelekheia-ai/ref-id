@@ -103,8 +103,7 @@ flowchart TD
     L -- "origin=" --> D2["identity: distinct"]
     L -- "path= with no origin=<br/>and no state= on either side" --> D3["identity: distinct"]
     L -- "path= / corpus= otherwise" --> U["identity: undetermined"]
-    L -- "none; a key on one side only" --> U
-    L -- "none; every key agrees" --> S["identity: same / covers / coveredBy"]
+    L -- "none; every key agrees,<br/>or a key on one side only" --> S["identity: same / covers / coveredBy,<br/>as relate reduces it"]
     R --> C{"state= on both sides?"}
     C -- equal --> CS["content: same"]
     C -- differ --> CD["content: different"]

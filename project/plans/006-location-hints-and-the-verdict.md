@@ -78,7 +78,8 @@ consumes, so nothing else starts until it lands. Four blocks change:
   `path=` exception — `distinct` only when neither side carries `origin=` or `state=`.
 - `roles` gains `location` as a list of those keys, and `roles.note` is rewritten to the ADR's rule:
   location is a hint that narrows where to search and never decides by itself what is named.
-- `dispatch.folder.pattern` refuses a segment opening on `.`, the way the `url` entry already does;
+- `dispatch.folder.pattern` refuses a segment that is exactly `.` or `..` — not every segment opening on
+  `.`, as the `url` entry does, because `.github/` and `.agents/` are ordinary folders a file lives under;
   `declaredBy` is replaced by a sentence stating the name is claimed by the writer and a declaration, when
   one exists, is reached through `corpus=`.
 - `comparison` gains `verdict` beside `samePackage`, `covers` and `relate`, stated as a reading of
@@ -87,10 +88,16 @@ consumes, so nothing else starts until it lands. Four blocks change:
 | Dimension or key | Both present, equal | One side only | Both present, different |
 |---|---|---|---|
 | type / locator / fragment path | as `relate` | as `relate` | identity `distinct` |
-| `origin=` | agrees | identity `undetermined` | identity `distinct` |
-| `path=` | agrees | identity `undetermined` | `undetermined`; `distinct` when neither side has `origin=` or `state=` |
-| `corpus=` | agrees | identity `undetermined` | identity `undetermined` |
+| `origin=` | agrees | as `relate`: the side without it covers | identity `distinct` |
+| `path=` | agrees | as `relate`: the side without it covers | `undetermined`; `distinct` when neither side has `origin=` or `state=` |
+| `corpus=` | agrees | as `relate`: the side without it covers | identity `undetermined` |
 | `state=` | content `same` | content `unknown` | content `different` |
+| any other qualifier or refinement | as `relate` | as `relate` | identity `distinct` |
+
+A key on one side only follows `relate` because the scheme already reads a partial identifier as a query:
+the side that leaves a hint undeclared is the general one and reaches the side that declares it. So
+`verdict` never contradicts `covers` for the same pair, and `undetermined` is reserved for two hints that
+disagree without being able to separate what they name.
 
 `path=` values are validated by one pattern: an optional leading token from the closed set
 `~`, `{tmp}`, `{config}`, `{data}`, `{cache}`, then `/`-separated segments, no `.` or `..` segment, no
@@ -218,6 +225,12 @@ the same vector count, and `./scripts/check.sh` exits `0`.
   instead of replacing it with a directory's.
   Date / Author: 2026-09-26 / Danilo Borges
 
+- Decision: a location key declared on one side only follows `relate` — the side without it covers —
+  rather than reading as `undetermined`, and ADR-0006's diagram was corrected on this branch before merge.
+  Rationale: the specification reads a partial identifier as a query; answering `undetermined` there would
+  make `verdict` and `covers` disagree on the same pair.
+  Date / Author: 2026-09-26 / Danilo Borges
+
 ## Outcomes & Retrospective
 
 *Nothing shipped yet.*
@@ -226,9 +239,10 @@ the same vector count, and `./scripts/check.sh` exits `0`.
 
 ## Open questions
 
-Whether `verdict` should also read `when=`. Two readings of one living thing at two moments already come
-out as identity `same`, content `different` through `state=`; `when=` without `state=` says when without
-saying what, and this plan leaves it outside the verdict until a consumer needs it.
+Whether `when=` should get a verdict rule of its own. Today it falls in the last row of the table — two
+different moments are identity `distinct`, as `relate` and `covers` already treat them — while two readings
+of one living thing at two moments also come out through `state=` as content `different`. This plan keeps
+the existing reading until a consumer needs `when=` to mean something else.
 
 ## Related
 

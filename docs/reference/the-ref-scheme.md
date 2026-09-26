@@ -140,6 +140,14 @@ could not tell them apart. 1.4.0 names that state, and adds that a repeated key 
 is `malformed` at the key rather than an error. A reader that pins `specVersion` and compares identifiers
 of those types must treat 1.3.0 as ambiguous and read the package version beside it.
 
+**1.5.0 narrows two things a 1.4.0 reader admitted, and adds one relation.** `path=`, `origin=` and
+`corpus=` were unknown keys under 1.4.0 and carried through whatever their value; they are now declared
+location qualifiers, so a value outside their forms — a relative `path=`, an `origin=` carrying
+credentials or `.git` — is `malformed` at the key. A `folder` locator segment that is exactly `.` or `..`
+was `ok` and is now `malformed` at the locator. Everything else valid under 1.4.0 keeps its parse. The
+addition is `verdict`, which reads `relate` and says what a difference means once some qualifiers are
+hints rather than identity (see [ADR-0006](../../project/adr/0006-location-enters-the-identifier-as-a-hint-never-as-identity.md)).
+
 ## Parse statuses
 
 Quoted verbatim from `statuses`:
@@ -633,7 +641,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.4.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.5.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension

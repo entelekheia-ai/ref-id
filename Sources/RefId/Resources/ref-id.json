@@ -1,5 +1,5 @@
 {
- "specVersion": "1.4.0",
+ "specVersion": "1.5.0",
  "scheme": "ref",
  "grammar": {
   "dialect": "ecmascript-2018",
@@ -101,9 +101,9 @@
    "validator": "declared-name",
    "delegate": "verbatim",
    "versionTail": false,
-   "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9._-]+)*$",
-   "declaredBy": "one line in the repository configuration, per subtree, nearest ancestor wins",
-   "corpus": "the subtree declared by name in the repository configuration; the locator continues into that subtree, one segment per directory, and ends at the file whose declared names the fragment cuts"
+   "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/(?:[A-Za-z0-9_-][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*|\\.\\.[A-Za-z0-9._-]+))*$",
+   "declaredBy": "whoever writes the identifier claims the name; nothing proves it. A declaration may exist — a package manifest that declares a name, or a record reached through a nested ref: — and the identifier points at it through corpus= rather than depending on it. A segment that is exactly . or .. is refused, because the delegate is verbatim and a consumer mapping the locator onto a path would otherwise inherit a traversal from a locator that parsed clean; a segment merely opening on . names an ordinary directory and is admitted.",
+   "corpus": "the subtree whose name the locator opens on; the locator continues into that subtree, one segment per directory, measured from the directory of the source that gave the name, and ends at the file whose declared names the fragment cuts. Where the name is found, not what it is, belongs in the location qualifiers."
   },
   "url": {
    "locator": "hostname-path",
@@ -201,9 +201,9 @@
   "cut": "the locator names the item and the fragment names one level inside it. What that level is depends on the kind of item — a folder cuts to a file, a file to a declared name inside it. Descending a level moves the previous one into the locator, so an identifier carries exactly one cut and choosing where to cut is choosing what is named.",
   "scope": "a path inside the locator is the scope a declared name was declared in, not where the bytes sit. The scope of a heading in a document IS that document, which is why it belongs to identity; a language that gives a symbol a qualified name needs no path for the same reason.",
   "location": [
-   "a filesystem path on one machine",
-   "a byte offset into one copy",
-   "a mirror serving the same bytes"
+   "path",
+   "origin",
+   "corpus"
   ],
   "freeze": [
    "state"
@@ -211,7 +211,7 @@
   "moment": [
    "when"
   ],
-  "note": "location is how a reader reaches the bytes from OUTSIDE the identifier, and it never enters one. A refinement such as `lines=` is not location: it narrows within the cut, and it is declared, not measured."
+  "note": "location is how a reader reaches the bytes, and it enters an identifier only as a hint: a qualifier whose role is location narrows where to search and never decides by itself what is named. Identity stays what `identity` lists, and `comparison.verdict` states how far each hint may separate two identifiers. A byte offset into one copy and a mirror serving the same bytes remain outside every identifier. A refinement such as `lines=` is not location: it narrows within the cut, and it is declared, not measured."
  },
  "qualifiers": {
   "state": {
@@ -221,7 +221,10 @@
     "git",
     "content-hash",
     "none"
-   ]
+   ],
+   "verdict": {
+    "axis": "content"
+   }
   },
   "by": {
    "role": "instrument",
@@ -243,6 +246,44 @@
    "forms": [
     "rfc3339"
    ]
+  },
+  "path": {
+   "role": "location",
+   "forms": [
+    "local-path"
+   ],
+   "verdict": {
+    "axis": "identity",
+    "conflict": "undetermined",
+    "conflictWhenNeitherSideDeclares": {
+     "keys": [
+      "origin",
+      "state"
+     ],
+     "then": "distinct"
+    }
+   }
+  },
+  "origin": {
+   "role": "location",
+   "forms": [
+    "origin-url"
+   ],
+   "verdict": {
+    "axis": "identity",
+    "conflict": "distinct"
+   }
+  },
+  "corpus": {
+   "role": "location",
+   "forms": [
+    "ref",
+    "relative-path"
+   ],
+   "verdict": {
+    "axis": "identity",
+    "conflict": "undetermined"
+   }
   }
  },
  "forms": {
@@ -278,6 +319,25 @@
   "unknown": {
    "pattern": "^unknown$",
    "reference": "the declared level for a population nobody established. Deliberately not `none`, which `state` uses: a state cannot be empty, so `none` is unambiguous there, while a population over zero members is a real and different thing from a population nobody recorded — and an identifier must not let the two read alike. It is a floor, never a destination: a producer that can enumerate its population says so with `sha256`, which names which population rather than admitting there was one"
+  },
+  "local-path": {
+   "pattern": "^(?:(?:~|\\{(?:tmp|config|data|cache)\\})(?:/(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+))*|(?:[a-z]:)?(?:/(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+))+)$",
+   "tokens": {
+    "~": "the user's home directory — $HOME on Linux and macOS, %USERPROFILE% on Windows",
+    "{tmp}": "the temporary directory — $TMPDIR or /tmp on Linux, $TMPDIR on macOS, %TEMP% on Windows",
+    "{config}": "the user's configuration directory — $XDG_CONFIG_HOME on Linux, ~/Library/Application Support on macOS, %APPDATA% on Windows",
+    "{data}": "the user's data directory — $XDG_DATA_HOME on Linux, ~/Library/Application Support on macOS, %LOCALAPPDATA% on Windows",
+    "{cache}": "the user's cache directory — $XDG_CACHE_HOME on Linux, ~/Library/Caches on macOS, %LOCALAPPDATA%\\Temp on Windows"
+   },
+   "reference": "a directory on one machine where the named item was found: a token from the closed set above followed by segments, or an absolute path outside every token — `c:/windows`, `/usr/lib`. The separator is /, a drive letter is lowercase, a trailing separator and a relative path are refused, and a segment that is exactly . or .. is refused rather than resolved, so parsing never needs the filesystem. A builder MUST write a path under the user's home or temporary directory through its token, so a user name never reaches an identifier; the pattern cannot tell, which is why the obligation is the builder's. The token set is closed and moves only with the specification version."
+  },
+  "origin-url": {
+   "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}(?::[0-9]{1,5})?(?:/[^/;#%?@\\s\\\\]+)*/(?:[^/;#%?@\\s\\\\]*(?:[^/;#%?@\\s\\\\t]|[^/;#%?@\\s\\\\i]t|[^/;#%?@\\s\\\\g]it|[^/;#%?@\\s\\\\.]git)|t|it|git)$",
+   "reference": "the https address of the repository the item was found in: lowercase host, optional port, at least one path segment, and no userinfo, query, fragment, trailing separator or .git suffix — each of those would let two spellings of one repository compare as two. A builder rewrites an SSH remote (git@host:org/repo.git) to this form and strips credentials before writing it."
+  },
+  "relative-path": {
+   "pattern": "^(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+)(?:/(?:[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.[^/;#%:\\\\\\r\\n.][^/;#%:\\\\\\r\\n]*|\\.\\.[^/;#%:\\\\\\r\\n]+))*$",
+   "reference": "a file relative to the root the other location hints reach — a package manifest such as package.json or Cargo.toml that declares the name. No segment is exactly . or .., and no segment carries a :, so a value holding a colon is read only as a nested ref:."
   }
  },
  "refinements": {
@@ -365,6 +425,21 @@
     "samePackage": "the type, version, locator stem, fragment path and every refinement are equal, the locator version is ignored, and each qualifier is equal — or, where it carries nested, samePackage holds on that nested result"
    },
    "purpose": "a boolean says whether; relate says where. A consumer that types a graph edge by how two identifiers relate reads the dimensions, and covers, coveredBy and samePackage are reductions of the same result rather than three computations that could disagree"
+  },
+  "verdict": {
+   "symmetry": "mirrored — verdict(b, a) is verdict(a, b) with covers and coveredBy exchanged on the identity axis; the content axis and decidedBy are unchanged",
+   "axes": {
+    "identity": ["same", "covers", "coveredBy", "distinct", "undetermined"],
+    "content": ["same", "different", "unknown"]
+   },
+   "result": {
+    "identity": "whether the two name the same thing, as far as their parts can tell",
+    "content": "whether the two carry the same frozen bytes, read from the qualifiers whose verdict axis is content",
+    "decidedBy": "an object with an identity list and a content list, each naming the members of relate's result that produced that axis's value, by their path in that result: `type`, `version`, `locatorStem`, `locatorVersion`, `fragmentPath`, then `fragmentRefinements.<key>` and `qualifiers.<key>`. The order is fixed: the five dimensions in that order, then refinement keys, then qualifier keys, each group sorted by UTF-16 code unit order. For identity: distinct lists every member that made it distinct; undetermined, when step two decided it, the conflicting location keys alone, and when step five decided it, every member whose relation is not equal; covers and coveredBy every member relating as covers or coveredBy; same, none. For content: same lists the content-axis keys that are equal, different those that differ, unknown those declared on one side only — empty when neither side declares one"
+   },
+   "rule": "verdict reads relate(a, b); a pair relate refuses has no verdict, and the result is null. The content axis reads each qualifier whose `verdict.axis` is content: equal on both sides is same, different values is different, and a key on one side only or on neither is unknown — several such keys give different if any differs, same if at least one is equal and none differs, unknown otherwise. The identity axis reads everything else. Step one: if the type, the version, the locator stem, the locator version or the fragment path relates as differ, identity is distinct, decided by that dimension. Step two: each qualifier with `verdict.axis` identity whose relation is differ — both sides declare it, with different values — decides by its `verdict.conflict`; where it declares `conflictWhenNeitherSideDeclares`, that conflict becomes its `then` when none of the listed keys is declared on either side. A distinct from any of them makes identity distinct. Step three: any other qualifier or refinement that relates as differ makes identity distinct, as it does for covers. Step four: failing a distinct, an undetermined from step two makes identity undetermined. Step five: otherwise identity is relate's result reduced with the content-axis qualifiers set aside — equal becomes same, covers and coveredBy stay, so a hint declared on one side only reads as covers or coveredBy exactly as covers reads it. A reduction to differ can only come, at this step, from one side declaring what the other leaves open in one place and the reverse in another; neither reaches the other, nothing separates them, and identity is undetermined. decidedBy.identity lists every dimension and key that produced the chosen value, and is empty when identity is same.",
+   "purpose": "relate says where two identifiers differ; verdict says what that difference means once some parts are hints rather than identity. Two checkouts of one repository at two local paths, two declarations pointing at one file, and one file carried under two names are each a different answer, and a boolean has room for none of them",
+   "reads": "covers(a, b) holds exactly when verdict(a, b).identity is same or covers and every content-axis qualifier a declares is declared identically by b — the content axis does not relax covers, which still requires a declared state= to be matched"
   }
  },
  "canonicalisation": {
@@ -646,6 +721,41 @@
     },
     "x-rule": "/comparison/relate",
     "x-vectors": "relate"
+   },
+   {
+    "name": "verdict",
+    "summary": "What two identifiers mean together once location qualifiers are hints: an identity axis, a content axis, and the dimensions that decided each; null for a pair relate refuses.",
+    "params": [
+     {
+      "name": "a",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     },
+     {
+      "name": "b",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/IdentifierOrParsed"
+      }
+     }
+    ],
+    "result": {
+     "name": "verdict",
+     "schema": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/VerdictResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "x-rule": "/comparison/verdict",
+    "x-vectors": "verdict"
    },
    {
     "name": "digest",
@@ -1161,6 +1271,56 @@
        "type": "object",
        "additionalProperties": {
         "$ref": "#/components/schemas/QualifierRelation"
+       }
+      }
+     }
+    },
+    "VerdictResult": {
+     "description": "What verdict() returns for a pair relate accepts; null for a pair it refuses.",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "identity",
+      "content",
+      "decidedBy"
+     ],
+     "properties": {
+      "identity": {
+       "enum": [
+        "same",
+        "covers",
+        "coveredBy",
+        "distinct",
+        "undetermined"
+       ]
+      },
+      "content": {
+       "enum": [
+        "same",
+        "different",
+        "unknown"
+       ]
+      },
+      "decidedBy": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "identity",
+        "content"
+       ],
+       "properties": {
+        "identity": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "content": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
        }
       }
      }
@@ -2817,6 +2977,247 @@
      "locator": "npm/x@1.0.0/a/\u0301b",
      "canonical": "pkg:npm/x@1.0.0#a/%CC%81b"
     }
+   },
+   {
+    "name": "a path= hint opening on the home token is admitted",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools#Setup",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "path",
+       "~/Development/acme-tools"
+      ]
+     ],
+     "fragment": {
+      "path": "Setup",
+      "refinements": []
+     },
+     "type": "folder",
+     "locator": "acme-tools/docs/guide.md"
+    }
+   },
+   {
+    "name": "a path= hint opening on a directory token is admitted",
+    "input": "ref:folder:scratch/notes.md;path={tmp}/session-42",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "path",
+       "{tmp}/session-42"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "scratch/notes.md"
+    }
+   },
+   {
+    "name": "a path= hint outside every token is admitted with a lowercase drive",
+    "input": "ref:folder:system32/windows.dll;path=c:/windows",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "path",
+       "c:/windows"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "system32/windows.dll"
+    }
+   },
+   {
+    "name": "a path= segment opening on a dot names an ordinary directory",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=~/.config/acme",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "path",
+       "~/.config/acme"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "acme-tools/docs/guide.md"
+    }
+   },
+   {
+    "name": "an origin= hint is an https repository address",
+    "input": "ref:folder:acme-tools/README.md;origin=https://github.com/acme/acme-tools",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "origin",
+       "https://github.com/acme/acme-tools"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "acme-tools/README.md"
+    }
+   },
+   {
+    "name": "a corpus= hint names a package manifest relative to the root",
+    "input": "ref:folder:acme-tools/src/x.ts;corpus=package.json",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "corpus",
+       "package.json"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "acme-tools/src/x.ts"
+    }
+   },
+   {
+    "name": "a corpus= hint may be a nested identifier",
+    "input": "ref:folder:notes/idea.md;corpus=ref:unknown:sqlite:myfiles%23table",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [
+      [
+       "corpus",
+       "ref:unknown:sqlite:myfiles%23table"
+      ]
+     ],
+     "fragment": null,
+     "type": "folder",
+     "locator": "notes/idea.md",
+     "nested": {
+      "corpus": "ref:unknown:sqlite:myfiles#table"
+     }
+    }
+   },
+   {
+    "name": "a folder segment opening on a dot is an ordinary directory",
+    "input": "ref:folder:acme-tools/.github/workflows/ci.yml",
+    "expect": {
+     "status": "ok",
+     "version": 1,
+     "qualifiers": [],
+     "fragment": null,
+     "type": "folder",
+     "locator": "acme-tools/.github/workflows/ci.yml"
+    }
+   },
+   {
+    "name": "a folder segment that is exactly .. is a traversal and is malformed",
+    "input": "ref:folder:acme-tools/../../etc/passwd",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
+    "name": "a folder segment that is exactly . is malformed",
+    "input": "ref:folder:acme-tools/./docs/guide.md",
+    "expect": {
+     "status": "malformed",
+     "part": "locator"
+    }
+   },
+   {
+    "name": "a path= segment that is exactly .. is refused, never resolved",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=~/a/../b",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "a relative path= says nowhere to look and is malformed",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=docs/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "an uppercase drive letter is malformed — one path, one spelling",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=C:/windows",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "a trailing separator in path= is malformed",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=~/Development/",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "a token outside the closed set is malformed",
+    "input": "ref:folder:acme-tools/docs/guide.md;path={home}/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "a backslash separator is malformed — the separator is /",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=c:\\windows",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
+   },
+   {
+    "name": "credentials in origin= are malformed, so no token reaches an identifier",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://token@github.com/acme/acme-tools",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a .git suffix in origin= is malformed — two spellings of one repository",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools.git",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "an SSH remote in origin= is malformed until rewritten to https",
+    "input": "ref:folder:acme-tools/docs/guide.md;origin=git@github.com:acme/acme-tools.git",
+    "expect": {
+     "status": "malformed",
+     "part": "origin"
+    }
+   },
+   {
+    "name": "a corpus= path climbing out of the root is malformed",
+    "input": "ref:folder:acme-tools/docs/guide.md;corpus=../package.json",
+    "expect": {
+     "status": "malformed",
+     "part": "corpus"
+    }
+   },
+   {
+    "name": "a repeated location key is malformed at that key",
+    "input": "ref:folder:acme-tools/docs/guide.md;path=~/a;path=~/b",
+    "expect": {
+     "status": "malformed",
+     "part": "path"
+    }
    }
   ],
   "canonical": [
@@ -4197,6 +4598,346 @@
      "samePackage": false,
      "covers": false,
      "coversReversed": false
+    }
+   }
+  ],
+  "verdict": [
+   {
+    "name": "identical identifiers carrying the same origin are the same thing",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "same",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "two origins are two authorities, so the identifiers are distinct",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools-fork#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.origin"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "one repository at two local paths is undetermined, not two things",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;path=~/Development/acme-tools",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;path=~/src/acme-tools",
+    "expect": {
+     "verdict": {
+      "identity": "undetermined",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "two local paths separate when nothing stronger is declared on either side",
+    "a": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools",
+    "b": "ref:folder:acme-tools/docs/guide.md;path=~/src/acme-tools",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "a state= on one side keeps two local paths undetermined",
+    "a": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/guide.md;path=~/src/acme-tools",
+    "expect": {
+     "verdict": {
+      "identity": "undetermined",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "two local paths with the same state= stay undetermined, and the content is the same",
+    "a": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/guide.md;path=~/src/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": {
+     "verdict": {
+      "identity": "undetermined",
+      "content": "same",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "a path outside every token binds identity when nothing stronger is declared",
+    "a": "ref:folder:system32/windows.dll;path=c:/windows",
+    "b": "ref:folder:system32/windows.dll;path=d:/windows",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.path"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "two declarations may point at one file, so a corpus= conflict is undetermined",
+    "a": "ref:folder:acme-tools/docs/guide.md;corpus=package.json",
+    "b": "ref:folder:acme-tools/docs/guide.md;corpus=docs/package.json",
+    "expect": {
+     "verdict": {
+      "identity": "undetermined",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.corpus"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "a hint on one side only reads as covers, as a partial identifier is a query",
+    "a": "ref:folder:acme-tools/docs/guide.md#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "covers",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.origin"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "the side declaring a hint is covered by the side that leaves it open",
+    "a": "ref:folder:acme-tools/docs/guide.md;corpus=package.json#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "coveredBy",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.corpus"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "a file covers a declared name inside it",
+    "a": "ref:folder:acme-tools/docs/guide.md;corpus=package.json",
+    "b": "ref:folder:acme-tools/docs/guide.md;corpus=package.json#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "covers",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "fragmentPath"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "each side declaring a hint the other leaves open is undetermined",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
+    "b": "ref:folder:acme-tools/docs/guide.md;path=~/Development/acme-tools#Setup",
+    "expect": {
+     "verdict": {
+      "identity": "undetermined",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.origin",
+        "qualifiers.path"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "an origin conflict decides distinct even beside a path conflict",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;path=~/Development/acme-tools",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools-fork;path=~/src/acme-tools",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.origin"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "the same state= under two names is one content carried by two distinct identifiers",
+    "a": "ref:folder:acme-tools/docs/guide.md;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/manual.md;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "same",
+      "decidedBy": {
+       "identity": [
+        "locatorStem"
+       ],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "the same name and the same state= are the same thing with the same content",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": {
+     "verdict": {
+      "identity": "same",
+      "content": "same",
+      "decidedBy": {
+       "identity": [],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "the same name at two state= values is one living thing whose content differs",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;state=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools;state=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "expect": {
+     "verdict": {
+      "identity": "same",
+      "content": "different",
+      "decidedBy": {
+       "identity": [],
+       "content": [
+        "qualifiers.state"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "a locator difference and an origin difference are both listed",
+    "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools",
+    "b": "ref:folder:acme-tools/docs/manual.md;origin=https://github.com/acme/acme-tools-fork",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "locatorStem",
+        "qualifiers.origin"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "a qualifier without a verdict rule separates as covers separates it",
+    "a": "ref:folder:acme-tools/docs/guide.md;when=2026-01-01T00:00:00Z",
+    "b": "ref:folder:acme-tools/docs/guide.md;when=2026-02-01T00:00:00Z",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "qualifiers.when"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "two types are distinct, and every differing dimension is listed",
+    "a": "ref:folder:acme-tools/a.md",
+    "b": "ref:url:acme.example/a",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "type",
+        "locatorStem"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
+    "name": "a pair relate refuses has no verdict",
+    "a": "ref:folder:a/../b",
+    "b": "ref:folder:acme-tools/docs/guide.md",
+    "expect": {
+     "verdict": null
     }
    }
   ]
