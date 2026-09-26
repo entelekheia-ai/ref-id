@@ -14,7 +14,9 @@ hooks:
       hooks:
         - type: command
           command: |
-            node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=(JSON.parse(s).tool_input||{}).command||"";if(/\bgit\b[^;&|\n]*\s(stash|commit|push)\b/.test(c)){console.error("ref-id-reviewer: git stash, commit and push are blocked. A review writes nothing, and the stash is shared with every other worktree.");process.exit(2)}})'
+            f="$CLAUDE_PROJECT_DIR/scripts/agent-hooks/git-read-only.mjs"; in=$(cat)
+            if [ -f "$f" ]; then printf "%s" "$in" | node "$f" ref-id-reviewer --deny=stash,commit,push; exit $?; fi
+            case "$in" in *git*) echo "ref-id-reviewer: the git guard is missing under $CLAUDE_PROJECT_DIR, so a command that mentions git is refused." >&2; exit 2;; esac
         # Installs dependencies before any command, and again whenever package-lock.json changes (after a
         # checkout of the change or of its base). Only inside an isolated worktree, never a main checkout.
         - type: command
