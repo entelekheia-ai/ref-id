@@ -110,7 +110,7 @@ land.
   the dossier told the Swift agent to regenerate and forbade `scripts/`, which made the instruction
   impossible. The agent hand-wrote the file and said so; the orchestrator added `VerdictResult` to the
   table and the regenerated file was byte-identical to the hand-written one.
-  Evidence: `node scripts/gen-surface-swift.mjs` → "no Swift mapping declared for \$ref VerdictResult".
+  Evidence: `node scripts/gen-surface-swift.mjs` → "no Swift mapping declared for $ref VerdictResult".
 - Observation: `verdict` parses each side a second time after `relate` has, in all three
   implementations, because the `conflictWhenNeitherSideDeclares` test reads each side's own qualifiers
   rather than the related result.

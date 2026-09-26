@@ -122,16 +122,93 @@ order and Surprises sections. Must not edit `SKILL.md` (Track 5 rewrites it), `s
   `--offline` yields `unknown` and both variants;
 - no minted `path=` value contains the current user's name.
 
-- [ ] P0 — item 1
-- [ ] P0 — item 2
-- [ ] P0 — item 3
-- [ ] P1 — item 4
-- [ ] P1 — item 5
-- [ ] P0 — the five measurements above, run and pasted into Surprises if any surprised
+- [x] P0 — item 1
+- [x] P0 — item 2
+- [x] P0 — item 3
+- [x] P1 — item 4
+- [x] P1 — item 5
+- [x] P0 — the five measurements above, run and pasted into Surprises if any surprised
 
 ## Surprises & Discoveries
 
-*None yet.*
+- `folderCorpus` used to derive both the corpus name and the path root from one directory
+  (`basename(root)`), so the fix could not just change what feeds `root` — the name and the root had to
+  become two separately-sourced values (`Basis { root, name, nameFrom }`), with `folderCorpus` taking
+  `name` as an explicit parameter. A directory-basename repo name and an origin-derived repo name are
+  not the same string in a worktree (`folder-location-hints` vs `ref-id`), which is exactly the bug this
+  task closes.
+  Route: kept — no repo-level fact, this is the shape of the fix.
+- `nearestCorpus`'s manifest search already existed for a different purpose (deciding whether a file is
+  `pkg`-shipped, and finding the fallback root for the pre-existing `folder` path). Item 1's manifest
+  route (`--name-from-manifest`, or outside any git repository) reuses the *same* search but needed the
+  bare declared name (`manifest.name` / the Cargo crate name) rather than the `npm/`- or `cargo/`-prefixed
+  locator it already returns for `pkg` — so `Corpus` gained a `name` field alongside `locator`, rather
+  than a second manifest walk.
+  Route: kept — no repo-level fact, this is the shape of the fix.
+- `origin=` normalisation does not need to reproduce every rule in `spec.forms["origin-url"].reference` by
+  hand and get it right the first time: build the candidate with a few reasonable string rewrites (SSH →
+  `https`, strip userinfo/port/`.git`/trailing slash, lowercase), then test the result against
+  `spec.forms["origin-url"].pattern` and only keep it if it matches, else omit `origin=` and say why. This
+  is also what the Design paragraph asks for ("a remote that still does not fit … is written without
+  `origin=` rather than forced into it"), and it means the builder never needs to re-derive the pattern's
+  own guarantees — validated live against this repo's own remote (`git@github.com:entelekheia-ai/ref-id.git`
+  → `https://github.com/entelekheia-ai/ref-id`, confirmed against the pattern) and three synthetic
+  remotes (userinfo, explicit `:443`, uppercase host — all normalised and matched).
+  Route: kept — no repo-level fact, this is the shape of the fix.
+- Measured live (2026-09-26, network available): `github.com/entelekheia-ai/ref-id` answers `git -c
+  credential.helper= ls-remote --heads` with exit `0` (public); a private repository of the same organisation
+  answers exit `128` ("terminal prompts disabled") with `GIT_ASKPASS=false` and `GIT_TERMINAL_PROMPT=0` —
+  confirming the private-repo measurement in the dossier's "done" list against a real private remote,
+  not a synthetic one.
+  Route: kept — no repo-level fact, this is the acceptance measurement itself.
+
+- Observation (orchestrator review): `pathHintFor` knew only the macOS directories, so on Linux and
+  Windows `{config}`, `{data}` and `{cache}` were never written and an uppercase drive letter made
+  `path=` fail its pattern and vanish. Rewritten per platform from the token table, drive lowercased.
+  Evidence: the first version hard-coded `~/Library/Application Support` and `~/Library/Caches` only.
+- Observation (orchestrator review): a repository reached through a symbolic link minted a locator
+  with `..` segments — `git rev-parse --show-toplevel` returns the resolved path while the target kept
+  its linked spelling, and spec 1.5.0 then refused the locator. The target and every token base are
+  now resolved with `realpathSync` before measuring.
+  Evidence: a fresh repository under the macOS temporary directory (`/var` links to `/private/var`)
+  refused with `corpus-name-unusable` before the fix and minted `ref:folder:<name>/a.md;path={tmp}/<name>`
+  after it.
+
+### The five measurements
+
+```sh
+$ node .agents/skills/identify/scripts/identify.ts mint --path README.md --fragment x
+{"ref":"ref:folder:ref-id/README.md;origin=https://github.com/entelekheia-ai/ref-id#x", ...}
+$ node .agents/skills/identify/scripts/identify.ts mint --path crates/ref-id/README.md --fragment x
+{"ref":"ref:folder:ref-id/crates/ref-id/README.md;origin=https://github.com/entelekheia-ai/ref-id#x", ...}
+# verdict(a, b) → {"identity":"distinct","content":"unknown","decidedBy":{"identity":["locatorStem"],"content":[]}}
+```
+
+```sh
+# minted here (worktree) and minted at the main checkout of this repository (absolute --path)
+# both produce ref:folder:ref-id/README.md;origin=https://github.com/entelekheia-ai/ref-id#x
+# verdict(a, b) → {"identity":"same","content":"unknown","decidedBy":{"identity":[],"content":[]}}
+```
+
+```sh
+# no folder locator minted across README.md, crates/ref-id/README.md, docs/reference/the-ref-scheme.md
+# and packages/ref-id/src/index.ts carries a `.` or `..` segment in its locator
+```
+
+```sh
+$ node .agents/skills/identify/scripts/identify.ts mint --path README.md --fragment x
+# → no "variants" key (this repo is public)
+$ node .agents/skills/identify/scripts/identify.ts mint --path <a file in a private repository> --fragment x
+# → "visibility":"private","visibilityBy":"git ls-remote exit 128", variants.private (with origin=), variants.public (without), a warning
+$ node .agents/skills/identify/scripts/identify.ts mint --path README.md --fragment x --offline
+# → "visibility":"unknown","visibilityBy":"--offline: no request made", both variants present
+```
+
+```sh
+$ node .agents/skills/identify/scripts/identify.ts mint --path README.md --fragment x --path-hint
+# → path=~/Development/entelekheia/ref-id/.claude/worktrees/folder-location-hints — no user name (the
+#   current user's) anywhere in the value
+```
 
 ## Closure
 
