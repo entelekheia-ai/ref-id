@@ -174,6 +174,15 @@ order and Surprises sections. Must not edit `SKILL.md` (Track 5 rewrites it), `s
   refused with `corpus-name-unusable` before the fix and minted `ref:folder:<name>/a.md;path={tmp}/<name>`
   after it.
 
+- Observation (branch code review): five defects in `mint` that no measurement above exercised. A
+  credential in the remote reached stdout through `originOmitted`; `corpus=` was measured from the
+  script's own checkout, so every manifest-named corpus outside it was refused; a non-default port was
+  stripped instead of omitted, naming a different service; the anonymous `ls-remote` honoured the
+  caller's `url.*.insteadOf`, so an SSH agent could make a private repository read as public; and a
+  scoped manifest name refused instead of being skipped. `--root` also escaped `realpathSync`.
+  Evidence: each reproduced by a probe before the fix and re-run clean after it (2026-09-26). The
+  script still has no test file of its own, which is why all five slipped past the acceptance list.
+
 ### The five measurements
 
 ```sh

@@ -6,8 +6,8 @@
 // `spec/ref-id.json` through the package; none of them is restated here.
 
 import { execFileSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs"
-import { homedir, tmpdir } from "node:os"
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs"
+import { devNull, homedir, tmpdir } from "node:os"
 import { basename, dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -74,8 +74,10 @@ function manifestOrder(target: string): string[] {
   return [first, ...all.filter((name) => name !== first)]
 }
 
-function nearestCorpus(target: string): Corpus | Refusal {
-  let dir = statSync(target).isDirectory() ? target : dirname(target)
+/** The nearest manifest declaring a name for `target`, searched upward from `from` (the target's own
+ * directory by default) — `from` lets a caller continue past a manifest it has already ruled out. */
+function nearestCorpus(target: string, from?: string): Corpus | Refusal {
+  let dir = from ?? (statSync(target).isDirectory() ? target : dirname(target))
   const skipped: string[] = []
   for (;;) {
     for (const name of manifestOrder(target)) {
@@ -242,10 +244,18 @@ function gitOrigin(toplevel: string): string | undefined {
   }
 }
 
+/** A remote with any userinfo removed — the only spelling of a remote this script ever prints or reads a
+ * name from, so a token written into a clone URL never reaches stdout or a corpus name. */
+function redactRemote(remote: string): string {
+  return remote.trim().replace(/^([a-z][a-z0-9+.-]*:\/\/)[^@/]*@/i, "$1")
+}
+
 /** The repository name a remote URL names — its last path segment, `.git` and trailing slashes dropped —
- * read from the raw remote so it works whether or not the remote normalises into `origin=`'s pattern. */
+ * read from the redacted remote so it works whether or not the remote normalises into `origin=`'s
+ * pattern, and so no credential can become the name. */
 function lastSegmentName(remote: string): string | undefined {
-  const stripped = remote.trim().replace(/\/+$/, "").replace(/\.git$/i, "")
+  const redacted = redactRemote(remote).replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*/i, "")
+  const stripped = redacted.replace(/\/+$/, "").replace(/\.git$/i, "")
   return stripped.split(/[/:]/).filter(Boolean).pop()
 }
 
@@ -266,7 +276,9 @@ function normaliseOrigin(remote: string): string | undefined {
     candidate = `https://${scp[1]}/${scp[2]}`
   }
   candidate = candidate.replace(/^(https:\/\/)[^@/]+@/i, "$1")
-  candidate = candidate.replace(/^(https:\/\/[^/]+?):\d+(\/|$)/i, "$1$2")
+  // Only the default port is a second spelling of the same address. Any other port names a different
+  // service, is left in place, and makes the result fail the pattern — so `origin=` is omitted.
+  candidate = candidate.replace(/^(https:\/\/[^/]+?):443(\/|$)/i, "$1$2")
   candidate = candidate.toLowerCase().replace(/\.git\/?$/, "").replace(/\/+$/, "")
   return new RegExp(spec.forms["origin-url"].pattern).test(candidate) ? candidate : undefined
 }
@@ -281,17 +293,37 @@ function checkVisibility(origin: string, offline: boolean): { visibility: string
   if (offline) {
     return { visibility: "unknown", visibilityBy: "--offline: no request made" }
   }
+  // Anonymous means nothing of the caller's reaches the request: no global or system git config (so no
+  // `url.*.insteadOf` can turn https into an SSH call the agent authenticates, and no `http.extraHeader`),
+  // no home directory (so no `.netrc`), no SSH agent, https only, and a working directory outside any
+  // repository. Anything less can report a private repository as public, which is the leak this check
+  // exists to prevent.
+  const isolated = mkdtempSync(join(tmpdir(), "ref-id-visibility-"))
+  const env: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH,
+    HOME: isolated,
+    USERPROFILE: isolated,
+    GIT_CONFIG_GLOBAL: devNull,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_ALLOW_PROTOCOL: "https",
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_ASKPASS: "false",
+    SSH_ASKPASS: "false",
+  }
   try {
     execFileSync("git", ["-c", "credential.helper=", "ls-remote", "--heads", origin], {
+      cwd: isolated,
       encoding: "utf8",
       stdio: ["ignore", "ignore", "ignore"],
       timeout: 10_000,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "false" },
+      env,
     })
-    return { visibility: "public", visibilityBy: "git ls-remote exit 0" }
+    return { visibility: "public", visibilityBy: "anonymous git ls-remote exit 0" }
   } catch (error) {
     const status = (error as { status?: number | null }).status
-    return { visibility: "private", visibilityBy: `git ls-remote exit ${status ?? "unknown"}` }
+    return { visibility: "private", visibilityBy: `anonymous git ls-remote exit ${status ?? "unknown"}` }
+  } finally {
+    rmSync(isolated, { recursive: true, force: true })
   }
 }
 
@@ -310,8 +342,9 @@ function pathHintFor(dir: string): string | undefined {
   const home = slash(homedir())
   const env = (name: string) => (process.env[name] ? slash(process.env[name]!) : undefined)
   // The per-OS directories behind each token, most specific first, so a cache under the home directory
-  // is written as {cache} rather than ~. On macOS {config} and {data} share one directory; {config} is
-  // listed first as a declared tie-break.
+  // is written as {cache} rather than ~. Two tokens can name one directory, and the first listed wins:
+  // {config} over {data} on macOS (both Application Support), {cache} over {tmp} on Windows (both
+  // %LOCALAPPDATA%\Temp by default).
   const bases: [string, string | undefined][] =
     process.platform === "darwin"
       ? [["{config}", `${home}/Library/Application Support`], ["{cache}", `${home}/Library/Caches`]]
@@ -320,7 +353,10 @@ function pathHintFor(dir: string): string | undefined {
         : [["{config}", env("XDG_CONFIG_HOME") ?? `${home}/.config`], ["{data}", env("XDG_DATA_HOME") ?? `${home}/.local/share`], ["{cache}", env("XDG_CACHE_HOME") ?? `${home}/.cache`]]
   bases.push(["{tmp}", slash(tmpdir())], ["~", home])
   const target = slash(dir)
-  const hit = bases.find(([, base]) => base !== undefined && (target === base || target.startsWith(`${base}/`)))
+  // Windows paths compare without case, so a home directory spelled with different casing than the
+  // resolved path still reaches ~ rather than leaking the user name in an absolute path.
+  const fold = (path: string) => (process.platform === "win32" ? path.toLowerCase() : path)
+  const hit = bases.find(([, base]) => base !== undefined && (fold(target) === fold(base) || fold(target).startsWith(`${fold(base)}/`)))
   const candidate = hit ? `${hit[0]}${target.slice(hit[1]!.length)}` : target
   return new RegExp(spec.forms["local-path"].pattern).test(candidate) ? candidate : undefined
 }
@@ -343,22 +379,50 @@ function locationBasis(
   corpusRefusal: Refusal | undefined,
 ): Basis | Refusal {
   if (given) {
-    const root = resolve(ROOT, given)
+    // Resolved like the target, so a root reached through a symbolic link is measured in the same
+    // spelling as the file under it.
+    const root = realpathSync(resolve(ROOT, given))
     return { root, name: basename(root), nameFrom: "root" }
   }
-  if (!nameFromManifest && toplevel) {
+  const fromRepository = (): Basis | undefined => {
+    if (!toplevel) return undefined
     const fromOrigin = originRaw ? lastSegmentName(originRaw) : undefined
     return fromOrigin
       ? { root: toplevel, name: fromOrigin, nameFrom: "origin" }
       : { root: toplevel, name: basename(toplevel), nameFrom: "toplevel" }
   }
-  if (corpus) {
-    return { root: corpus.dir, name: corpus.name, nameFrom: "manifest", corpusQualifier: corpus.manifest }
+  if (!nameFromManifest && toplevel) {
+    return fromRepository()!
   }
-  return refuse("no-corpus", "no git repository and no manifest reaching this path declares a name", {
+  // The nearest manifest whose declared name fits the `folder` pattern. One that does not — a scoped npm
+  // name — is skipped and the search continues above it; `corpus=` is written relative to the root the
+  // other hints reach: the repository's top level when there is one, else the manifest's own directory.
+  const fits = new RegExp(spec.dispatch.folder.pattern)
+  const skipped: string[] = [...((corpusRefusal?.evidence.skipped as string[] | undefined) ?? [])]
+  let candidate = corpus
+  while (candidate) {
+    if (fits.test(candidate.name)) {
+      const manifestPath = resolve(ROOT, candidate.manifest)
+      return {
+        root: candidate.dir,
+        name: candidate.name,
+        nameFrom: "manifest",
+        corpusQualifier: relative(toplevel ?? candidate.dir, manifestPath).replace(/\\/g, "/"),
+      }
+    }
+    skipped.push(`${candidate.manifest} (its name ${candidate.name} does not fit the folder pattern)`)
+    const parent = dirname(candidate.dir)
+    const next = parent === candidate.dir || candidate.dir === toplevel ? undefined : nearestCorpus(target, parent)
+    candidate = next && !("refusal" in next) ? next : undefined
+  }
+  const repository = fromRepository()
+  if (repository) {
+    return repository
+  }
+  return refuse("no-corpus", "no git repository and no manifest reaching this path declares a usable name", {
     target: rel(target),
     inGitRepo: Boolean(toplevel),
-    skipped: corpusRefusal?.evidence.skipped,
+    skipped,
     answer: "pass --root <the directory whose name the corpus carries>, or --type folder --locator <corpus>/<path>",
   })
 }
@@ -398,10 +462,6 @@ function mint(args: Map<string, string[]>): never {
     // Git reports its top level through every symbolic link resolved, so the target is resolved the same
     // way: a path measured between a linked spelling and a resolved one climbs out through `..`.
     const target = realpathSync(spelled)
-    // A manifest is how a released artifact is found, not how a corpus is. A subtree that declares its
-    // own name is a corpus with no manifest anywhere above it — documentation beside a package, a
-    // repository that publishes nothing — so a manifest that reaches nothing is only fatal when no
-    // declaration reaches the file either.
     // A manifest is how a released artifact is found, not how a corpus is. A subtree handed in with
     // `--root` is a corpus with no manifest anywhere above it — documentation beside a package, a
     // repository that publishes nothing — so a manifest that reaches nothing is only fatal when the
@@ -507,7 +567,7 @@ function mint(args: Map<string, string[]>): never {
 
     const originValue = originRaw ? normaliseOrigin(originRaw) : undefined
     if (originRaw && !originValue) {
-      report.originOmitted = `the remote (${originRaw}) does not fit origin-url`
+      report.originOmitted = `the remote (${redactRemote(originRaw)}) does not fit origin-url`
     }
     // `path=` is written only when asked for, or when there is no remote to derive `origin=` from — a
     // repository already names itself through `origin=`, so `path=` would only repeat that information
@@ -538,9 +598,10 @@ function mint(args: Map<string, string[]>): never {
           private: buildVariant(privateQualifiers),
           public: buildVariant(publicQualifiers),
           warning:
-            "origin= exposes this repository's organisation and name; visibility is not public, so the " +
-            "identifier below (ref, and variants.private) carries origin= while variants.public omits it " +
-            "along with path=",
+            "origin= exposes where this repository is hosted and by which organisation; visibility is not " +
+            "public, so ref and variants.private carry origin= while variants.public omits it along with " +
+            "path=. The locator itself still opens on the repository's name in both — pass --locator to " +
+            "choose another name before sharing variants.public",
         }
         // `ref` is the private variant (Plan-006 item 3): the fuller identifier, for the caller who
         // already has access; `variants.public` is what to hand someone who may not.

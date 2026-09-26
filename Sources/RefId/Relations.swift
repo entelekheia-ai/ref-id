@@ -441,12 +441,16 @@ private func qualifierVerdictSpec(_ spec: Spec, _ key: String) -> QualifierVerdi
     guard let entry = spec.dictionary("qualifiers")[key] as? [String: Any],
           let verdict = entry["verdict"] as? [String: Any] else { return nil }
     let axis = verdict["axis"] as? String
-    let conflict = (verdict["conflict"] as? String).flatMap(VerdictIdentity.init(rawValue:))
+    // A declared conflict decides distinct or not: any value other than "distinct" reads as undetermined,
+    // as the TypeScript and Rust ports read it, so a value added to the spec later cannot make one port
+    // fall through to step three while the others do not.
+    let decide = { (value: String) -> VerdictIdentity in value == "distinct" ? .distinct : .undetermined }
+    let conflict = (verdict["conflict"] as? String).map(decide)
     var fallbackKeys: [String]?
     var fallbackThen: VerdictIdentity?
     if let fallback = verdict["conflictWhenNeitherSideDeclares"] as? [String: Any] {
         fallbackKeys = fallback["keys"] as? [String]
-        fallbackThen = (fallback["then"] as? String).flatMap(VerdictIdentity.init(rawValue:))
+        fallbackThen = (fallback["then"] as? String).map(decide)
     }
     return QualifierVerdictSpec(
         axis: axis,

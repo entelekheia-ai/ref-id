@@ -165,10 +165,13 @@ Two consequences, both deliberate:
   a remote fits its one spelling; `path=` only with `--path-hint` or when there is no remote, always
   through a token (`~`, `{tmp}`, …) so no user name reaches the identifier. The output reports
   `nameSource` (`given` or `claimed`) and `nameFrom`.
-- **A private origin is shown, never hidden or silently kept.** Visibility is one anonymous
-  `git ls-remote`; when the repository is not readable anonymously — or `--offline` skipped the check —
+- **A private origin is shown, never hidden or silently kept.** Visibility is one `git ls-remote` run with
+  nothing of the caller's — no git config, no home directory, no SSH agent, https only — so a URL rewrite
+  or a stored credential cannot make a private repository look public; when the repository is not readable anonymously — or `--offline` skipped the check —
   the output carries `variants.private` (with `origin=` and any `path=`), `variants.public` (without
-  either) and a `warning`. `ref` is the private variant; choosing the public one is the caller's act.
+  either) and a `warning`. `ref` is the private variant; choosing the public one is the caller's act. The public variant still opens
+  on the repository's name, because the locator is built from it; pass `--locator` to share it under
+  another name.
 
 It resolves the nearest manifest that declares a name, builds the Package URL from it, calls the
 package's own `build()` and prints one JSON object. An identifier exits `0`; a refusal exits `2`.
@@ -192,7 +195,7 @@ Four facts about how it runs, none of them visible from the command:
 | Refusal | What it means | What answers it |
 |---|---|---|
 | `no-such-path` | nothing is at that path | correct the path |
-| `no-corpus` | no manifest reaching the target declares a name; `skipped` lists each one and why | pass `--root <directory>`, or `--type folder --locator <name>/<path>` with a name that fits `dispatch.folder.pattern` — it happens only outside any git repository, where no manifest reaching the target declares a name |
+| `no-corpus` | no manifest reaching the target declares a name; `skipped` lists each one and why | pass `--root <directory>`, or `--type folder --locator <name>/<path>` with a name that fits `dispatch.folder.pattern` — it happens outside any git repository when no manifest above the target declares a name that fits, and inside one only with `--name-from-manifest` when no manifest fits and the repository cannot supply one either |
 | `manifest-not-purl-mappable` | a Swift package is named by its source host and organisation, which the manifest never carries | pass `--type pkg --locator swift/<host>/<org>/<name>` |
 | `target-undeclared` | the corpus resolved; which declared name inside it is the target is still open | choose from `declaredNames`, or pass `--corpus` when the package itself is the target |
 | `uncovered-type` | the type parses and no validator owns its locator | go to Step 5, or choose a registered type |
