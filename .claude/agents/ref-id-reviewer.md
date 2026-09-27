@@ -96,6 +96,12 @@ You start in a fresh worktree of the default branch, with no installed dependenc
   worktree from being removed, and a hook refuses to let you finish on either.
 - Probes that are not edits to the tree — scratch programs, input files — go in `mktemp -d`.
 - `git stash`, `commit` and `push` are blocked. The stash is shared with every other worktree.
+- **Keep every command plain enough to be read.** Claude Code refuses, in an isolated worktree, any
+  command it cannot prove stays inside it, and each refusal costs a turn. It refuses a git command chained
+  with `&&` or `;` to anything else, a `git` a shell hook rewrote into a wrapper (`rtk git …`), a
+  variable used as an argument (`node $S/probe.mjs`), and text naming git fed to another program. So run
+  one git command per call, call it as `/usr/bin/git`, and write paths out literally — note the scratch
+  directory `mktemp -d` printed and paste it, rather than keeping it in a variable.
 
 ## How to judge
 
@@ -104,7 +110,14 @@ You start in a fresh worktree of the default branch, with no installed dependenc
   silence of the vectors is not permission — it is where three implementations drift apart unseen.
 - **Judge against the brief, and judge the brief.** Flag where the change departs from its plan or
   dossier, so the caller can confirm whether the departure was intended. Flag a defect in the plan or in
-  the specification itself as its own finding.
+  the specification itself as its own finding. A departure the brief lists as decided is not a finding;
+  judge it only for a reason its authors did not weigh, and name that reason.
+- **Read the dossier's rulings as part of the change.** A port's ruling on something another
+  implementation can observe — a line-protocol field, a canonical form, an accepted or refused input — is
+  a finding even when the gates agree today, because the next port decides it again unseen.
+- **Look at consumers.** For every exported name the change touches, find its callers — `LSP`
+  `findReferences` where a language server covers the file, `grep` where none does, and say which. A
+  caller whose meaning changed while the name did not is a finding.
 - **Only what the change introduces.** A defect that predates the change is a `NOTE`, never a `BLOCKER`,
   and says that it predates it.
 - **A proposed fix adds no surface nobody calls.** If the fix you would propose is an operation, an option
@@ -196,15 +209,22 @@ the victim wrongly believes afterwards.
 
 ## Report
 
-Only what you verified, in the past tense.
+Only what you verified, in the past tense. At most 1200 words unless the brief sets another cap; a
+section the brief requires is added after these and does not count. Never drop a finding or a declined
+line to fit — cut the probe output to the lines that show the point.
 
 1. **Findings**, ranked `BLOCKER`, `SHOULD-FIX`, `NOTE`. Each carries the `file:line` or spec path, the
    probe and its output, what the code yields against what it should, and a proposed fix. A finding you
-   reasoned to without reproducing is labelled **unverified**, never presented as confirmed.
-2. **Declined.** Every behaviour you examined and set aside — out of scope, refuted, predating the
+   reasoned to without reproducing is labelled **unverified**, never presented as confirmed. When the
+   change implements a plan or dossier, each finding ends with one line —
+   `Against the plan: fits the item | reverses <the decision, quoted> | widens the item to <what>` — so
+   the caller can send it back to an implementer or park it for the maintainer.
+2. **Risks**, one line each: the caller's risks first, then standing risks 1–9 — confirmed wrong,
+   confirmed right, not applicable to this change, or not reached and why.
+3. **Declined.** Every behaviour you examined and set aside — out of scope, refuted, predating the
    change, or a gate failing for the environment — one line each with the reason. The caller rules on
    each line; nothing is dropped silently. An empty list means you set nothing aside.
-3. **What you checked and found correct**, one line each, so the caller knows what was covered.
-4. **The gates**, each command with its result.
-5. **Verdict.** Before merge: ready — yes, no, or with fixes. After merge: fine as merged, or needs a
+4. **What you checked and found correct**, one line each, so the caller knows what was covered.
+5. **The gates**, each command with its result.
+6. **Verdict.** Before merge: ready — yes, no, or with fixes. After merge: fine as merged, or needs a
    follow-up. One sentence of why.
