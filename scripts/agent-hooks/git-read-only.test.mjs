@@ -123,6 +123,11 @@ const BLOCKED = [
   // item 1: read-only subcommands that still write.
   "git tag --sort=refname newtag",
   'git tag --format="%(refname)" newtag',
+  // a list filter never launders a create, delete or sign on the same line
+  "git tag -d x --contains y",
+  "git tag -f v1 --points-at HEAD",
+  "git tag -a v1 -m msg --merged main",
+  "git tag -am msg v1 --contains HEAD",
   "git branch --delete foo --list",
   "git branch --contains HEAD --delete foo",
   "git branch --force main HEAD~1 --list",
@@ -204,6 +209,13 @@ const ALLOWED = [
   // item 1: the ALLOWED counterparts of the tag/remote/fetch/output/archive/symbolic-ref fixes.
   "git tag -l newtag",
   "git tag --sort=refname -l",
+  // --contains, --no-contains, --merged, --no-merged and --points-at imply --list (git-tag(1)), and each
+  // takes the commit after it: that word is a filter, never the name of a tag being created.
+  "git tag --contains 4e32dba",
+  "git tag --no-contains 4e32dba",
+  "git tag --merged main",
+  "git tag --no-merged=main",
+  "git tag --points-at HEAD",
   "git remote show origin",
   "git remote get-url origin",
   "git symbolic-ref HEAD",

@@ -112,6 +112,15 @@ change in one of the three implementations, behind that language's gate) and `re
 (read-only review before merge). Their frontmatter pins `model` and `effort`. A per-call `model` overrides the
 definition, so a call omits it — except to escalate `ref-id-port-implementer` to `opus` after its gate failed.
 Findings reach `ref-id-port-implementer` already triaged: deciding which review findings stand is the caller's.
+A delegated change is briefed with a task dossier; parallel ports only read it, and the caller writes their
+rulings and questions into it.
+
+**A report is a claim until the caller has checked it.** Rerun the gate yourself and compare the counts
+with the report; read the diff for a file outside the brief's write set; accept or reverse each `Ruling:`.
+When a result does not stand, name what was seen, never its cause: a fact the source contradicts, work
+right inside the brief and wrong at its edge, a stop before the work was done, or a wrong result inside
+the brief. Two further questions decide the next brief: when the brief was wrong, did the agent contest it
+with evidence or build on it; and when work was left undone, did the report say so.
 
 Agent tooling is the `vibe-ops` plugin — no per-repo copy of anything it ships. The one skill this
 repository owns is [`identify`](.agents/skills/identify/SKILL.md), which decides whether something can be

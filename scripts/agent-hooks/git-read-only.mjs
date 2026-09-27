@@ -710,12 +710,28 @@ function checkBranch(args) {
 function checkTag(args) {
   // Only -l/--list puts this in list mode: --sort/--format/-n/--contains/--points-at no longer imply it
   // on their own, so "git tag --sort=refname newtag" (a create, decorated with a sort flag) is refused.
+  // --contains, --no-contains, --merged, --no-merged and --points-at do imply it (git-tag(1)), and each
+  // takes the commit after it, so that word is a filter rather than a tag name. A flag that creates,
+  // deletes or signs a tag refuses the whole command whatever else is on the line.
   const listFlags = new Set(["-l", "--list"])
+  const impliesList = new Set(["--contains", "--no-contains", "--merged", "--no-merged", "--points-at"])
+  const writes = new Set(["-d", "--delete", "-a", "--annotate", "-s", "--sign", "-u", "--local-user",
+    "-f", "--force", "-m", "--message", "-F", "--file", "-e", "--edit", "--create-reflog"])
   let sawList = false
   let positionals = 0
-  for (const a of args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    const flag = a.split("=")[0]
+    // A cluster of short flags (-am) writes when any letter in it does.
+    const shortCluster = /^-[^-]/.test(a) && /[dasufmFe]/.test(a.slice(1))
+    if (writes.has(flag) || shortCluster) return false
     if (listFlags.has(a)) {
       sawList = true
+      continue
+    }
+    if (impliesList.has(flag)) {
+      sawList = true
+      if (flag === a && i + 1 < args.length && !args[i + 1].startsWith("-")) i++
       continue
     }
     if (a.startsWith("-")) continue
