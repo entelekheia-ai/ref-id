@@ -33,6 +33,8 @@ jobs:
         with:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
+      # target/, keyed on the toolchain and Cargo.lock: a warm run rebuilds only what changed.
+      - uses: Swatinem/rust-cache@v2
       # uv on this runner is what lets the python-conformance gate run rather than skip.
       - uses: astral-sh/setup-uv@v10.2.0
       - run: npm ci
@@ -94,6 +96,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      # .build/, keyed on the Swift sources; a miss restores the nearest earlier build and rebuilds only
+      # what changed.
+      - uses: actions/cache@v6
+        with:
+          path: .build
+          key: swift-build-${{ runner.os }}-${{ hashFiles('Package.swift', 'Sources/**') }}
+          restore-keys: swift-build-${{ runner.os }}-
       - name: swift conformance
         run: swift run ref-id-conformance
 
@@ -106,10 +115,19 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      # .build/, keyed on the Swift sources; a miss restores the nearest earlier build and rebuilds only
+      # what changed.
+      - uses: actions/cache@v6
+        with:
+          path: .build
+          key: swift-build-${{ runner.os }}-${{ hashFiles('Package.swift', 'Sources/**') }}
+          restore-keys: swift-build-${{ runner.os }}-
       - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
+      # target/, keyed on the toolchain and Cargo.lock: a warm run rebuilds only what changed.
+      - uses: Swatinem/rust-cache@v2
       - uses: astral-sh/setup-uv@v10.2.0
       - run: npm ci
       - name: every implementation answers the same for every input the specification names
