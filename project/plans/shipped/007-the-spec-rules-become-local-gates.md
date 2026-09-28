@@ -6,7 +6,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-27 |
 | Author | Danilo Borges |
 | Related | vibe-ops RFC-0006 (the repository as a source of vibe-ops units), vibe-ops RFC-0013 (the gate's CI entrypoint) |
@@ -204,7 +204,7 @@ with its `[model-routing]` declaration line, and each verified result is judged 
       `core.hooksPath`); the other two were already #36 and #37.
       *Routing:* **main loop**. Filing an issue publishes content outward, so each issue's text is
       shown to the maintainer before `gh issue create` runs.
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
       track list that is otherwise complete but has this box open is not finished.
 
