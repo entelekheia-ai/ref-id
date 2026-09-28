@@ -48,7 +48,7 @@ export interface RefIdSpec {
     dialect: string
     expression: string
     groups: string[]
-    adaptations: Record<string, { replace: [string, string][] }>
+    adaptations: Record<string, { replace: [string, string][]; anchor?: string }>
     adaptationsApplyTo: string
     anchors: string
     state: { separator: string; pair: string; unknownKey: string; repeatedKey: string }

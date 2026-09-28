@@ -16,8 +16,11 @@ def load_spec():
 
 def build_pattern(spec, engine):
     expr = spec["grammar"]["expression"]
-    for old, new in spec["grammar"]["adaptations"][engine]["replace"]:
+    adaptation = spec["grammar"]["adaptations"][engine]
+    for old, new in adaptation["replace"]:
         expr = expr.replace(old, new)
+    if "anchor" in adaptation and expr.endswith("$"):
+        expr = expr[:-1] + adaptation["anchor"]
     return expr
 
 

@@ -45,14 +45,18 @@ function assertStructure(spec: RefIdSpec): void {
 
 /**
  * Compiles one pattern string for the spec's declared dialect: every `adaptations[dialect].replace`
- * pair is applied in order — for `ecmascript-2018` the list is empty, so the pattern compiles
- * unchanged. A port applies its own dialect's list to every pattern in the file the same way.
+ * pair is applied in order, then a declared `anchor` replaces the `$` that ends the pattern — for
+ * `ecmascript-2018` there is neither, so the pattern compiles unchanged. A port applies its own
+ * dialect's entry to every pattern in the file the same way.
  */
 export function compilePattern(spec: RefIdSpec, pattern: string): RegExp {
-  const replacements = spec.grammar.adaptations[spec.grammar.dialect]?.replace ?? []
+  const adaptation = spec.grammar.adaptations[spec.grammar.dialect]
   let adapted = pattern
-  for (const [from, to] of replacements) {
+  for (const [from, to] of adaptation?.replace ?? []) {
     adapted = adapted.split(from).join(to)
+  }
+  if (adaptation?.anchor !== undefined && adapted.endsWith("$")) {
+    adapted = adapted.slice(0, -1) + adaptation.anchor
   }
   return new RegExp(adapted)
 }

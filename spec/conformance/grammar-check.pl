@@ -17,11 +17,13 @@ close($fh);
 my $spec = decode_json($raw);
 
 my $expr = $spec->{grammar}{expression};
-# pcre2 adaptation's replace list is empty -- expression used unadapted.
+# The pcre2 adaptation: its replace pairs everywhere, then its anchor in place of the final \$.
 for my $pair (@{ $spec->{grammar}{adaptations}{pcre2}{replace} }) {
     my ($old, $new) = @$pair;
     $expr =~ s/\Q$old\E/$new/g;
 }
+my $anchor = $spec->{grammar}{adaptations}{pcre2}{anchor};
+$expr =~ s/\$\z/$anchor/ if defined $anchor;
 
 my $rx = qr/$expr/;
 

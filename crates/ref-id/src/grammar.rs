@@ -48,7 +48,8 @@ fn assert_structure(spec: &Spec) -> Result<(), RefIdError> {
     Ok(())
 }
 
-/// Applies this dialect's declared adaptations, in order, then compiles.
+/// Applies this dialect's declared adaptations — the replace pairs in order, then an `anchor` in place of
+/// the `$` that ends the pattern — then compiles.
 pub(crate) fn compile(spec: &Spec, pattern: &str) -> Result<Regex, RefIdError> {
     let mut adapted = pattern.to_string();
     if let Some(replacements) = spec.value(&["grammar", "adaptations", DIALECT, "replace"]).and_then(|v| v.as_array()) {
@@ -56,6 +57,11 @@ pub(crate) fn compile(spec: &Spec, pattern: &str) -> Result<Regex, RefIdError> {
             if let (Some(from), Some(to)) = (pair.get(0).and_then(|v| v.as_str()), pair.get(1).and_then(|v| v.as_str())) {
                 adapted = adapted.replace(from, to);
             }
+        }
+    }
+    if let Some(anchor) = spec.value(&["grammar", "adaptations", DIALECT, "anchor"]).and_then(|v| v.as_str()) {
+        if let Some(stem) = adapted.strip_suffix('$') {
+            adapted = format!("{stem}{anchor}");
         }
     }
     Regex::new(&adapted).map_err(|e| RefIdError::SpecVersion(format!("pattern {pattern} does not compile in {DIALECT}: {e}")))

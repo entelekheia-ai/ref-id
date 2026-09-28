@@ -44,7 +44,8 @@ def _assert_structure(spec: Spec) -> None:
 
 
 def compile_pattern(spec: Spec, pattern: str) -> re.Pattern[str]:
-    """Applies this dialect's declared adaptations, in order, then compiles."""
+    """Applies this dialect's declared adaptations — the replace pairs in order, then an `anchor` in place of
+    the `$` that ends the pattern — then compiles."""
     adapted = pattern
     replacements = spec.value("grammar", "adaptations", _DIALECT, "replace") or []
     for pair in replacements:
@@ -53,6 +54,9 @@ def compile_pattern(spec: Spec, pattern: str) -> re.Pattern[str]:
         source, target = pair
         if isinstance(source, str) and isinstance(target, str):
             adapted = adapted.replace(source, target)
+    anchor = spec.value("grammar", "adaptations", _DIALECT, "anchor")
+    if isinstance(anchor, str) and adapted.endswith("$"):
+        adapted = adapted[:-1] + anchor
     try:
         return re.compile(adapted)
     except re.error as error:

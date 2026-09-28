@@ -12,18 +12,14 @@
    "fragment"
   ],
   "adaptationsApplyTo": "every pattern in this file — the expression, the pair grammars, the forms, the dispatch and refinement patterns",
-  "anchors": "the canonical dialect ends a pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares the replacement above",
+  "anchors": "the canonical dialect ends every pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares an anchor, which replaces that final $ and no other — a $ inside a character class is a literal and stays; replace pairs apply everywhere, then the anchor",
   "adaptations": {
    "ecmascript-2018": {
     "replace": []
    },
    "pcre2": {
-    "replace": [
-     [
-      "$",
-      "\\z"
-     ]
-    ]
+    "replace": [],
+    "anchor": "\\z"
    },
    "rust-regex": {
     "replace": []
@@ -33,12 +29,9 @@
      [
       "(?<",
       "(?P<"
-     ],
-     [
-      "$",
-      "\\Z"
      ]
-    ]
+    ],
+    "anchor": "\\Z"
    },
    "swift-regex": {
     "replace": []

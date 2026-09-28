@@ -59,13 +59,17 @@ final class Grammar {
         }
     }
 
-    /// Applies this dialect's declared adaptations, in order, then compiles.
+    /// Applies this dialect's declared adaptations — the replace pairs in order, then an `anchor` in place
+    /// of the `$` that ends the pattern — then compiles.
     static func compile(_ spec: Spec, _ pattern: String) throws -> Regex<AnyRegexOutput> {
         var adapted = pattern
         if let replacements = spec.value(["grammar", "adaptations", dialect, "replace"]) as? [[String]] {
             for pair in replacements where pair.count == 2 {
                 adapted = adapted.replacingOccurrences(of: pair[0], with: pair[1])
             }
+        }
+        if let anchor = spec.value(["grammar", "adaptations", dialect, "anchor"]) as? String, adapted.hasSuffix("$") {
+            adapted = String(adapted.dropLast()) + anchor
         }
         do {
             return try Regex(adapted)
