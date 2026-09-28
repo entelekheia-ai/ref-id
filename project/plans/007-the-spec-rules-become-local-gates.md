@@ -288,7 +288,59 @@ check`.
 
 ## Outcomes & Retrospective
 
-Nothing yet — the plan has not started.
+**Against the goals.** All four were met. A commit that breaks the seal, a `relate` reduction or the
+`openRPC` document is refused by `.githooks/pre-commit`. Each finding names `spec/ref-id.json` (or its
+sidecar), the line, and the JSON Pointer of the entry. Each rule lives once, in its gate:
+`scripts/check-relate.mjs` and `scripts/check-openrpc.mjs` are deleted, and `scripts/seal-spec.mjs`
+holds no digest logic of its own. `scripts/check.sh` and `scripts/checks/_run.sh` are deleted, and no
+live document names them. CI runs `vibe-ops check` from the published CLI.
+
+**Against the success criteria.** Every criterion but one was run on the branch head:
+
+- the reference grep returns no hit;
+- `vibe-ops check --self-test` and `vibe-ops check` exit 0;
+- 38 gate tests and 330 package tests pass;
+- `node scripts/seal-spec.mjs` repairs `spec-unsealed`.
+
+Two criteria were met in weaker forms than written:
+
+- **The three refusals.** Real commit attempts were made for `spec-unsealed` (refused), for a clean
+  commit (silent), and for a missing CLI (refused with the install recipe). `relate-disagrees` and
+  `openrpc-invalid` were shown refusing through `vibe-ops check`, which the hook runs unchanged, and not
+  through a commit attempt each.
+- **The `gates` workflow green on the pull request did not run.** The workflow triggers on
+  `pull_request` and on pushes to `main`, and the pull request is deliberately opened after this closure.
+  Its substitute was a clean clone outside any enclosing configuration, running the published
+  `vibe-ops-cli@0.2.0`: 43 checks, 0 failed, self-test green. That is evidence about the commands. It is
+  not evidence about the runner. The pull request inherits the criterion.
+
+**What the plan did not foresee.** All of it came from review or from running the thing:
+
+- **The gates as first written turned any error into a skip.** A skip prints nothing in a non-verbose
+  run or through the hook's filter, and the review found two ways a present-but-broken dependency
+  silently disabled a rule. The Design had specified "a missing package skips", and that criterion was
+  too loose in the permissive direction. The gates now skip only when the instrument is absent, and CI
+  fails when one of them skips.
+- **The deleted scripts refused malformed shapes by crashing.** The gates first skipped those shapes, or
+  threw and took every other finding down with them. They are now findings.
+- **Running `--self-test` inside the hook corrupted the commit's index** (vibe-ops issue #36). Reproduced
+  at 218 entries; the hook works around it with `env -u`.
+- **Claude Code rewrote the shared `core.hooksPath` to an absolute path** while creating an isolated
+  subagent's worktree. Every worktree then ran the main checkout's hook, and `harness resolve` reported
+  no hook at all (vibe-ops issue #46).
+- **A review brief pointed at the caller's worktree, which an `isolation: worktree` reviewer cannot
+  use.** The reviewer built around it by copying the tree and ran out of turns before reporting. The
+  OpenRPC port comparison it could not reach was done by the caller.
+- **A changeset was needed.** The one-line test-message change inside `packages/ref-id/` fails
+  `changeset status`. An empty changeset carries it.
+
+**Still open, and who inherits it:**
+
+- the `gates` workflow's first run — the pull request;
+- vibe-ops issues #36, #37 and #46 — vibe-ops. Each fix retires one workaround here: the `env -u` in the
+  hook, `scripts/seal-spec.mjs`, and the need to set `core.hooksPath` back to `.githooks` by hand;
+- RFC-0006 item 12 — vibe-ops. It retires the `scripts/` ownership entries that `harness resolve` still
+  reports as absent here.
 
 ---
 

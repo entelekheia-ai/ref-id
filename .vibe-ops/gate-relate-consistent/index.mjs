@@ -15,11 +15,10 @@
  * A SKIP MEANS THE INSTRUMENT IS ABSENT, NEVER THAT THE SPECIFICATION IS DEFECTIVE. The only legitimate
  * skip here is the spec file itself being missing (a population question). `vectors.relate` or
  * `vectors.comparison` absent or not an array, and a vector missing `a`/`b`/`expect` or whose `expect`
- * is not an object, are FINDINGS with a pointer — never a throw that takes the whole run down. The
- * deleted `scripts/check-relate.mjs` crashed on a malformed vector (reproduced: deleting
- * `vectors.relate[0].expect` used to make `vibe-ops check` exit with only
- * `Cannot read properties of undefined (reading 'relate')`, losing every other finding); a gate must
- * refuse the one malformed vector and keep examining the rest.
+ * is not an object, are FINDINGS with a pointer — never a throw that takes the whole run down. A
+ * throw ends `vibe-ops check` with a bare TypeError that names no gate and no file, and every other
+ * gate's findings are lost with it; this gate refuses the one malformed vector and keeps examining the
+ * rest.
  */
 import { readFileSync } from "node:fs"
 import path from "node:path"

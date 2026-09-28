@@ -14,8 +14,8 @@
  * clone with no `npm ci`. Everything else a malformed specification can do — `openRPC` absent,
  * `methods` not an array, `components`/`components.schemas` missing or not an object, a method that is
  * not an object, a dependency that resolves but throws while loading — is a FINDING with a pointer,
- * never a throw that takes the whole run down and never a silent skip. The deleted
- * `scripts/check-openrpc.mjs` crashed on every one of these; a gate must refuse instead.
+ * never a throw that takes the whole run down and never a silent skip. A throw would refuse the
+ * commit too, but anonymously and at the cost of every other gate's findings.
  *
  * Reads `spec/ref-id.json` with `readFileSync` + `JSON.parse`, never through the `ref-id` package.
  */
