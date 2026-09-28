@@ -104,7 +104,7 @@ Triage, each finding reproduced first:
 - Ruling: the stale counts at `gates.yml:97` and `canonical.ts:67` now say four — cost if wrong: none.
 - Deferred minor: the `spec-bytes` message for the `LICENSE` pair tells the fixer to copy the specification.
 - Ruling (re-review of `b4f2217`): no BLOCKER, no SHOULD; its one NOTE — nothing refused a stale
-  `python/uv.lock` — is met by `uv run --locked` in the gates `python` job and the release gates, which
+  `python/uv.lock` — is met by `uv run --locked` in the gates workflow's Python step and in the release gates, which
   refuses a lock one version behind `pyproject.toml` — cost if wrong: none.
 - Ruling (maintainer, Decision Log): the measured Package URL edges live in one place,
   `docs/reference/implementation-differences.md`, linked from the four READMEs; `AGENTS.md`,

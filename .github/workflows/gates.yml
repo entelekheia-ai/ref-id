@@ -6,10 +6,11 @@
 # digest, and an edit that reseals nothing is refused by the loader rather than by a vector — which shows
 # up here as `npm test`, and showed up nowhere at all while this workflow did not exist.
 #
-# Swift is its own job on macOS. The conformance runner is the only thing that exercises the Swift port's
-# vectors and it had no automated caller, which for a repository whose headline property is parity across
-# its implementations left exactly one of them unevidenced. It is an executable rather
-# than a test target on purpose (see Package.swift): it runs on a toolchain with no XCTest.
+# Two jobs, because each job pays its own setup and is billed rounded up to the minute, and a macOS minute
+# costs ten Linux ones: everything that runs on Linux runs in one job, and the macOS job carries only what
+# needs Swift — the conformance runner and the differential, which share one Swift build. The conformance
+# runner is the only thing that exercises the Swift port's vectors; it is an executable rather than a test
+# target on purpose (see Package.swift): it runs on a toolchain with no XCTest.
 name: gates
 on:
   pull_request:
@@ -75,32 +76,19 @@ jobs:
           node --test scripts/gen-surface-python.test.mjs
       - name: the identify skill's script resolves a corpus without leaking the caller's environment
         run: npm run test:identify
-
-  # The Python port on the oldest interpreter it supports and on the newest the image carries. The commit
-  # gate above already runs its suite once through python-conformance; this job adds 3.11, the type check
-  # over every test file (test_surface.py holds the port to openRPC by signature) and the linter.
-  python:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
-      - name: the Python port's suite, types and lint
+      # The commit gate above already ran the Python suite on the newest interpreter, through
+      # python-conformance. This adds the oldest one the port supports, the type check over every test
+      # file (test_surface.py holds the port to openRPC by signature) and the linter; `--locked` refuses a
+      # python/uv.lock that no longer matches python/pyproject.toml.
+      - name: the Python port on 3.11, its types and its lint
         working-directory: python
         run: |
-          uv run --locked pytest -q
-          uv run --python 3.11 pytest -q
-          uv run mypy --strict src tests
-          uv run ruff check
-
-  swift:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: swift conformance
-        run: swift run ref-id-conformance
+          uv run --locked --python 3.11 pytest -q
+          uv run --locked mypy --strict src tests
+          uv run --locked ruff check
 
   # The only job where every implementation can run, because Swift needs macOS and the differential
-  # needs them all on one machine. Each suite above proves its own implementation agrees with the
+  # needs them all on one machine; the Swift conformance runner rides along on its build. Each suite proves its own implementation agrees with the
   # specification; none of them proves the four agree with *each other*, and a field no vector
   # constrains can be decided three ways with every suite green — which is what happened to Package URL
   # canonicalisation for as long as the line protocol dropped that field.
@@ -124,3 +112,8 @@ jobs:
       # Swift toolchain.
       - name: no implementation exposes a public function the specification does not declare
         run: npm run test:surface
+      # After the differential, which has already built this executable, so the run reuses that build.
+      # It runs when the differential failed too, so a Swift conformance failure is never hidden behind it.
+      - name: swift conformance
+        if: success() || failure()
+        run: swift run ref-id-conformance

@@ -401,6 +401,15 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   depth-1 checkout resolved none of them (six findings on PR #51, none with full history). The pointers name
   this branch's commits, so the pull request merges with a merge commit, never squash or rebase.
   Date / Author: 2026-09-28 / Danilo Borges
+- Decision: the gates workflow runs as two jobs — one on Linux for everything that does not need Swift,
+  one on macOS for the differential and the Swift conformance runner, which share one Swift build — and
+  the differential overlaps its runs: each compiled port starts when its own build finishes, the slow pair
+  passes split one slice per core. The Rust build is cached between runs; the Swift one is not.
+  Rationale: runner time is spent energy and quota even on a public repository, and each job pays its own
+  setup and rounds up to the minute, a macOS minute counting ten. Measured on the runner: the differential
+  job went from 3m34s to 1m47s–2m39s, bound by CPU on three cores; the Rust cache took its build from
+  35–50 s to 12 s, while a restored Swift `.build/` still rebuilt in 31 s, so that cache was dropped.
+  Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective
 
