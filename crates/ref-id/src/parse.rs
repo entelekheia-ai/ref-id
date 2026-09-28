@@ -134,7 +134,17 @@ impl<'a> Parser<'a> {
         let r#type = group("type").unwrap_or_default();
         let locator = group("locator").unwrap_or_default();
         let explicit_version = version_text.is_some();
-        let version = version_text.as_deref().and_then(|v| v.parse::<i64>().ok()).unwrap_or_else(|| self.spec.int(&["version", "default"]));
+        let maximum = self.spec.int(&["version", "maximum"]);
+        // A literal above the maximum — whether it merely exceeds it or overflows an `i64` outright —
+        // is unsupported, not malformed: `versionText` keeps what was written, `version` reports the
+        // maximum every implementation holds exactly, and the identifier is decomposed no further.
+        let (version, above_maximum) = match version_text.as_deref() {
+            None => (self.spec.int(&["version", "default"]), false),
+            Some(text) => match text.parse::<i64>() {
+                Ok(v) if v <= maximum => (v, false),
+                _ => (maximum, true),
+            },
+        };
 
         let mut head = ParseResult {
             input: input.to_string(),
@@ -171,7 +181,7 @@ impl<'a> Parser<'a> {
         base.status = self.spec.status("ok")?;
         base.delegated = delegated_string(self.spec, &r#type, &locator);
 
-        if !self.spec.ints(&["version", "supported"]).contains(&version) {
+        if above_maximum || !self.spec.ints(&["version", "supported"]).contains(&version) {
             base.status = self.spec.status("unsupported")?;
             return Ok(base);
         }

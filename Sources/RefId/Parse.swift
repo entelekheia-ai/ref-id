@@ -101,7 +101,20 @@ private struct Parser {
         let fragmentRaw = group(match, "fragment")
 
         let explicitVersion = versionText != nil
-        let version = versionText.flatMap { Int($0) } ?? spec.int("version", "default")
+        // A literal within Int's range is read as written; one past `version.maximum` (whether it
+        // still fits Int or overflows it entirely) reports the maximum instead, per
+        // `version.maximumNote` — `versionText` still keeps the literal, so nothing is lost.
+        let maximum = spec.int("version", "maximum")
+        let version: Int
+        if let versionText {
+            if let parsed = Int(versionText), parsed <= maximum {
+                version = parsed
+            } else {
+                version = maximum
+            }
+        } else {
+            version = spec.int("version", "default")
+        }
         var head = ParseResult(input: input, status: "", version: version, explicitVersion: explicitVersion, versionText: versionText, type: type, locator: locator, qualifiers: [], fragment: nil)
 
         if let stateRaw {

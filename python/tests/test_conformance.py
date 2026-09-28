@@ -7,6 +7,7 @@ Modelled on `crates/ref-id/tests/conformance.rs`.
 """
 from __future__ import annotations
 
+import json as json_module
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +17,19 @@ import ref_id
 from ref_id.spec import load_spec
 
 # Every group this track's runner executes, by name — Track 3 adds parse/canonical/roundtrip/build/
-# envelope, Track 4 adds comparison/relate/verdict.
-EXECUTED = ["digest", "parse", "canonical", "roundtrip", "build", "envelope", "comparison", "relate", "verdict"]
+# envelope, Track 4 adds comparison/relate/verdict, Plan-008 Track 7 adds canonicalisation.
+EXECUTED = [
+    "digest",
+    "parse",
+    "canonical",
+    "roundtrip",
+    "build",
+    "envelope",
+    "comparison",
+    "relate",
+    "verdict",
+    "canonicalisation",
+]
 
 
 def test_every_vector_group_runs() -> None:
@@ -69,6 +81,23 @@ def test_canonical_vectors(vector: dict[str, Any]) -> None:
         with pytest.raises(ref_id.RefIdError) as excinfo:
             ref_id.canonical_identifier(vector["input"])
         assert part in str(excinfo.value), f"{vector['name']} — refusal did not name {part}"
+
+
+def _canonicalisation_vectors() -> list[dict[str, Any]]:
+    return load_spec().vectors("canonicalisation")
+
+
+@pytest.mark.parametrize("vector", _canonicalisation_vectors(), ids=lambda v: v["name"])
+def test_canonicalisation_vectors(vector: dict[str, Any]) -> None:
+    """`/canonicalisation`'s number rule: parse `json` with this language's own JSON parser, then
+    canonicalise it — `json.loads` mirrors what a Python producer would already hand `canonicalise`,
+    turning `1.0` and `1e2` into a `float` rather than pre-folding them the way `JSON.parse` would."""
+    parsed = json_module.loads(vector["json"])
+    if "refused" in vector:
+        with pytest.raises(ref_id.SpecIntegrityError):
+            ref_id.canonicalise(parsed)
+    else:
+        assert ref_id.canonicalise(parsed) == vector["expect"], vector["name"]
 
 
 def _roundtrip_vectors() -> list[str]:

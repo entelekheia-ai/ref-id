@@ -9,9 +9,32 @@ member.
 """
 from __future__ import annotations
 
+import json
+
 from .errors import SpecIntegrityError
 
 __all__ = ["canonicalise"]
+
+_maximum_cache: int | None = None
+
+
+def _maximum() -> int:
+    """`version.maximum`, read from the embedded specification rather than written as a literal here.
+    Deferred import: `spec.py` imports this module at its own top level to build `canonicalise`, so the
+    reverse read happens only inside this function body, by which time both modules are fully loaded —
+    and it reads the raw bytes rather than the validated `Spec`, because this is itself the function that
+    computes the digest `Spec` is validated against."""
+    global _maximum_cache
+    if _maximum_cache is None:
+        from .spec import embedded_spec_text
+
+        json_text, _sidecar_text = embedded_spec_text()
+        document = json.loads(json_text)
+        value = document.get("version", {}).get("maximum") if isinstance(document, dict) else None
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise SpecIntegrityError("spec/ref-id.json does not declare version.maximum as an integer")
+        _maximum_cache = value
+    return _maximum_cache
 
 _ESCAPES = {
     '"': '\\"',
@@ -62,15 +85,22 @@ def _sort_key(key: str) -> bytes:
     return key.encode("utf-16-be", "surrogatepass")
 
 
-def _write(value: object, out: list[str]) -> None:
+def _write(value: object, out: list[str], maximum: int) -> None:
     if value is None:
         out.append("null")
     elif isinstance(value, bool):
         out.append("true" if value else "false")
     elif isinstance(value, int):
+        if abs(value) > maximum:
+            raise SpecIntegrityError(f"canonicalisation covers magnitudes up to {maximum}, got {value!r}")
         out.append(str(value))
     elif isinstance(value, float):
-        raise SpecIntegrityError(f"canonicalisation covers integers only, got {value!r}")
+        # A number is an integer whose magnitude is at most `version.maximum`, written as that integer;
+        # an integral value written with a fraction or an exponent (`json.loads` turns both into a
+        # `float`, e.g. `1.0` or `1e2`) is that integer; any other number is refused (`/canonicalisation`).
+        if not value.is_integer() or abs(value) > maximum:
+            raise SpecIntegrityError(f"canonicalisation covers integers only, got {value!r}")
+        out.append(str(int(value)))
     elif isinstance(value, str):
         out.append(_escape(value))
     elif isinstance(value, (list, tuple)):
@@ -78,7 +108,7 @@ def _write(value: object, out: list[str]) -> None:
         for i, item in enumerate(value):
             if i > 0:
                 out.append(",")
-            _write(item, out)
+            _write(item, out, maximum)
         out.append("]")
     elif isinstance(value, dict):
         keys = sorted(value.keys(), key=_sort_key)
@@ -88,7 +118,7 @@ def _write(value: object, out: list[str]) -> None:
                 out.append(",")
             out.append(_escape(key))
             out.append(":")
-            _write(value[key], out)
+            _write(value[key], out, maximum)
         out.append("}")
     else:
         raise SpecIntegrityError(f"canonicalisation cannot serialise a value of type {type(value).__name__}")
@@ -97,5 +127,5 @@ def _write(value: object, out: list[str]) -> None:
 def canonicalise(value: object, /) -> str:
     """The canonical serialisation the specification digest is computed over."""
     out: list[str] = []
-    _write(value, out)
+    _write(value, out, _maximum())
     return "".join(out)

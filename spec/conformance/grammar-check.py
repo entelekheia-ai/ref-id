@@ -56,6 +56,8 @@ def check_vector(spec, m, vec):
     if "version" in expect:
         raw = gd.get("version")
         version = spec["version"]["default"] if not raw else int(raw)
+        # A literal above the declared maximum reports the maximum (spec.version.maximumNote).
+        version = min(version, spec["version"]["maximum"])
         if version != expect["version"]:
             return False, f"version {version!r} != expect {expect['version']!r}"
 

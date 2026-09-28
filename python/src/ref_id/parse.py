@@ -126,14 +126,15 @@ class _Parser:
         type_ = opt("type") or ""
         locator = opt("locator") or ""
         explicit_version = version_text is not None
-        # `[0-9]+` guarantees a digit-only literal; mirror the crate's `i64` overflow (`str::parse::<i64>`
-        # returns `None` past `i64::MAX`, so an oversized literal keeps the default version even though
-        # `explicitVersion` stays true).
+        # `[0-9]+` guarantees a digit-only literal, so Python's arbitrary-precision `int()` never raises;
+        # a literal above `version.maximum` reports that maximum instead of the parsed value (still
+        # `unsupported`, since the maximum itself is never a member of `version.supported`), while
+        # `versionText` below keeps the literal exactly as written.
         version = self.spec.get_int("version", "default")
         if version_text is not None:
             parsed = int(version_text)
-            if parsed <= 0x7FFFFFFFFFFFFFFF:
-                version = parsed
+            maximum = self.spec.get_int("version", "maximum")
+            version = min(parsed, maximum)
 
         head = ParseResult(
             input=input_,

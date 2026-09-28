@@ -27,7 +27,12 @@ public final class Spec: @unchecked Sendable {
 
     func string(_ path: String...) -> String { value(path) as? String ?? "" }
     func optionalString(_ path: String...) -> String? { value(path) as? String }
-    func int(_ path: String...) -> Int { (value(path) as? NSNumber)?.intValue ?? 0 }
+    /// `int64Value`, not `intValue`: a table entry (`version.maximum`) can carry a magnitude past
+    /// `Int32`, and `intValue` would silently truncate it.
+    func int(_ path: String...) -> Int { Int((value(path) as? NSNumber)?.int64Value ?? 0) }
+    /// Same lookup as `int(_:)`, kept as `Int64` for a magnitude the platform `Int` might not hold
+    /// (irrelevant on the 64-bit platforms this package targets, but the type says what is guaranteed).
+    func int64(_ path: String...) -> Int64 { (value(path) as? NSNumber)?.int64Value ?? 0 }
     func bool(_ path: String...) -> Bool {
         guard let number = value(path) as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return false }
         return number.boolValue
@@ -67,7 +72,10 @@ private let supportedSpecMajor = "1"
 enum SpecLoader {
     static func validate(json: Data, sidecar: String) throws -> Spec {
         let parsed = try JSONSerialization.jsonObject(with: json)
-        let canonical = try Canonical.serialise(parsed)
+        // Bootstrap: no `Spec` exists yet to read `version.maximum` from, so it comes straight out of
+        // the still-raw parsed JSON — the same field `canonicalise(_:)` reads once the `Spec` loads.
+        let maximum = (((parsed as? [String: Any])?["version"] as? [String: Any])?["maximum"] as? NSNumber)?.int64Value ?? Int64.max
+        let canonical = try Canonical.serialise(parsed, maximum: maximum)
         let computed = SHA256.hex(Array(canonical.utf8))
         let expected = sidecar.trimmingCharacters(in: .whitespacesAndNewlines)
         guard computed == expected else {
@@ -144,11 +152,13 @@ extension Spec {
 public func embeddedSpecURLs() throws -> (json: URL, sidecar: URL) { try SpecLoader.embeddedURLs() }
 
 /// The canonical JSON serialisation the specification's own digest is computed over.
-public func canonicalise(_ value: Any?) throws -> String { try Canonical.serialise(value ?? NSNull()) }
+public func canonicalise(_ value: Any?) throws -> String {
+    try Canonical.serialise(value ?? NSNull(), maximum: try loadSpec().int64("version", "maximum"))
+}
 
 /// Deprecated spelling of `canonicalise(_:)`, kept so a call written against it still compiles.
 @available(*, deprecated, renamed: "canonicalise(_:)")
-public func canonicalJSON(_ value: Any?) throws -> String { try Canonical.serialise(value ?? NSNull()) }
+public func canonicalJSON(_ value: Any?) throws -> String { try canonicalise(value) }
 
 /// SHA-256 of a UTF-8 string, lowercase hex — the digest the sidecar carries.
 public func sha256Hex(_ text: String) -> String { SHA256.hex(Array(text.utf8)) }

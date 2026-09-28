@@ -54,7 +54,7 @@ export interface RefIdSpec {
     state: { separator: string; pair: string; unknownKey: string; repeatedKey: string }
     fragment: { separator: string; pair: string; path: string; repeatedKey: string }
   }
-  version: { default: number; supported: number[]; mints: string[]; note: string }
+  version: { default: number; supported: number[]; maximum: number; maximumNote: string; mints: string[]; note: string }
   encoding: Record<string, { reserved: string[]; table?: Record<string, string>; note?: string }>
   dispatch: Record<string, { locator: string; validator: string; delegate: string; pattern?: string; versionTail?: boolean; reference?: string; declaredBy?: string }>
   delegation: Record<string, string>
@@ -92,6 +92,7 @@ export interface RefIdSpec {
     build: unknown[]
     digest: unknown[]
     envelope: unknown[]
+    canonicalisation: unknown[]
   }
 }
 
@@ -102,13 +103,20 @@ export type Spec = RefIdSpec
 /**
  * Canonical serialisation per `spec.canonicalisation.rules`: object keys sorted by UTF-16 code
  * unit, no whitespace outside strings, strings escaped as `JSON.stringify` does, numbers
- * restricted to integers.
+ * restricted to integers whose magnitude does not exceed `spec.version.maximum` (an integral value
+ * written with a fraction or an exponent, e.g. `1.0` or `1e2`, is that integer — `JSON.parse` already
+ * reduces both to a plain integer `number` before this function ever sees them).
+ *
+ * `maximum` defaults to the loaded specification's own bound and is not meant to be supplied by an
+ * ordinary caller; `spec.node.ts` passes it explicitly, read straight off the not-yet-verified document,
+ * because that is the one call this function makes before a spec is loaded — asking `loadSpec()` for the
+ * bound here would call back into the load this very call is part of.
  *
  * Every value this package refuses to canonicalise is a `SpecIntegrityError` — `openRPC` declares it
  * as `canonicalise`'s one error (`components.errors.SpecIntegrity`) — rather than a plain `Error`, so
  * that a caller's one `instanceof RefIdError` covers everything this package throws.
  */
-export function canonicalise(value: unknown): string {
+export function canonicalise(value: unknown, maximum: number = loadSpec().version.maximum): string {
   if (value === null) {
     return "null"
   }
@@ -116,8 +124,8 @@ export function canonicalise(value: unknown): string {
     return value ? "true" : "false"
   }
   if (typeof value === "number") {
-    if (!Number.isInteger(value)) {
-      throw new SpecIntegrityError(`canonicalisation covers integers only, got ${value}`)
+    if (!Number.isInteger(value) || value > maximum || value < -maximum) {
+      throw new SpecIntegrityError(`canonicalisation covers integers of magnitude at most ${maximum} only, got ${value}`)
     }
     return String(value)
   }
@@ -125,12 +133,12 @@ export function canonicalise(value: unknown): string {
     return JSON.stringify(value)
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalise(item)).join(",")}]`
+    return `[${value.map((item) => canonicalise(item, maximum)).join(",")}]`
   }
   if (typeof value === "object") {
     const record = value as Record<string, unknown>
     const keys = Object.keys(record).sort()
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalise(record[key])}`).join(",")}}`
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalise(record[key], maximum)}`).join(",")}}`
   }
   throw new SpecIntegrityError(`value of type ${typeof value} has no canonical form`)
 }

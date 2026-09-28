@@ -38,7 +38,7 @@ export function canonicalIdentifier(identifier: string | ParseResult): string {
   if (parsed.status === status(spec, "malformed")) return serialise(parsed) // throws, naming the failing part
 
   const qualifiers = byKey(parsed.qualifiers).map(([key, value]): Pair => {
-    const nested = parsed.nested?.[key]
+    const nested = parsed.nested && Object.hasOwn(parsed.nested, key) ? parsed.nested[key] : undefined
     if (nested === undefined) return [key, value]
     const form = nestingForm(spec, key)
     if (!form) return [key, value]

@@ -207,7 +207,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 - [x] **Track 4 — Relations.** `covers`, `same_package`, `same_identifier`, `relate`, `verdict`, including
       the descent into nested identifiers. Acceptance: every group passes, the group-refusal test lists
       none, and `mypy --strict` passes on the generated surface file.
-- [ ] **Track 7 — The edges the port exposed: integers, oversized versions, lone surrogates.** Runs after
+- [x] **Track 7 — The edges the port exposed: integers, oversized versions, lone surrogates.** Runs after
       Track 4 and before Track 5, carrying the three Decision Log entries of 2026-09-28 that name it. Add the rule to
       `/canonicalisation` and a `canonicalisation` vector group whose inputs are raw JSON text, reseal and
       copy; then each implementation parses the text with its own JSON parser and canonicalises it —
@@ -308,9 +308,10 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   Swift port already applied this rule. The maintainer chose to resolve it in this plan.
   Date / Author: 2026-09-28 / Danilo Borges
 
-- Decision: a version literal an implementation cannot represent makes the identifier `unsupported`, with
-  `versionText` kept, as the TypeScript reference already does; a `parse` vector binds it, and Rust, Swift
-  and Python follow. Carried out in Track 7.
+- Decision: the specification declares `version.maximum` = 9007199254740991 (2^53 − 1, the largest integer
+  every implementation holds exactly); a version literal above it makes the identifier `unsupported`, with
+  `versionText` keeping the literal and `version` reporting the maximum. A `parse` vector binds it, and all
+  four implementations follow — TypeScript too, which reported a rounded float. Carried out in Track 7.
   Rationale: reading `ref:9223372036854775808:pkg:npm/x@1.0.0` as version 1 canonicalised it to the key of
   a different identifier, which a store would then file together; the review of Track 3 found Rust and
   Swift already diverging and Python inheriting it from the crate. The maintainer chose to fix it here.
@@ -323,6 +324,28 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   Rationale: TypeScript's lossy encoding made `digest(["…\ud800"])` equal `digest(["…\ufffd"])`, so its
   `validateEnvelope` admitted members other than the ones a digest was minted over; Python already refused.
   The maintainer chose to fix it here.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: Track 7 is carried out as the specification edit in the main loop, then one
+  `ref-id-port-implementer` per language — TypeScript, Rust, Swift, Python — in parallel on disjoint write
+  sets, each behind its own gate, as that agent's definition prescribes for "the specification moved".
+  Rationale: the four code changes are independent once the vectors exist; the main loop keeps the spec.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: the lone-surrogate rule is stated in `/digest` and pinned by unit tests in TypeScript and
+  Python, not by a vector.
+  Rationale: a JSON string holding a lone surrogate stops the Rust crate from loading the specification at
+  all (`serde_json` refuses it), and neither a Rust nor a Swift `String` can hold one, so only the two
+  implementations that can receive the input can be tested with it.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: Track 7 also carries two things the review of Track 4 found — vectors for three pair shapes no
+  vector bound (one scoped package at two versions, a nested pair refused on one side only, a verdict
+  decided by a fragment refinement), whose expected values every implementation already produces; and the
+  TypeScript `parse` throwing on a qualifier key that names an `Object.prototype` member (`constructor`),
+  fixed with an own-property lookup and bound by a `parse` vector.
+  Rationale: the three shapes survived planted faults in the Python suite and would in any port; the
+  throw breaks the rule that parsing never raises, and Rust and Python already return `uncovered`.
   Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective

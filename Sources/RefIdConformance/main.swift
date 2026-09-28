@@ -151,7 +151,7 @@ func buildParts(_ json: [String: Any]) -> BuildParts {
 /// runner cannot yet run must say so, not stay silent.
 func checkEveryVectorGroupRuns() throws {
     let spec = try loadSpec()
-    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict"]
+    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict", "canonicalisation"]
     let missing = spec.vectorClasses().filter { !executed.contains($0) }.sorted()
     check(missing.isEmpty, "every-vector-group-runs: spec/ref-id.json declares vector groups this runner does not execute: \(missing)")
 }
@@ -319,6 +319,18 @@ func run() throws {
         let wanted = verdictResultFromJSON(expect["verdict"])
         check(forward == wanted, "verdict: \(name) — verdict(a, b)")
         check(verdict(b, a) == mirroredVerdict(forward), "verdict: \(name) — verdict(b, a)")
+    }
+
+    // canonicalisation — parsed with Foundation's own JSON reader, then canonicalised; `expect` is
+    // already in canonical form, or `refused: true` names a `RefIdError.specIntegrity` instead.
+    for vector in try vectors("canonicalisation") {
+        let name = vector["name"] as? String ?? "?"
+        let json = try JSONSerialization.jsonObject(with: Data((vector["json"] as! String).utf8), options: [.fragmentsAllowed])
+        if let expected = vector["expect"] as? String {
+            do { check(try canonical(json) == expected, "canonicalisation: \(name)") } catch { check(false, "canonicalisation: \(name) threw \(error)") }
+        } else {
+            do { _ = try canonical(json); check(false, "canonicalisation: \(name) must refuse") } catch RefIdError.specIntegrity { check(true, "") } catch { check(false, "canonicalisation: \(name) threw the wrong error: \(error)") }
+        }
     }
 
     // integrity: the embedded copy is the repository's spec (when run from the repository)

@@ -80,6 +80,8 @@ for my $vec (@$vectors) {
             if (exists $expect->{version}) {
                 my $raw_v = $g{version};
                 my $version = (defined($raw_v) && $raw_v ne '') ? int($raw_v) : $spec->{version}{default};
+                # A literal above the declared maximum reports the maximum (spec.version.maximumNote).
+                $version = $spec->{version}{maximum} if $version > $spec->{version}{maximum};
                 if ($version != $expect->{version}) {
                     ($ok, $reason) = (0, "version $version != expect $expect->{version}");
                 }

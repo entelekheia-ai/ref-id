@@ -126,14 +126,14 @@ export function assertImplemented(spec: RefIdSpec): void {
 
 /** The string handed to the validator, or undefined when the type is not dispatched or its delegate mode is unknown here. */
 export function delegatedString(spec: RefIdSpec, type: string, locator: string): string | undefined {
-  const entry = spec.dispatch[type]
+  const entry = Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined
   const delegator = entry ? delegators[entry.delegate] : undefined
   return delegator ? delegator.form(type, locator) : undefined
 }
 
 /** True when a producer may pass the intact format string (`pkg:npm/x`) as the locator of this type. */
 export function foldsType(spec: RefIdSpec, type: string): boolean {
-  const entry = spec.dispatch[type]
+  const entry = Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined
   return entry ? (delegators[entry.delegate]?.foldsType ?? false) : false
 }
 

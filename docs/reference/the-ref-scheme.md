@@ -702,7 +702,7 @@ The file declares two identities and one digest, and they do different jobs.
 | Field | Today | Versions |
 |---|---|---|
 | `scheme` | `ref` | the URI scheme every identifier starts with |
-| `specVersion` | `1.5.0` | **the document** — its tables, its vectors, its canonicalisation |
+| `specVersion` | `1.6.0` | **the document** — its tables, its vectors, its canonicalisation |
 | `version.supported` | `[1]` | **the identifier** — which version slots this document defines |
 
 A consumer pins against `specVersion`. The two numbers move independently: an addition through an extension

@@ -24,7 +24,12 @@ function readText(location: URL | string): string {
 
 function validate(rawJson: string, rawSidecar: string): RefIdSpec {
   const parsed = JSON.parse(rawJson) as unknown
-  const canonical = canonicalise(parsed)
+  // canonicalise's own default reads `loadSpec().version.maximum` — unusable here, this call is what
+  // loadSpec() is waiting on. The bound is read straight off the document being verified instead; any
+  // tampering with it is still caught, because it changes the very bytes the sidecar digest is over.
+  const declaredMaximum = (parsed as { version?: { maximum?: unknown } })?.version?.maximum
+  const maximum = typeof declaredMaximum === "number" ? declaredMaximum : Number.MAX_SAFE_INTEGER
+  const canonical = canonicalise(parsed, maximum)
   const computed = createHash("sha256").update(canonical, "utf8").digest("hex")
   const expected = rawSidecar.trim()
   if (computed !== expected) {

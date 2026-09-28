@@ -31,10 +31,25 @@ fn write(value: &Value, out: &mut String) -> Result<(), RefIdError> {
         Value::Null => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
         Value::Number(n) => {
+            let maximum = crate::spec::canonical_maximum() as i128;
             if let Some(i) = n.as_i64() {
+                if (i as i128).abs() > maximum {
+                    return Err(RefIdError::SpecIntegrity(format!("canonicalisation allows a magnitude of at most {maximum}, got {i}")));
+                }
                 out.push_str(&i.to_string());
             } else if let Some(u) = n.as_u64() {
+                if u as i128 > maximum {
+                    return Err(RefIdError::SpecIntegrity(format!("canonicalisation allows a magnitude of at most {maximum}, got {u}")));
+                }
                 out.push_str(&u.to_string());
+            } else if let Some(f) = n.as_f64() {
+                if !f.is_finite() || f.fract() != 0.0 {
+                    return Err(RefIdError::SpecIntegrity(format!("canonicalisation covers integers only, got {n}")));
+                }
+                if (f as i128).abs() > maximum {
+                    return Err(RefIdError::SpecIntegrity(format!("canonicalisation allows a magnitude of at most {maximum}, got {n}")));
+                }
+                out.push_str(&(f as i64).to_string());
             } else {
                 return Err(RefIdError::SpecIntegrity(format!("canonicalisation covers integers only, got {n}")));
             }

@@ -43,7 +43,7 @@ fn build_parts(json: &Value) -> BuildParts {
 #[test]
 fn every_vector_group_runs() {
     let spec = load_spec().unwrap();
-    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict"];
+    let executed = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict", "canonicalisation"];
     let mut missing: Vec<String> = spec.vector_classes().into_iter().filter(|c| !executed.contains(&c.as_str())).collect();
     missing.sort();
     assert!(missing.is_empty(), "spec/ref-id.json declares vector groups this runner does not execute: {missing:?}");
@@ -63,6 +63,26 @@ fn canonical_vectors() {
                 let part = vector["expect"]["error"].as_str().unwrap_or("?");
                 let err = got.expect_err(&format!("canonical: {name} — expected a refusal"));
                 assert!(format!("{err:?}").contains(part), "canonical: {name} — refusal did not name {part}");
+            }
+        }
+    }
+}
+
+/// `/canonicalisation`'s number rule: parse `json` with this crate's own JSON parser, canonicalise, and
+/// compare to `expect` — or, when the vector names `refused: true`, canonicalising must raise
+/// `SpecIntegrity`.
+#[test]
+fn canonicalisation_vectors() {
+    let spec = load_spec().unwrap();
+    for vector in spec.vectors("canonicalisation") {
+        let name = vector["name"].as_str().unwrap_or("?");
+        let json = vector["json"].as_str().unwrap();
+        let parsed: Value = serde_json::from_str(json).unwrap();
+        match vector.get("expect").and_then(Value::as_str) {
+            Some(expected) => assert_eq!(canonicalise(&parsed).unwrap(), expected, "canonicalisation: {name}"),
+            None => {
+                assert_eq!(vector["refused"].as_bool(), Some(true), "canonicalisation: {name} — vector names neither expect nor refused");
+                assert!(matches!(canonicalise(&parsed), Err(RefIdError::SpecIntegrity(_))), "canonicalisation: {name} — expected a refusal");
             }
         }
     }

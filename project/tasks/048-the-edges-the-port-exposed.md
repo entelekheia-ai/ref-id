@@ -1,0 +1,170 @@
+---
+vibe-ops-template: task@3
+---
+
+<!--
+ Copyright (c) 2026 Danilo Borges (https://github.com/daniloborges)
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+-->
+
+# Task: The edges the port exposed
+
+| Field | Value |
+|---|---|
+| Status | Done |
+| Created | 2026-09-28 |
+| Author | Danilo Borges |
+| Issue | <https://github.com/entelekheia-ai/ref-id/issues/48> |
+| Plan | plans/008-the-python-port.md — Track 7 |
+
+---
+
+## Context
+
+Writing and reviewing the Python port found five places where the four implementations disagree or where
+no vector binds what they do. The maintainer decided each (Plan-008 Decision Log, 2026-09-28). The
+specification edit is done by the caller and committed with this dossier; each implementation then follows
+it behind its own gate, one `ref-id-port-implementer` per language, in parallel.
+
+**The specification edit (done by the caller):**
+
+- `/canonicalisation` rule: *a number is an integer whose magnitude is at most 9007199254740991, written as
+  that integer; an integral value written with a fraction or an exponent (`1.0`, `1e2`) is that integer;
+  any other number is refused.* A new vector group **`canonicalisation`** (8 vectors): `{name, json,
+  expect}` — parse `json` with the language's own JSON parser, canonicalise, compare to `expect` — or
+  `{name, json, refused: true}` — canonicalisation raises the `SpecIntegrity` error. `openRPC`'s
+  `canonicalise` now names this group in `x-vectors`.
+- `version.maximum` = 9007199254740991 and `version.maximumNote`: a version literal above the maximum is
+  `unsupported`, `versionText` keeps the literal, `version` reports the maximum. Two `parse` vectors.
+- `digest.unicode`: a member holding a lone surrogate is refused, never replaced. **No vector** — a JSON
+  string with a lone surrogate stops the Rust crate from loading the specification, and Rust and Swift
+  strings cannot hold one; TypeScript and Python pin it with a unit test.
+- A `parse` vector: `ref:foo:x;constructor=1` is `uncovered` with the qualifier kept.
+- Vectors for three pair shapes: one scoped package at two versions and a scoped package covering itself
+  at a version (`comparison`), a nested pair refused on one side only (`relate`), a verdict decided by a
+  fragment refinement (`verdict`).
+
+**Baseline after the edit, before any code:** `npm test` 333 pass / 4 fail; `cargo test --workspace`
+fails `every_vector_group_runs` and `parse_vectors`; `uv run pytest` 665 pass / 4 fail; the surface
+generators all report up to date. Every failure is a new vector or the new group.
+
+## Work items
+
+| # | Priority | Item | Effort |
+|---|---|---|---|
+| 1 | P0 | TypeScript | M |
+| 2 | P0 | Rust | M |
+| 3 | P0 | Swift | M |
+| 4 | P0 | Python | S |
+
+### 1. TypeScript — P0
+
+`packages/ref-id/src/` and `packages/ref-id/test/`. Run the `canonicalisation` group (`JSON.parse` of
+`json`, then `canonicalise`); `canonicalise` refuses a non-integer and a magnitude above the maximum, read
+from the specification (JavaScript's `JSON.parse` already turns `1.0` into `1`). `parse` reports a version
+literal above `version.maximum` as `unsupported` with `version` = the maximum (today it reports
+`Number(text)`, a rounded float). `parse` stops throwing on a qualifier key that names an
+`Object.prototype` member: every lookup keyed by a qualifier or refinement key uses an own-property test
+(`Object.hasOwn` or a `Map`) — find them all, not only `matchForms` at `parse.ts:122`. `digest` refuses a
+member holding a lone surrogate (`DigestError` at the member part; `String.prototype.isWellFormed` exists
+in Node 20+) instead of encoding it as U+FFFD — with a unit test; `validateEnvelope` inherits it. This is a
+published contract change: the caller adds the changeset. Gate: in `packages/ref-id`, `npm test` and
+`npm run typecheck`; at the root, `node scripts/gen-surface-ts.mjs --check`; and `npm run build` (the
+browser-purity walk).
+
+### 2. Rust — P0
+
+`crates/ref-id/src/`, `crates/ref-id/tests/`. Run the group (`serde_json::from_str` of `json`, then
+`canonicalise`); `canonicalise` accepts an `f64` with an integral value within the maximum and refuses the
+rest, and refuses an `i64`/`u64` beyond the maximum. `parse` reads a version literal above the maximum —
+including one that overflows `i64` — as `unsupported` with `version` = the maximum and `version_text`
+kept (today `parse::<i64>()` fails and falls back to the default, version 1). Add `canonicalisation` to
+`every_vector_group_runs`. No digest change: a Rust `String` cannot hold a lone surrogate. Gate:
+`cargo test --workspace`, `node scripts/gen-surface-rust.mjs --check`, `node scripts/check-surface.mjs --only rust`.
+
+### 3. Swift — P0
+
+`Sources/RefId/`, `Sources/RefIdConformance/main.swift`. Run the group (`JSONSerialization` of `json`,
+then `canonicalJSON`/`canonicalise`); the canonicaliser already refuses a non-integral `Double` and one at
+or beyond 2^53 — check it against the vectors, and make its bound the specification's `version.maximum`
+rather than a literal if it is one. `parse` reads a version literal above the maximum as `unsupported`
+with `version` = the maximum and `versionText` kept (today `Int(text)` fails on overflow and falls back
+to the default). Add the group to `checkEveryVectorGroupRuns`. No digest change. Gate:
+`swift run ref-id-conformance`, `node scripts/gen-surface-swift.mjs --check`,
+`node scripts/check-surface.mjs --only swift`.
+
+### 4. Python — P0
+
+`python/src/ref_id/`, `python/tests/` (not `test_surface.py`). Run the group (`json.loads` of `json`,
+then `canonicalise`); `canonicalise` accepts a `float` with an integral value within the maximum as that
+integer and refuses the rest, and refuses an `int` beyond the maximum. `parse` reads a version literal
+above the maximum as `unsupported` with `version` = the maximum (today it mirrors the crate's `i64`
+fallback to version 1). `EXECUTED` gains `canonicalisation`. `digest` already refuses a lone surrogate.
+Gate: `uv run pytest`, `uv run --python 3.11 pytest`, `uv run mypy --strict src tests`, `uv run ruff check`.
+
+**For every language:** the maximum is read from `version.maximum`, never written as a literal; the
+bound for canonical numbers is the same value, read from the same key.
+
+## Implementation order
+
+- [x] P0 — caller: the specification edit, resealed and copied to the three ports' copies and the browser
+      constant; baseline recorded above
+- [x] P0 — four implementers in parallel, items 1–4, write sets as named
+- [x] P0 — caller: each diff read, each gate rerun, `npm run test:differential`, the changeset, commit
+
+## Surprises & Discoveries
+
+- Ruling: every implementation reads `version.maximum` from the raw, not-yet-verified document when it
+  canonicalises the specification to check its own sidecar — the digest `canonicalise` computes is what
+  authenticates that document, so it cannot wait for a verified `Spec`; a document declaring no bound gets
+  2^53 − 1 (TypeScript's `spec.node.ts`, the seal gate), `i64::MAX` (Rust) or `Int64.max` (Swift) — each
+  reached only by a specification that is already malformed — cost if wrong: none; the sidecar check that
+  follows still refuses such a document.
+
+- Ruling: TypeScript's `canonicalise` gains an optional second parameter, the bound, defaulting to the
+  loaded specification's; the `openRPC` signature `(value) -> string` still holds, and the generated
+  surface check passes — cost if wrong: a caller passing a second argument by accident.
+
+- Ruling: TypeScript keeps `ParseResult.nested` a plain object and reads it through an own-property test,
+  not `Object.create(null)`, because `node:assert/strict`'s `deepEqual` compares prototypes and six vectors
+  broke — cost if wrong: a future reader bypassing `nestedAt` reopens the hole.
+
+- Ruling: TypeScript declares `String.prototype.isWellFormed` in an ambient merge rather than raising
+  `tsconfig.json`'s `lib`, which lay outside its write set; the package requires Node >= 22, which has it —
+  cost if wrong: the rest of ES2024 stays untyped until `lib` is raised.
+
+- Ruling (caller): `specVersion` moves to 1.6.0 — a field, a vector group and rules a 1.5.0 reader sees
+  change are additions — while the `anchor` change, which altered how an adaptation is declared but not
+  what any implementation observes, did not.
+
+- Observation: the prototype lookups in TypeScript were eight, not one — `spec.qualifiers`,
+  `spec.refinements` and `spec.dispatch` indexed by a key off the identifier in `parse.ts`, `build.ts`,
+  `validators.ts` and `relations.ts` — plus four reads of `ParseResult.nested` with the same shape.
+  Evidence: the TypeScript implementer's report, each `file:line`; `parse("ref:foo:x;constructor=1")`
+  threw `formNames is not iterable` before and is `uncovered` after.
+
+- Observation: Swift's bound was enforced only on the `Double` path — a JSON integer such as
+  `9007199254740992` passed unchecked — and `Spec.int` read through `NSNumber.intValue`, 32 bits, which
+  would have truncated `version.maximum` itself.
+  Evidence: the Swift implementer's report; `swift run ref-id-conformance` 1100/4 before, 1112/0 after.
+
+- Observation: the seal gate and both grammar runners are bootstrap callers too — the gate imports the
+  TypeScript `canonicalise` and failed on its new default; the runners compared the regex's raw version
+  with the saturated expectation.
+  Evidence: `vibe-ops check` reported `spec-unsealed … no specification source is installed`;
+  `grammar-check.py` 159/161. Both fixed by the caller; 161/161 and 0 failed after.
+
+- Observation: with every change in, the four implementations agree everywhere.
+  Evidence: `npm run test:differential` 231 inputs and 53,361 pairs × 4, 0 disagreements; `npm test`
+  346/0; `cargo test --workspace` 18/0; `swift run ref-id-conformance` 1112/0; `uv run pytest` 677/0;
+  `npm run test:gates` 38/0; `vibe-ops check` and `--self-test` clean.
+
+## Closure
+
+- [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually
+      runs; a dossier that looks otherwise finished but has this box open is not done.
