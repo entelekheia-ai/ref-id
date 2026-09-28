@@ -16,6 +16,11 @@
  * `components.errors` kind, sorted — and a runtime test that recomputes that list from the specification,
  * so a spec edit with no regeneration fails even where every signature still type-checks.
  *
+ * Also emits `PARAMETERS` — each method's arity, and its parameter names where `x-argument-labels` makes
+ * them part of the contract — and a runtime test that every other method's parameters are positional-only,
+ * Python's spelling of the specification's "unlabelled arguments". A `Callable` binding checks types by
+ * position only, so without it `covers(specific=…, general=…)` would type-check and invert the answer.
+ *
  * `--check` regenerates in memory and diffs against the committed file instead of writing it, exiting
  * non-zero when they differ.
  *
@@ -68,7 +73,11 @@ function declaredNames(doc) {
 
 /** Render the whole file for one `openRPC` document. Pure; throws on a schema the table cannot map. */
 export function render(doc) {
+  if (doc["x-casing"]?.[LANG] !== "snake_case") {
+    throw new Error(`gen-surface-python: openRPC x-casing.${LANG} is ${JSON.stringify(doc["x-casing"]?.[LANG])}; this generator spells snake_case only`)
+  }
   const bindings = []
+  const parameters = []
   for (const method of doc.methods) {
     if ((method["x-absent-from"] ?? []).includes(LANG)) continue
     const name = snakeCase(method.name)
@@ -80,10 +89,12 @@ export function render(doc) {
     const result = method.result ? pyType(method.result.schema, { asParam: false }) : "None"
     if (result === undefined) throw new Error(`gen-surface-python: method "${method.name}" result has a schema this generator cannot map: ${JSON.stringify(method.result.schema)}`)
     bindings.push(`_${name}: Callable[[${params.join(", ")}], ${result}] = ref_id.${name}`)
+    const labels = method["x-argument-labels"] ? `[${method.params.map((p) => `"${snakeCase(p.name)}"`).join(", ")}]` : "None"
+    parameters.push(`    "${name}": (${method.params.length}, ${labels}),`)
   }
 
   const body = bindings.join("\n")
-  const imports = ["from __future__ import annotations", "", "import json"]
+  const imports = ["from __future__ import annotations", "", "import inspect", "import json"]
   if (body.includes("os.PathLike")) imports.push("import os")
   imports.push("import re")
   imports.push(body.includes("Sequence[") ? "from collections.abc import Callable, Sequence" : "from collections.abc import Callable")
@@ -99,6 +110,12 @@ export function render(doc) {
     ...imports,
     "",
     body,
+    "",
+    "# Arity per method, and the parameter names where x-argument-labels makes them part of the contract.",
+    "# Every other method takes unlabelled arguments, which Python spells positional-only.",
+    "PARAMETERS: dict[str, tuple[int, list[str] | None]] = {",
+    ...parameters,
+    "}",
     "",
     "DECLARED: list[str] = [",
     ...declaredNames(doc).map((n) => `    "${n}",`),
@@ -119,6 +136,17 @@ export function render(doc) {
     "",
     "def test_declared_matches_spec() -> None:",
     '    assert _declared_from_spec() == DECLARED, "regenerate with node scripts/gen-surface-python.mjs"',
+    "",
+    "",
+    "def test_parameter_kinds() -> None:",
+    "    for name, (arity, labels) in PARAMETERS.items():",
+    "        params = list(inspect.signature(getattr(ref_id, name)).parameters.values())",
+    "        assert len(params) == arity, name",
+    "        if labels is None:",
+    "            assert all(p.kind is inspect.Parameter.POSITIONAL_ONLY for p in params), name",
+    "        else:",
+    "            assert [p.name for p in params] == labels, name",
+    "            assert all(p.kind is not inspect.Parameter.POSITIONAL_ONLY for p in params), name",
     "",
     "",
     "def test_declared_are_exported() -> None:",

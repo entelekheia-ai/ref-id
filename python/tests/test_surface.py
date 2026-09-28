@@ -6,6 +6,7 @@ signature moved. The runtime test holds DECLARED to the specification and to ref
 """
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import re
@@ -28,6 +29,25 @@ _validate_envelope: Callable[[str, object], ref_id.EnvelopeResult] = ref_id.vali
 _canonicalise: Callable[[object], str] = ref_id.canonicalise
 _load_spec: Callable[[], ref_id.Spec] = ref_id.load_spec
 _load_spec_from: Callable[[str | os.PathLike[str]], ref_id.Spec] = ref_id.load_spec_from
+
+# Arity per method, and the parameter names where x-argument-labels makes them part of the contract.
+# Every other method takes unlabelled arguments, which Python spells positional-only.
+PARAMETERS: dict[str, tuple[int, list[str] | None]] = {
+    "parse": (1, None),
+    "serialise": (1, None),
+    "build": (1, None),
+    "canonical_identifier": (1, None),
+    "same_identifier": (2, None),
+    "same_package": (2, None),
+    "covers": (2, None),
+    "relate": (2, None),
+    "verdict": (2, None),
+    "digest": (1, None),
+    "validate_envelope": (2, ["requested_id", "envelope"]),
+    "canonicalise": (1, None),
+    "load_spec": (0, None),
+    "load_spec_from": (1, None),
+}
 
 DECLARED: list[str] = [
     "BuildError",
@@ -68,6 +88,17 @@ def _declared_from_spec() -> list[str]:
 
 def test_declared_matches_spec() -> None:
     assert _declared_from_spec() == DECLARED, "regenerate with node scripts/gen-surface-python.mjs"
+
+
+def test_parameter_kinds() -> None:
+    for name, (arity, labels) in PARAMETERS.items():
+        params = list(inspect.signature(getattr(ref_id, name)).parameters.values())
+        assert len(params) == arity, name
+        if labels is None:
+            assert all(p.kind is inspect.Parameter.POSITIONAL_ONLY for p in params), name
+        else:
+            assert [p.name for p in params] == labels, name
+            assert all(p.kind is not inspect.Parameter.POSITIONAL_ONLY for p in params), name
 
 
 def test_declared_are_exported() -> None:

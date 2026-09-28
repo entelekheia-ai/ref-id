@@ -43,6 +43,32 @@ test("a python deprecated alias joins DECLARED", () => {
   assert.match(render(doc), /"covers_old"/)
 })
 
+test("an untyped schema is object, never Any", () => {
+  const out = render(base)
+  assert.match(out, /^_validate_envelope: Callable\[\[str, object\], ref_id\.EnvelopeResult\] = ref_id\.validate_envelope$/m)
+  assert.match(out, /^_canonicalise: Callable\[\[object\], str\] = ref_id\.canonicalise$/m)
+  assert.doesNotMatch(out, /\bAny\b/)
+})
+
+test("a directory is a parameter type only", () => {
+  const doc = structuredClone(base)
+  doc.methods.find((m) => m.name === "loadSpec").result.schema = { type: "string", "x-kind": "directory" }
+  assert.throws(() => render(doc), /loadSpec.*result/)
+})
+
+test("a casing other than snake_case is refused", () => {
+  const doc = structuredClone(base)
+  doc["x-casing"].python = "camelCase"
+  assert.throws(() => render(doc), /x-casing/)
+})
+
+test("PARAMETERS pins arity, and names only where x-argument-labels asks for them", () => {
+  const out = render(base)
+  assert.match(out, /^    "covers": \(2, None\),$/m)
+  assert.match(out, /^    "load_spec": \(0, None\),$/m)
+  assert.match(out, /^    "validate_envelope": \(2, \["requested_id", "envelope"\]\),$/m)
+})
+
 test("an unmappable schema is refused, never widened", () => {
   const doc = structuredClone(base)
   doc.methods[0].params[0].schema = { type: "integer" }

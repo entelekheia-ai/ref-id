@@ -170,7 +170,7 @@ the victim wrongly believes afterwards.
    of the spec, not all of them — a gate already holds them byte-identical.
 2. Add a worktree of the change and install, as above.
 3. Run the gates one command per call, and keep each result: `npm test`, `cargo test --workspace`,
-   `swift run ref-id-conformance`, `uv run --project python pytest`, `npm run test:surface`, `npm run test:differential`,
+   `swift run ref-id-conformance`, `uv run --directory python pytest`, `npm run test:surface`, `npm run test:differential`,
    `vibe-ops check --self-test`, `vibe-ops check`, and every `test:*` script in `package.json` that
    the change adds or touches. A gate that fails for the environment rather than the change is reported
    with its error and set aside under "Declined", never counted as a finding.

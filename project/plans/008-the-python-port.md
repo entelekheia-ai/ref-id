@@ -161,7 +161,8 @@ URL validator is different software.
 export with `definition`, `run(ctx)` returning `{findings, examined}` or `{findings: [], skipped}`, a
 failing `fixture` in `.vibe-ops/ops.json`, and an `index.test.mjs`:
 
-- `gate-python-conformance` spawns `uv run --project python pytest --junitxml=<tmp>` and turns every
+- `gate-python-conformance` spawns `uv run --directory python pytest --junitxml=<tmp>` (`--directory`, not `--project`: pytest finds
+  its configuration in `python/pyproject.toml` only when it runs there) and turns every
   failed test case in the JUnit report into a finding naming the test and the vector group. JUnit XML is
   pytest's built-in report, so the port gains no test dependency for the gate's sake. A missing `uv` on
   `PATH`, or a run past the timeout, is `skipped` with the reason, never a pass.
@@ -192,7 +193,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 - [x] **Track 1 — The specification declares Python.** Add `python` to `openRPC.x-casing` and
       `x-extensions`, reseal, and copy the specification into the port copies. Write
       `scripts/gen-surface-python.mjs` with `--check`. At the end, the generator emits a surface file for a
-      package that does not yet exist, and `npm run test:openrpc` and the `openrpc-valid` gate pass.
+      package that does not yet exist, and the `openrpc-valid` gate passes.
 - [ ] **Track 2 — The package, its specification and the canonical core.** `python/pyproject.toml`, the
       embedded specification and its mirror pairs, `load_spec`, `load_spec_from`, `canonicalise`,
       `digest`, the grammar with the `python-re` adaptation, and the group-refusal test. Acceptance: the
@@ -208,7 +209,8 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 - [ ] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
       `scripts/differential.mjs`, the `python` language in `scripts/check-surface.mjs`, the two new gates
       with fixtures and tests, and a `python` job in `.github/workflows/gates.yml` plus Python and `uv` in
-      the macOS `differential` job. Retire `spec/conformance/grammar-check.py`: `test:grammar` runs Perl
+      the macOS `differential` job, and `node --test scripts/gen-surface-python.test.mjs` in the Node job — the
+      generator's own tests run nowhere until then. Retire `spec/conformance/grammar-check.py`: `test:grammar` runs Perl
       alone and the step names stop saying "three engines". Acceptance: `npm run test:differential`
       reports five rows and no failure; `vibe-ops check --self-test` sees both new gates fire on their
       fixtures; a deliberately broken vector in a scratch branch is refused at commit.

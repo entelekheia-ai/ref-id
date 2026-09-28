@@ -249,6 +249,27 @@ All steps run in the main loop (Plan-008 Decision Log: the shared harness is not
   direction and the package direction fail at `pytest` time, before `check-surface.mjs` learns Python in
   Track 5 — cost if wrong: one redundant assertion once Track 5 lands.
 
+- Ruling: every public Python function takes positional-only parameters, except a method carrying
+  `x-argument-labels`, whose parameters are named as the specification names them in snake_case — the
+  `openRPC` description says every other method "takes unlabelled arguments", and a `Callable` binding
+  checks position only, so `covers(specific=…, general=…)` would type-check and invert the answer. The
+  generator emits `PARAMETERS` and a runtime test with `inspect.signature` — cost if wrong: a caller who
+  wants keywords cannot use them, reversible by relaxing the test. From review finding 1.
+
+- Ruling: `digest` refuses a bare `str` with `DigestError` — a `str` is a `Sequence[str]`, so
+  `digest("ab")` would equal `digest(["a", "b"])`; the TypeScript reference refuses a non-array — cost if
+  wrong: none. From review finding 2; implemented in Track 2.
+
+- Ruling: the generator refuses an `x-casing.python` other than `snake_case` instead of assuming it, as
+  the Swift generator does for its own key. From review finding 5.
+
+- Observation: `uv run --project python pytest` from the root ignores `python/pyproject.toml`'s pytest
+  configuration; `--directory python` reads it.
+  Evidence: the reviewer's scratch project printed no `configfile:` line under `--project` and
+  `configfile: pyproject.toml` under `--directory`. Fixed in the reviewer definition and the plan.
+
+- Deferred minor: the generator's tests run nowhere in CI until Track 5 adds them to the Node job.
+
 ## Closure
 
 - [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually
