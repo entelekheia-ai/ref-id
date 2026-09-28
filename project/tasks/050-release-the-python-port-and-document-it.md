@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | Done |
+| Status | In Progress |
 | Created | 2026-09-28 |
 | Author | Danilo Borges |
 | Issue | <https://github.com/entelekheia-ai/ref-id/issues/50> |
@@ -71,6 +71,26 @@ it and every document that counts or lists the implementations say so. The pendi
 - Ruling: `scripts/gen-readme-refs.mjs` gains the PyPI row but leaves the generated block as it is while
   changesets are pending; the release's `npm run version` writes it with the new version and spec
   1.6.0 — cost if wrong: none; `test:readme-refs` holds the block.
+
+## Review of Track 6 — findings to triage (review of e500271, 2026-09-28; not yet reproduced by the caller)
+
+- BLOCKER: `astral-sh/setup-uv@v10` does not exist (latest `v10.2.0`) — at `release.yml:103` and
+  `gates.yml:32,79,108`; the runner resolves every action at "Set up job" regardless of `if:`, so every
+  release run and every gate run would fail. Same finding as Track 5's; fix all four together.
+- SHOULD: `scripts/sync-versions.sh:12` never relocks in CI — `npm run version` runs inside
+  `changesets/action` before any `uv` exists, and `--offline` fails on a cold cache anyway; `|| true` hides
+  it, so each Version Packages PR ships a stale `python/uv.lock`. Put a pinned setup-uv above
+  `changesets/action`, drop `--offline`, fail loudly.
+- NOTE: the release job publishes to PyPI without running pytest; add `uv run --directory python pytest -q`
+  to its gates step once uv is on the runner.
+- NOTE: `AGENTS.md:64-66` (and `scripts/differential.mjs:73-75`) misstate the Package URL edges — Node
+  refuses `pkg:npm/@scope/`, Swift accepts `pkg:npm/foo@1.0.0/`; write the measured table.
+- NOTE: stale counts at `.github/workflows/gates.yml:97` and `packages/ref-id/src/canonical.ts:67`.
+- NOTE: the `spec-bytes` message for the `LICENSE` pair tells the fixer to copy the specification.
+- NOTE (predates, identity): Python canonicalises `ref:pkg:npm/acme/@1` to `pkg:npm/acme@1`, the canonical
+  of `ref:pkg:npm/acme@1` (Node `pkg:npm/acme/%401`, Rust and Swift malformed); Swift keeps
+  `pkg:pypi/Ref_ID@1` where the others normalise to `ref-id`. Belongs with the plan's open question on the
+  Package URL canonical spelling.
 
 ## Closure
 
