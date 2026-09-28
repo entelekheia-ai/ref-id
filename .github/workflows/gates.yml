@@ -24,11 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Full history, because the commit gate reads it: the `breadcrumb` gate resolves every
-          # `git show <sha>:<path>` a shipped plan carries, and a depth-1 clone holds none of those
-          # commits — measured on this workflow's first run, six findings that a full clone does not have.
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'

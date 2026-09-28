@@ -56,5 +56,23 @@ export default {
     // `exposure` at all replaces the enclosing one rather than adding to it. There is nothing else in
     // that slice to carry forward — checked, not assumed.
     exposure: {},
+
+    // A SHIPPED PLAN IS A FROZEN RECORD, SO ITS LINKS ARE NOT JUDGED. The links and `git show`
+    // breadcrumbs it carries point at what existed when it shipped, and they will break sooner or later
+    // — a file renamed, a history rewritten, a checkout without the history (the first run of this
+    // repository's commit gate on a CI runner failed on exactly that: six breadcrumbs a depth-1 clone
+    // cannot resolve). The record does not change for it, so these two gates leave `shipped/` out of
+    // their population; every other governance gate still reads it, and the ignored files are counted in
+    // the run's population line rather than dropped silently.
+    //
+    // Declaring `governance` here replaces the slice an enclosing config may carry (settings merge
+    // shallow per module id). The one above this repository names only its own paths, so nothing here
+    // depended on it — the CI run, which inherits nothing, was green on this gate before this entry.
+    governance: {
+      ignore: {
+        "markdown-link": ["project/plans/shipped/**"],
+        breadcrumb: ["project/plans/shipped/**"],
+      },
+    },
   },
 } satisfies VibeOpsConfig;
