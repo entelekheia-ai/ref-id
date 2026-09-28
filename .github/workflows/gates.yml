@@ -35,11 +35,23 @@ jobs:
         # cannot see), the relate vectors reducing to what the comparison vectors say, and the openRPC
         # document staying valid and tied to the rules and vectors it names. They are local gates under
         # .vibe-ops/, composed by vibeops.config.ts; they read the source, so no build is needed yet.
-        # The CLI version is pinned so a CLI release cannot change what this workflow checks unannounced.
+        #
+        # The CLI itself is pinned; its own dependencies (core, the gates) resolve by caret range at install
+        # time, so a patch release of those can still move what runs here. The pin bounds the drift, it
+        # does not freeze it.
+        #
+        # A SKIP of one of this repository's own gates FAILS here. A gate skips only when its instrument is
+        # absent (a Node without type stripping, a devDependency not installed), and a non-verbose run
+        # prints nothing for a skip — so without this step, a dependency dropped from package.json would
+        # turn the OpenRPC check off while every line of this workflow stayed green.
         run: |
           npm i -g @entelekheia/vibe-ops-cli@0.2.0
           vibe-ops check --self-test
-          vibe-ops check
+          out=$(vibe-ops check --verbose) || { printf '%s\n' "$out" | grep -E '^(FAIL|WARN) ' || printf '%s\n' "$out"; exit 1; }
+          if printf '%s\n' "$out" | grep -E '^SKIP +\[(spec-sealed|relate-consistent|openrpc-valid)\]'; then
+            echo "one of this repository's own gates skipped — its instrument is missing on this runner" >&2
+            exit 1
+          fi
           npm run test:gates
       - name: build, tests, grammar in three engines, Rust port
         # typecheck is what holds the TypeScript surface to openRPC by signature: the generated

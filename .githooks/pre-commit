@@ -46,10 +46,21 @@ mkdir -p "$GATE_ARTIFACT_DIR"
 
 # The gates' own fixtures, when and only when a gate or its composition changed. A gate cannot stop
 # detecting on its own — staging one is the only moment its answer can change.
+#
+# THE `env -u` IS LOAD-BEARING. git exports GIT_DIR, GIT_INDEX_FILE and GIT_WORK_TREE into every hook,
+# and they override directory discovery: the self-test builds some fixture trees with `git -C <tmp> init`
+# and `git add -A`, which then write into THIS commit's index instead of the temporary tree's — every
+# tracked file staged as deleted, fixture files staged as added, and a refusal naming a fixture path as if
+# it were this repository's defect. Reproduced here with the exact env a hook sees. Upstream:
+# https://github.com/entelekheia-ai/vibe-ops/issues/36 — drop the `env -u` once that is fixed.
 if git diff --cached --name-only --diff-filter=ACMRD | grep -q '^\.vibe-ops/\|^vibeops\.config\.'; then
-  if ! SELF_TEST=$(vibe-ops check --self-test "$ROOT" 2>&1); then
+  if ! SELF_TEST=$(env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_OBJECT_DIRECTORY \
+      vibe-ops check --self-test "$ROOT" 2>&1); then
     echo "pre-commit: a gate stopped firing on its own fixture — commit refused." >&2
-    printf '%s\n' "$SELF_TEST" | grep -E '^FAIL ' >&2 || printf '%s\n' "$SELF_TEST" >&2
+    # NOT `^FAIL `: a self-test prints every fixture's findings as FAIL lines — dozens of them, each one a
+    # detector working correctly on a tree built to be broken. The defect is only the gate whose fixture
+    # did not fire, plus the summary. Anything else refusing (no FAIL line of that shape) prints whole.
+    printf '%s\n' "$SELF_TEST" | grep -E 'declared fixture did not fire|^■' >&2 || printf '%s\n' "$SELF_TEST" >&2
     exit 1
   fi
 fi

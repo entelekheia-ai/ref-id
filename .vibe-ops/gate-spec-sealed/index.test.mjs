@@ -6,9 +6,10 @@ import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
-import gate from "./index.mjs"
+import gate, { typeStrippingAvailable } from "./index.mjs"
 
 const REPO_ROOT = new URL("../..", import.meta.url).pathname
+const GATE_FILE = new URL("./index.mjs", import.meta.url).pathname
 
 async function tempRepo() {
   const root = await mkdtemp(path.join(tmpdir(), "gate-spec-sealed-"))
@@ -118,5 +119,77 @@ test("fix() on a broken tree writes a sidecar run() then accepts", async () => {
     assert.equal(written, `${expectedDigest}\n`)
   } finally {
     await rm(repoRoot, { recursive: true, force: true })
+  }
+})
+
+// --- F2: typeStrippingAvailable is the ONLY legitimate skip; everything else is a finding ---
+
+test("typeStrippingAvailable: a string feature flag (\"strip\"/\"transform\") means available", () => {
+  assert.equal(typeStrippingAvailable({ typescript: "strip" }, "20.0.0"), true)
+  assert.equal(typeStrippingAvailable({ typescript: "transform" }, "20.0.0"), true)
+})
+
+test("typeStrippingAvailable: an explicit boolean feature flag wins over the version fallback", () => {
+  assert.equal(typeStrippingAvailable({ typescript: true }, "18.0.0"), true)
+  assert.equal(typeStrippingAvailable({ typescript: false }, "99.0.0"), false)
+})
+
+test("typeStrippingAvailable: falls back to the version floor (22.18) when no feature flag is present", () => {
+  assert.equal(typeStrippingAvailable({}, "22.17.0"), false)
+  assert.equal(typeStrippingAvailable({}, "22.18.0"), true)
+  assert.equal(typeStrippingAvailable({}, "23.0.0"), true)
+  // {} (not `undefined`) for "no feature flag": `undefined` is a default-parameter miss, which falls
+  // back to the REAL process.features — deliberately, so a plain `typeStrippingAvailable()` call always
+  // reads this session's real environment rather than a frozen guess.
+  assert.equal(typeStrippingAvailable({}, "21.9.9"), false)
+})
+
+test("typeStrippingAvailable: this session's real Node is available (measured process.features.typescript)", () => {
+  assert.equal(typeStrippingAvailable(), true)
+})
+
+/**
+ * Places a COPY of the gate two directories under a scratch root — mirroring `.vibe-ops/gate-spec-sealed/`
+ * under the real repo — alongside a FAKE `packages/ref-id/src/spec.ts`, so the gate's own
+ * `new URL("../../packages/ref-id/src/spec.ts", import.meta.url)` resolves to the fake file instead of
+ * the real one. The same scratch root doubles as `ctx.repoRoot`, holding `spec/ref-id.json`.
+ */
+async function tempRepoWithFakeSpecModule(specTsSource) {
+  const root = await mkdtemp(path.join(tmpdir(), "gate-spec-sealed-fakemod-"))
+  await mkdir(path.join(root, ".vibe-ops/gate-spec-sealed"), { recursive: true })
+  await mkdir(path.join(root, "packages/ref-id/src"), { recursive: true })
+  await mkdir(path.join(root, "spec"), { recursive: true })
+  const gateSrc = await readFile(GATE_FILE, "utf8")
+  await writeFile(path.join(root, ".vibe-ops/gate-spec-sealed/index.mjs"), gateSrc)
+  await writeFile(path.join(root, "packages/ref-id/src/spec.ts"), specTsSource)
+  await writeFile(path.join(root, "spec/ref-id.json"), JSON.stringify({ anything: "goes — never reached on this path" }))
+  const copiedGate = (await import(`${path.join(root, ".vibe-ops/gate-spec-sealed/index.mjs")}?bust=${Date.now()}-${Math.random()}`)).default
+  return { root, copiedGate }
+}
+
+test("fires spec-unsealed when packages/ref-id/src/spec.ts throws on import (not a stripping problem)", async () => {
+  const { root, copiedGate } = await tempRepoWithFakeSpecModule("throw new Error('spec.ts broken on purpose')\n")
+  try {
+    const outcome = await copiedGate.run(ctxFor(root))
+    assert.equal(outcome.skipped, undefined)
+    assert.equal(outcome.findings.length, 1)
+    assert.equal(outcome.findings[0].rule, "spec-unsealed")
+    assert.match(outcome.findings[0].evidence, /could not be imported/)
+    assert.match(outcome.findings[0].evidence, /spec\.ts broken on purpose/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("fires spec-unsealed when packages/ref-id/src/spec.ts loads but exports no canonicalise function", async () => {
+  const { root, copiedGate } = await tempRepoWithFakeSpecModule("export function notCanonicalise() { return 'nope' }\n")
+  try {
+    const outcome = await copiedGate.run(ctxFor(root))
+    assert.equal(outcome.skipped, undefined)
+    assert.equal(outcome.findings.length, 1)
+    assert.equal(outcome.findings[0].rule, "spec-unsealed")
+    assert.match(outcome.findings[0].evidence, /does not export a function named "canonicalise"/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
   }
 })

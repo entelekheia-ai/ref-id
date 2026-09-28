@@ -11,6 +11,15 @@
  * mirror law — a vector for (b, a) must state the mirror of the vector for (a, b).
  *
  * Reads `spec/ref-id.json` with `readFileSync` + `JSON.parse`, never through the `ref-id` package.
+ *
+ * A SKIP MEANS THE INSTRUMENT IS ABSENT, NEVER THAT THE SPECIFICATION IS DEFECTIVE. The only legitimate
+ * skip here is the spec file itself being missing (a population question). `vectors.relate` or
+ * `vectors.comparison` absent or not an array, and a vector missing `a`/`b`/`expect` or whose `expect`
+ * is not an object, are FINDINGS with a pointer — never a throw that takes the whole run down. The
+ * deleted `scripts/check-relate.mjs` crashed on a malformed vector (reproduced: deleting
+ * `vectors.relate[0].expect` used to make `vibe-ops check` exit with only
+ * `Cannot read properties of undefined (reading 'relate')`, losing every other finding); a gate must
+ * refuse the one malformed vector and keep examining the rest.
  */
 import { readFileSync } from "node:fs"
 import path from "node:path"
@@ -18,6 +27,14 @@ import { pointerToLine } from "../_json-pointer-line.mjs"
 
 const RULE = "relate-disagrees"
 const SPEC_PATH = "spec/ref-id.json"
+
+const isPlainObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value)
+const describeType = (value) => {
+  if (value === undefined) return "absent"
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "an array"
+  return typeof value
+}
 
 const FIXED = ["type", "version", "locatorStem", "locatorVersion", "fragmentPath"]
 
@@ -88,18 +105,56 @@ export default {
 
     const relateVectors = spec?.vectors?.relate
     const comparisonVectors = spec?.vectors?.comparison
-    if (!Array.isArray(relateVectors) || !Array.isArray(comparisonVectors)) {
-      return { findings: [], skipped: "spec/ref-id.json declares no vectors.relate / vectors.comparison group" }
-    }
-
-    const byPair = new Map(comparisonVectors.map((v) => [`${v.a}\n${v.b}`, v.expect]))
-    const relateByPair = new Map(relateVectors.map((v) => [`${v.a}\n${v.b}`, v.expect.relate]))
     const findings = []
+
+    if (!Array.isArray(relateVectors)) {
+      findings.push({
+        rule: RULE,
+        file: SPEC_PATH,
+        line: pointerToLine(raw, "/vectors/relate"),
+        evidence: `spec.vectors.relate is ${describeType(relateVectors)} — expected an array`,
+      })
+    }
+    if (!Array.isArray(comparisonVectors)) {
+      findings.push({
+        rule: RULE,
+        file: SPEC_PATH,
+        line: pointerToLine(raw, "/vectors/comparison"),
+        evidence: `spec.vectors.comparison is ${describeType(comparisonVectors)} — expected an array`,
+      })
+    }
+    if (!Array.isArray(relateVectors)) return { findings, examined: 0 }
+
+    const validComparison = Array.isArray(comparisonVectors) ? comparisonVectors : []
+    const byPair = new Map(validComparison.map((v) => [`${v.a}\n${v.b}`, v.expect]))
+    const relateByPair = new Map(
+      relateVectors
+        .filter((v) => isPlainObject(v) && isPlainObject(v.expect) && (v.expect.relate === null || isPlainObject(v.expect.relate)))
+        .map((v) => [`${v.a}\n${v.b}`, v.expect.relate]),
+    )
 
     relateVectors.forEach((v, index) => {
       const pointer = `/vectors/relate/${index}`
       const line = pointerToLine(raw, pointer)
-      const push = (message) => findings.push({ rule: RULE, file: SPEC_PATH, line, evidence: `${v.name}: ${message}` })
+      const name = isPlainObject(v) ? (v.name ?? `vector ${index}`) : `vector ${index}`
+      const push = (message) => findings.push({ rule: RULE, file: SPEC_PATH, line, evidence: `${name}: ${message}` })
+
+      if (!isPlainObject(v)) {
+        push(`is ${describeType(v)} — expected an object`)
+        return
+      }
+      if (typeof v.a !== "string" || typeof v.b !== "string") {
+        push(`"a"/"b" must both be strings — got ${describeType(v.a)}/${describeType(v.b)}`)
+        return
+      }
+      if (!isPlainObject(v.expect)) {
+        push(`"expect" is ${describeType(v.expect)} — expected an object`)
+        return
+      }
+      if (!isPlainObject(v.expect.relate) && v.expect.relate !== null) {
+        push(`"expect.relate" is ${describeType(v.expect.relate)} — expected an object or null`)
+        return
+      }
 
       const r = v.expect.relate
       const got = { samePackage: samePackage(r), covers: covers(r), coversReversed: coveredBy(r) }

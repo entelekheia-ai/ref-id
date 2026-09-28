@@ -263,6 +263,28 @@ check`.
   workspace implementer excludes this repository, so the implementer is `general-purpose`.
   Date / Author: 2026-09-27 / Danilo Borges
 
+- Decision: The hook runs `vibe-ops check --self-test` under `env -u GIT_DIR -u GIT_INDEX_FILE
+  -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_OBJECT_DIRECTORY`.
+  Rationale: git exports those variables into every hook, and the self-test's `git -C <tmp> init/add`
+  then writes its fixture tree into the commit's own index (vibe-ops issue #36). Reproduced on this
+  branch in a scratch clone: 218 index entries changed without the wrapper, none with it. The wrapper
+  goes when #36 is fixed upstream.
+  Date / Author: 2026-09-27 / Danilo Borges
+
+- Decision: CI installs `@entelekheia/vibe-ops-cli` pinned at `0.2.0`, not `latest`.
+  Rationale: a CLI release must not change what this workflow checks without a commit here. Verified
+  before pinning: the published `0.2.0`, run on a clone outside any enclosing configuration, composes the
+  three local gates and passes `--self-test` and `check` (43 checks, 0 failed).
+  Date / Author: 2026-09-27 / Danilo Borges
+
+- Decision: Track 4 files one issue, not three.
+  Rationale: the missing terminal `--fix` is already vibe-ops issue #37, and the `scripts/` ownership
+  entries are RFC-0006 item 12 — planned work, not a defect. The absolute `core.hooksPath` defect is new,
+  and weightier than first thought: Claude Code, creating an `isolation: worktree` subagent's worktree,
+  rewrote this repository's shared `core.hooksPath` to an absolute path (observed 2026-09-27 21:31, when
+  `ref-id-reviewer` started), so any repository that has hosted such an agent carries it.
+  Date / Author: 2026-09-27 / Danilo Borges
+
 ## Outcomes & Retrospective
 
 Nothing yet — the plan has not started.
@@ -271,16 +293,18 @@ Nothing yet — the plan has not started.
 
 ## Open questions
 
-Three defects in vibe-ops, found while designing this plan, filed there by Track 4:
+Three things in vibe-ops this plan works around rather than fixes:
 
 - `vibe-ops harness resolve` reports `HOOK=(none)` when `core.hooksPath` is absolute, because
-  `cli/packages/harness/src/resolve.ts` joins the absolute path onto the repository root. This clone has
-  it absolute; `git config core.hooksPath .githooks` sidesteps it locally.
-- No terminal command runs a gate's `fix()`: `vibe-ops check` drops `--fix`, and `vibe-ops hook ops`
-  needs a hook payload. It is the one reason `scripts/seal-spec.mjs` survives.
-- `cli/packages/harness/ownership.json` still classifies `scripts/check.sh` and `scripts/checks/_run.sh`
-  as `norm`, so `harness resolve` will list them as absent here; the ownership entries retire with
-  RFC-0006 item 12.
+  `cli/packages/harness/src/resolve.ts` joins the absolute path onto the repository root. Filed by Track
+  4. `git config core.hooksPath .githooks` sidesteps it locally.
+- No terminal command runs a gate's `fix()` — vibe-ops issue #37. It is the one reason
+  `scripts/seal-spec.mjs` survives.
+- `--self-test` run from a hook writes into the commit's index — vibe-ops issue #36. The hook's `env -u`
+  wrapper is the local workaround.
+
+`cli/packages/harness/ownership.json` still classifies `scripts/check.sh` and `scripts/checks/_run.sh` as
+`norm`, so `harness resolve` lists them as absent here; those entries retire with RFC-0006 item 12.
 
 ## Related
 

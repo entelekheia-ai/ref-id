@@ -16,18 +16,38 @@ const RULE = "spec-unsealed"
 const SPEC_PATH = "spec/ref-id.json"
 const SIDECAR_PATH = "spec/ref-id.json.sha256"
 
-async function loadCanonicalise() {
+async function loadSpecModule() {
   const url = new URL("../../packages/ref-id/src/spec.ts", import.meta.url)
-  const mod = await import(url.href)
-  return mod.canonicalise
+  return import(url.href)
+}
+
+/**
+ * Whether THIS Node can strip the `.ts` source at all — the one condition that makes importing
+ * `packages/ref-id/src/spec.ts` a question about the instrument rather than about the specification.
+ * `process.features.typescript` is `"strip"`/`"transform"` (truthy) once type stripping is available
+ * (measured here on Node 26.9.0: `"strip"`) and `false` on an older Node that lacks it; `versionString`
+ * is the fallback for a Node old enough not to carry the feature flag at all. Parameterised so a test
+ * can drive the decision with a fake environment without touching the real one.
+ */
+export function typeStrippingAvailable(features = process.features, versionString = process.versions.node) {
+  if (typeof features?.typescript === "string") return true
+  if (features?.typescript === true) return true
+  if (features?.typescript === false) return false
+  const [major, minor] = String(versionString)
+    .split(".")
+    .map((n) => Number(n))
+  if (!Number.isFinite(major)) return false
+  return major > 22 || (major === 22 && minor >= 18)
 }
 
 /**
  * The digest `spec/ref-id.json` should be sealed with, or why it could not be computed.
  *
- * TWO FAILURES, TWO VERDICTS. `canonicalise` failing to import is the instrument missing — a Node older
- * than 22.18 cannot strip the `.ts` source — and says nothing about the specification, so the gate skips.
- * The file failing to parse is the specification's own defect, and is a finding.
+ * ONE LEGITIMATE SKIP: a Node too old to strip types cannot import `packages/ref-id/src/spec.ts` at
+ * all, and that says nothing about the specification. Every other way this can fail — the import
+ * throwing for an unrelated reason, the module loading but not exporting a `canonicalise` function, the
+ * spec failing to parse or canonicalise — is the specification's or the package's own defect, and is a
+ * finding, never a silent skip and never an uncaught throw.
  */
 async function sealFor(repoRoot) {
   let raw
@@ -36,12 +56,24 @@ async function sealFor(repoRoot) {
   } catch {
     return { skipped: `${SPEC_PATH} is not present in this tree` }
   }
-  let canonicalise
-  try {
-    canonicalise = await loadCanonicalise()
-  } catch (error) {
-    return { skipped: `canonicalise could not be imported from packages/ref-id/src/spec.ts (Node 22.18+ strips types): ${error.message}` }
+
+  if (!typeStrippingAvailable()) {
+    return {
+      skipped: `Node ${process.versions.node} has no type stripping (need 22.18+) — cannot import packages/ref-id/src/spec.ts to compute the digest`,
+    }
   }
+
+  let mod
+  try {
+    mod = await loadSpecModule()
+  } catch (error) {
+    return { defect: `packages/ref-id/src/spec.ts could not be imported: ${error.message}` }
+  }
+  const canonicalise = mod.canonicalise
+  if (typeof canonicalise !== "function") {
+    return { defect: `packages/ref-id/src/spec.ts does not export a function named "canonicalise"` }
+  }
+
   try {
     return { computed: createHash("sha256").update(canonicalise(JSON.parse(raw)), "utf8").digest("hex") }
   } catch (error) {
