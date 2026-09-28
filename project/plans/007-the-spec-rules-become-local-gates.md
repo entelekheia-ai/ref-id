@@ -185,7 +185,7 @@ with its `[model-routing]` declaration line, and each verified result is judged 
       *Routing:* **main loop**. Step two needs step one's whole output (the gate's exported `fix()`),
       the edits are small, and the reference sweep is a `git grep` — a deterministic answer that needs
       no model.
-- [ ] **Track 3 — The shell runner goes.** Delete `scripts/check.sh` and `scripts/checks/_run.sh`;
+- [x] **Track 3 — The shell runner goes.** Delete `scripts/check.sh` and `scripts/checks/_run.sh`;
       rewrite `.githooks/pre-commit` per the Design; point `.claude/agents/ref-id-reviewer.md` at
       `vibe-ops check`; rewire `.github/workflows/gates.yml`. At the end, a commit with a broken spec is
       refused by the hook with only the FAIL lines, a clean commit prints nothing, and with `vibe-ops`
