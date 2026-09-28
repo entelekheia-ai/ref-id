@@ -9,5 +9,5 @@ perl -pi -e 'BEGIN { $v = shift } s/^version = "[^"]+"/version = "$v"/ && ($done
 cargo update -p ref-id --offline >/dev/null 2>&1 || true
 echo "crate ref-id -> $version"
 perl -pi -e 'BEGIN { $v = shift } s/^version = "[^"]+"/version = "$v"/ && ($done++ == 0) or 1' "$version" python/pyproject.toml
-(cd python && uv lock -q --offline >/dev/null 2>&1) || true
+(cd python && uv lock -q)
 echo "python ref-id -> $version"

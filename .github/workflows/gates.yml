@@ -29,7 +29,7 @@ jobs:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
       # uv on this runner is what lets the python-conformance gate run rather than skip.
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: npm ci
       - name: the commit gate, run the way the hook runs it
         # Ahead of the suite because the specification's own rules live here: the sidecar seal (the
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: the Python port's suite, types and lint
         working-directory: python
         run: |
@@ -105,7 +105,7 @@ jobs:
         with:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: npm ci
       - name: every implementation answers the same for every input the specification names
         run: npm run test:differential

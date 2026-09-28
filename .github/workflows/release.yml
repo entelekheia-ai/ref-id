@@ -26,6 +26,8 @@ jobs:
           node-version: '24.x'
           registry-url: https://registry.npmjs.org
       - uses: dtolnay/rust-toolchain@stable
+      # before changesets/action: `npm run version` relocks python/uv.lock through sync-versions.sh
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: npm ci
       - name: gates — build, tests, the pcre2 grammar runner, Rust port
         run: |
@@ -34,6 +36,7 @@ jobs:
           npm run test:grammar
           npm run test:readme-refs
           cargo test --quiet
+          uv run --directory python pytest -q
       - uses: changesets/action@v1
         id: changesets
         with:
@@ -100,8 +103,6 @@ jobs:
       # and publishes to PyPI through trusted publishing: a publisher is declared on pypi.org for this
       # repository and this workflow, with no environment restriction, and the job's `id-token: write` is
       # the whole credential. `skip-existing` makes a rerun after a partial release safe.
-      - uses: astral-sh/setup-uv@v10
-        if: steps.released.outputs.released == 'true' && steps.released.outputs.pypied != '200'
       - name: build the Python package
         if: steps.released.outputs.released == 'true' && steps.released.outputs.pypied != '200'
         run: uv build --directory python --out-dir dist

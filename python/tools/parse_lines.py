@@ -53,7 +53,7 @@ def _parse(lines: list[str], with_canonical: bool) -> int:
     for line in lines:
         try:
             result = ref_id.parse(_unescape(line))
-        except Exception as error:  # the protocol reports any escape as a row, never a crash
+        except Exception as error:  # noqa: BLE001 — the protocol reports any escape as a row, never a crash
             failures += 1
             sys.stdout.write(ref_id.canonicalise({"threw": f"{type(error).__name__}: {error}"}) + "\n")
             continue
