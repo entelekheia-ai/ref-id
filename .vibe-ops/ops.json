@@ -46,7 +46,8 @@
         "subject": "the specification a port embeds — copy spec/ref-id.json and its .sha256 into the port named below, never edit one in place",
         "pairs": [
           ["spec/ref-id.json", "Sources/RefId/Resources/ref-id.json"],
-          ["spec/ref-id.json", "crates/ref-id/spec/ref-id.json"]
+          ["spec/ref-id.json", "crates/ref-id/spec/ref-id.json"],
+          ["spec/ref-id.json", "python/src/ref_id/spec/ref-id.json"]
         ]
       },
       "fixture": {
@@ -100,7 +101,8 @@
         "subject": "the sidecar digest a port embeds — re-seal at the root with `node scripts/seal-spec.mjs`, then copy the pair into the port named below",
         "pairs": [
           ["spec/ref-id.json.sha256", "Sources/RefId/Resources/ref-id.json.sha256"],
-          ["spec/ref-id.json.sha256", "crates/ref-id/spec/ref-id.json.sha256"]
+          ["spec/ref-id.json.sha256", "crates/ref-id/spec/ref-id.json.sha256"],
+          ["spec/ref-id.json.sha256", "python/src/ref_id/spec/ref-id.json.sha256"]
         ]
       },
       "fixture": {

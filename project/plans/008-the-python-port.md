@@ -194,7 +194,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       `x-extensions`, reseal, and copy the specification into the port copies. Write
       `scripts/gen-surface-python.mjs` with `--check`. At the end, the generator emits a surface file for a
       package that does not yet exist, and the `openrpc-valid` gate passes.
-- [ ] **Track 2 — The package, its specification and the canonical core.** `python/pyproject.toml`, the
+- [x] **Track 2 — The package, its specification and the canonical core.** `python/pyproject.toml`, the
       embedded specification and its mirror pairs, `load_spec`, `load_spec_from`, `canonicalise`,
       `digest`, the grammar with the `python-re` adaptation, and the group-refusal test. Acceptance: the
       `digest` vectors pass, the group-refusal test lists every group not yet run, and the mirror gates
