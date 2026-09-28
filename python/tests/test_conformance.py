@@ -17,10 +17,9 @@ from ref_id.spec import load_spec
 
 # Every group this track's runner executes, by name — Track 3 adds parse/canonical/roundtrip/build/
 # envelope, Track 4 adds comparison/relate/verdict.
-EXECUTED = ["digest", "parse", "canonical", "roundtrip", "build", "envelope"]
+EXECUTED = ["digest", "parse", "canonical", "roundtrip", "build", "envelope", "comparison", "relate", "verdict"]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Tracks 3-4 add the remaining groups")
 def test_every_vector_group_runs() -> None:
     spec = load_spec()
     missing = sorted(set(spec.vector_classes()) - set(EXECUTED))
@@ -112,6 +111,79 @@ def _envelope_vectors() -> list[dict[str, Any]]:
 def test_envelope_vectors(vector: dict[str, Any]) -> None:
     result = ref_id.validate_envelope(vector["requestedId"], vector["envelope"])
     assert result.admissible == (vector["expect"] == "admissible"), f"{vector['name']} — {result.reason}"
+
+
+def _comparison_vectors() -> list[dict[str, Any]]:
+    return load_spec().vectors("comparison")
+
+
+@pytest.mark.parametrize("vector", _comparison_vectors(), ids=lambda v: v["name"])
+def test_comparison_vectors(vector: dict[str, Any]) -> None:
+    a, b, expect, name = vector["a"], vector["b"], vector["expect"], vector["name"]
+    if "samePackage" in expect:
+        assert ref_id.same_package(a, b) == expect["samePackage"], f"{name} — samePackage"
+    if "covers" in expect:
+        assert ref_id.covers(a, b) == expect["covers"], f"{name} — covers"
+    if "coversReversed" in expect:
+        assert ref_id.covers(b, a) == expect["coversReversed"], f"{name} — coversReversed"
+    if "sameIdentifier" in expect:
+        assert ref_id.same_identifier(a, b) == expect["sameIdentifier"], f"{name} — sameIdentifier"
+
+
+def _relate_vectors() -> list[dict[str, Any]]:
+    return load_spec().vectors("relate")
+
+
+@pytest.mark.parametrize("vector", _relate_vectors(), ids=lambda v: v["name"])
+def test_relate_vectors(vector: dict[str, Any]) -> None:
+    a, b, expect, name = vector["a"], vector["b"], vector["expect"], vector["name"]
+    got = ref_id.relate(a, b)
+    wanted = expect.get("relate")
+    if wanted is None:
+        assert got is None, f"relate: {name} — expected None, got {got!r}"
+    else:
+        assert got is not None, f"relate: {name} — expected a result, got None"
+        assert ref_id.canonicalise(got.to_json()) == ref_id.canonicalise(wanted), f"relate: {name} — result"
+    if "samePackage" in expect:
+        assert ref_id.same_package(a, b) == expect["samePackage"], f"relate: {name} — samePackage"
+    if "covers" in expect:
+        assert ref_id.covers(a, b) == expect["covers"], f"relate: {name} — covers"
+    if "coversReversed" in expect:
+        assert ref_id.covers(b, a) == expect["coversReversed"], f"relate: {name} — coversReversed"
+
+
+def _verdict_vectors() -> list[dict[str, Any]]:
+    return load_spec().vectors("verdict")
+
+
+@pytest.mark.parametrize("vector", _verdict_vectors(), ids=lambda v: v["name"])
+def test_verdict_vectors(vector: dict[str, Any]) -> None:
+    a, b, name = vector["a"], vector["b"], vector["name"]
+    wanted = vector["expect"]["verdict"]
+    got = ref_id.verdict(a, b)
+    if wanted is None:
+        assert got is None, f"verdict: {name} — expected None, got {got!r}"
+    else:
+        assert got is not None, f"verdict: {name} — expected a result, got None"
+        assert ref_id.canonicalise(got.to_json()) == ref_id.canonicalise(wanted), f"verdict: {name} — result"
+
+
+_MIRROR_IDENTITY = {"covers": "coveredBy", "coveredBy": "covers"}
+
+
+@pytest.mark.parametrize("vector", _verdict_vectors(), ids=lambda v: v["name"])
+def test_verdict_mirror(vector: dict[str, Any]) -> None:
+    """`comparison.verdict.symmetry`: `verdict(b, a)` is `verdict(a, b)` with `covers` and `coveredBy`
+    exchanged on the identity axis, the content axis and `decidedBy` unchanged."""
+    a, b, name = vector["a"], vector["b"], vector["name"]
+    forward = ref_id.verdict(a, b)
+    backward = ref_id.verdict(b, a)
+    if forward is None or backward is None:
+        assert forward is None and backward is None, f"verdict mirror: {name} — one direction is None and the other is not"
+        return
+    assert _MIRROR_IDENTITY.get(forward.identity, forward.identity) == backward.identity, f"verdict mirror: {name} — identity"
+    assert forward.content == backward.content, f"verdict mirror: {name} — content"
+    assert forward.decided_by == backward.decided_by, f"verdict mirror: {name} — decidedBy"
 
 
 def test_embedded_spec_matches_root() -> None:

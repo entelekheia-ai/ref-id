@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from .errors import BuildError
 
@@ -20,9 +20,23 @@ __all__ = [
     "Fragment",
     "NestedValue",
     "ParseResult",
+    "QualifierRelation",
+    "RelateResult",
+    "Relation",
+    "VerdictContent",
+    "VerdictDecidedBy",
+    "VerdictIdentity",
+    "VerdictResult",
 ]
 
 Pair = tuple[str, str]
+
+# `comparison.relate.relations` — one relation between two identifiers in one dimension.
+Relation = Literal["equal", "covers", "coveredBy", "differ"]
+
+# `comparison.verdict.axes.identity` and `.content`.
+VerdictIdentity = Literal["same", "covers", "coveredBy", "distinct", "undetermined"]
+VerdictContent = Literal["same", "different", "unknown"]
 
 
 def _pairs_json(pairs: tuple[Pair, ...]) -> list[list[str]]:
@@ -179,3 +193,72 @@ class EnvelopeResult:
         if self.reason is not None:
             out["reason"] = self.reason
         return out
+
+
+@dataclass(frozen=True, slots=True)
+class QualifierRelation:
+    """One qualifier member of a `RelateResult`: its own relation, and — only where both sides' values are
+    a nested `ref:` identifier this operation accepts — the nested pair's own `RelateResult`."""
+
+    relation: Relation
+    nested: RelateResult | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"relation": self.relation}
+        if self.nested is not None:
+            out["nested"] = self.nested.to_json()
+        return out
+
+
+@dataclass(frozen=True, slots=True)
+class RelateResult:
+    """What `relate()` returns for a pair it accepts — `comparison.relate.result`: the five fixed
+    dimensions always, and a keyed dimension (`fragment_refinements`, `qualifiers`) only for the keys at
+    least one side declares."""
+
+    type: Relation
+    version: Relation
+    locator_stem: Relation
+    locator_version: Relation
+    fragment_path: Relation
+    fragment_refinements: tuple[tuple[str, Relation], ...] = ()
+    qualifiers: tuple[tuple[str, QualifierRelation], ...] = ()
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "type": self.type,
+            "version": self.version,
+            "locatorStem": self.locator_stem,
+            "locatorVersion": self.locator_version,
+            "fragmentPath": self.fragment_path,
+            "fragmentRefinements": {key: value for key, value in self.fragment_refinements},
+            "qualifiers": {key: value.to_json() for key, value in self.qualifiers},
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class VerdictDecidedBy:
+    """Which members of `relate`'s result decided each axis, by their `decidedBy` path —
+    `comparison.verdict.result.decidedBy`."""
+
+    identity: tuple[str, ...] = ()
+    content: tuple[str, ...] = ()
+
+    def to_json(self) -> dict[str, Any]:
+        return {"identity": list(self.identity), "content": list(self.content)}
+
+
+@dataclass(frozen=True, slots=True)
+class VerdictResult:
+    """What `verdict()` returns for a pair `relate` accepts — `comparison.verdict.result`."""
+
+    identity: VerdictIdentity
+    content: VerdictContent
+    decided_by: VerdictDecidedBy
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "identity": self.identity,
+            "content": self.content,
+            "decidedBy": self.decided_by.to_json(),
+        }

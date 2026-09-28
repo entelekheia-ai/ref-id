@@ -19,9 +19,20 @@ from .errors import (
     SpecVersionError,
 )
 from .parse import parse
+from .relations import covers, relate, same_identifier, same_package, verdict
 from .serialise import canonical_identifier, serialise
 from .spec import Spec, embedded_spec_text, load_spec, load_spec_from
-from .types import BuildParts, EnvelopeResult, Fragment, NestedValue, ParseResult
+from .types import (
+    BuildParts,
+    EnvelopeResult,
+    Fragment,
+    NestedValue,
+    ParseResult,
+    QualifierRelation,
+    RelateResult,
+    VerdictDecidedBy,
+    VerdictResult,
+)
 
 __all__ = [
     "BuildError",
@@ -31,19 +42,28 @@ __all__ = [
     "Fragment",
     "NestedValue",
     "ParseResult",
+    "QualifierRelation",
     "RefIdError",
+    "RelateResult",
     "SerialiseError",
     "Spec",
     "SpecIntegrityError",
     "SpecVersionError",
+    "VerdictDecidedBy",
+    "VerdictResult",
     "build",
     "canonical_identifier",
     "canonicalise",
+    "covers",
     "digest",
     "embedded_spec_text",
     "load_spec",
     "load_spec_from",
     "parse",
+    "relate",
+    "same_identifier",
+    "same_package",
     "serialise",
     "validate_envelope",
+    "verdict",
 ]

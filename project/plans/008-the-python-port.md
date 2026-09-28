@@ -204,7 +204,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       `packageurl-python`; first, by the main loop, the `anchor` field of the dialect adaptations (see the
       Decision Log) and a Python test that every pattern the specification declares compiles. Acceptance: the `parse`, `canonical`, `roundtrip`, `build` and `envelope`
       groups pass.
-- [ ] **Track 4 — Relations.** `covers`, `same_package`, `same_identifier`, `relate`, `verdict`, including
+- [x] **Track 4 — Relations.** `covers`, `same_package`, `same_identifier`, `relate`, `verdict`, including
       the descent into nested identifiers. Acceptance: every group passes, the group-refusal test lists
       none, and `mypy --strict` passes on the generated surface file.
 - [ ] **Track 7 — The edges the port exposed: integers, oversized versions, lone surrogates.** Runs after
