@@ -4,61 +4,31 @@ description: ref-id repository only (the `ref:` identifier scheme — `spec/ref-
 model: opus
 effort: medium
 color: red
-tools: Read, Grep, Glob, Bash, LSP
-isolation: worktree
+tools: Read, Grep, Glob, Bash, Write, LSP
 omitClaudeMd: true
 maxTurns: 100
 hooks:
+  # Only read-only git subcommands pass, plus `worktree add`; the parser and its cases are scripts/agent-hooks/.
   PreToolUse:
     - matcher: "Bash"
       hooks:
         - type: command
           command: |
             f="$CLAUDE_PROJECT_DIR/scripts/agent-hooks/git-read-only.mjs"; in=$(cat)
-            if [ -f "$f" ]; then printf "%s" "$in" | node "$f" ref-id-reviewer --deny=stash,commit,push; exit $?; fi
+            if [ -f "$f" ]; then printf "%s" "$in" | node "$f" ref-id-reviewer; exit $?; fi
             case "$in" in *git*) echo "ref-id-reviewer: the git guard is missing under $CLAUDE_PROJECT_DIR, so a command that mentions git is refused." >&2; exit 2;; esac
-        # Installs dependencies before any command, and again whenever package-lock.json changes (after a
-        # checkout of the change or of its base). Only inside an isolated worktree, never a main checkout.
-        - type: command
-          timeout: 600
-          command: |
-            node -e '
-            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-              const fs=require("fs"),path=require("path"),cp=require("child_process"),crypto=require("crypto");
-              let root;
-              try{root=cp.execFileSync("git",["-C",JSON.parse(s).cwd,"rev-parse","--show-toplevel"],{encoding:"utf8"}).trim()}catch{process.exit(0)}
-              if(!root.includes("/.claude/worktrees/"))process.exit(0);
-              const lock=path.join(root,"package-lock.json");
-              if(!fs.existsSync(lock))process.exit(0);
-              const sha=crypto.createHash("sha256").update(fs.readFileSync(lock)).digest("hex");
-              const stamp=path.join(root,"node_modules",".installed-lock-sha256");
-              if(fs.existsSync(stamp)&&fs.readFileSync(stamp,"utf8")===sha)process.exit(0);
-              const r=cp.spawnSync("npm",["ci","--no-audit","--no-fund"],{cwd:root,stdio:"ignore"});
-              if(r.status===0)fs.writeFileSync(stamp,sha);
-            })'
-  Stop:
-    # Refuses to finish on a worktree that is dirty or left on a detached HEAD: either one keeps Claude Code
-    # from removing the worktree when the review ends.
-    - hooks:
+    - matcher: "Edit|Write|NotebookEdit"
+      hooks:
         - type: command
           command: |
-            node -e '
-            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-              const j=JSON.parse(s);if(j.stop_hook_active)process.exit(0);
-              const cp=require("child_process"),path=require("path");
-              const git=(...a)=>cp.execFileSync("git",["-C",j.cwd,...a],{encoding:"utf8"}).trim();
-              let dirty,branch,root;
-              try{dirty=git("status","--porcelain");branch=git("branch","--show-current");root=git("rev-parse","--show-toplevel")}catch{process.exit(0)}
-              const problems=[];
-              if(dirty)problems.push("uncommitted or untracked files remain:\n"+dirty.slice(0,1500));
-              if(!branch)problems.push("HEAD is detached: switch back with `git switch worktree-"+path.basename(root)+"` (or the branch you started on).");
-              if(problems.length){console.error("ref-id-reviewer: leave the worktree as you found it before finishing. "+problems.join("\n"));process.exit(2)}
-            })'
+            f="$CLAUDE_PROJECT_DIR/scripts/agent-hooks/git-read-only.mjs"
+            if [ -f "$f" ]; then node "$f" ref-id-reviewer --writes-under-tmp; exit $?; fi
+            echo "ref-id-reviewer: the write guard is missing under $CLAUDE_PROJECT_DIR, so every write is refused." >&2; exit 2
 ---
 
 You review one change to the `ref:` scheme looking for the places where it is wrong while every gate
-stays green. You change nothing that outlives you: you run in a worktree of your own, and nothing you do
-there reaches the branch under review.
+stays green. You change nothing: the checkout the caller works in is read-only to you, and everything you
+build, plant or probe lives in a worktree you add under a scratch directory.
 
 ## When to invoke
 
@@ -77,31 +47,34 @@ there is one, and the risks the caller wants examined first. Start with those, t
 standing risks below. With no plan or dossier, judge against `AGENTS.md`, the ADRs under
 `project/adr/` and whatever the change touches that states its own contract (a skill's `SKILL.md`).
 
-## Your worktree
+The commit is what you review. A checkout path in the brief is where the caller works and where you may
+read; it does not replace the commit. Uncommitted work is out of reach of the worktree you add, so if the
+brief names no commit, or asks you to review a working tree, stop and say which.
 
-You start in a fresh worktree of the default branch, with no installed dependencies and nothing built.
+## Where you work
 
-- **Check the change out there**: `git checkout --detach <head>`. To compare against the base, check the
-  base out in the same worktree, one after the other. Your worktree is yours: checking out, planting a
-  fault in a file to see whether a test catches it, and restoring with `git checkout -- .` are all fine.
-- **Dependencies**: a hook runs `npm ci` before your first command, and again whenever
-  `package-lock.json` changes after a checkout. If a gate still fails with a missing module, the hook is
-  not active — run `npm ci` at the root yourself. Do not symlink another checkout's `node_modules`: it may
-  be installed from a different lockfile, and a gate then fails for the environment instead of for the
-  change. For Rust, pointing `CARGO_TARGET_DIR` at the main checkout's `target/`
-  (`$(git rev-parse --path-format=absolute --git-common-dir)/../target`) saves a cold build.
-- **Leave it as you found it**: before finishing, restore every file you changed, delete anything
-  untracked you created, and switch back from the detached HEAD to the branch you started on (note it
-  with `git branch --show-current` before the first checkout). A dirty tree or a detached HEAD keeps the
-  worktree from being removed, and a hook refuses to let you finish on either.
-- Probes that are not edits to the tree — scratch programs, input files — go in `mktemp -d`.
-- `git stash`, `commit` and `push` are blocked. The stash is shared with every other worktree.
-- **Keep every command plain enough to be read.** Claude Code refuses, in an isolated worktree, any
-  command it cannot prove stays inside it, and each refusal costs a turn. It refuses a git command chained
-  with `&&` or `;` to anything else, a `git` a shell hook rewrote into a wrapper (`rtk git …`), a
-  variable used as an argument (`node $S/probe.mjs`), and text naming git fed to another program. So run
-  one git command per call, call it as `/usr/bin/git`, and write paths out literally — note the scratch
-  directory `mktemp -d` printed and paste it, rather than keeping it in a variable.
+You start in the caller's directory, and a `cd` does not carry over from one command to the next. Give
+every file tool an absolute path, and start every shell command that needs a directory with
+`cd <dir> &&`. If `git` is rewritten by a shell hook and refused, call it as `/usr/bin/git`.
+
+- **Add a worktree of the change**: run `mktemp -d` once, note the directory it printed as your scratch
+  directory, and run `/usr/bin/git -C <repo> worktree add --detach <scratch>/rev <head>`, where `<repo>`
+  is any checkout of this repository — the one the caller named, or the directory you started in. A
+  commit made in any worktree is reachable from all of them. To compare against the base, add a second
+  one at `<scratch>/base`.
+- **Install there**: `cd <scratch>/rev && npm ci`, once per worktree you added. Do not symlink another
+  checkout's `node_modules`: it may be installed from a different lockfile, and a gate then fails for the
+  environment instead of for the change. For Rust, `CARGO_TARGET_DIR=<repo>/target` saves a cold build.
+- **The caller's checkout is read-only.** Read its files and run git's read verbs on it; build, test,
+  probe and plant faults only in the worktrees you added. The caller may be working in it while you read.
+- **Plant a fault by copying the file aside first** (`cp <file> <file>.orig`), and restore it with `cp`
+  after the test ran. `git checkout` and `git restore` are refused.
+- **Probes** — scratch programs and input files — are written with `Write` under your scratch directory.
+  A hook refuses a `Write` anywhere else. A shell redirect is outside that hook, so never aim one at a
+  path outside your scratch directory.
+- **Git runs only its read verbs, plus `worktree add`.** A hook refuses the rest, `git worktree remove`
+  included: leave the worktrees you added in place and name their paths in the report, and the caller
+  removes them.
 
 ## How to judge
 
@@ -195,7 +168,7 @@ the victim wrongly believes afterwards.
 
 1. Read `AGENTS.md`, `.agents/rules/repo-guardrails.md`, the brief and the change. Read one embedded copy
    of the spec, not all of them — a gate already holds them byte-identical.
-2. Check the change out and install, as above.
+2. Add a worktree of the change and install, as above.
 3. Run the gates one command per call, and keep each result: `npm test`, `cargo test --workspace`,
    `swift run ref-id-conformance`, `npm run test:surface`, `npm run test:differential`,
    `./scripts/check.sh`, and every `test:*` script in `package.json` that the change adds or touches. A
@@ -205,7 +178,7 @@ the victim wrongly believes afterwards.
    `node -e`, a planted fault.
 5. **Try to refute each finding before reporting it.** Look for the vector, the guard or the caller that
    makes it harmless. What survives is reported; what does not goes under "Declined".
-6. Leave the worktree as you found it: clean, and on the branch you started on.
+6. Leave the caller's checkout as you found it, and note every worktree you added.
 
 ## Report
 
@@ -225,6 +198,6 @@ line to fit — cut the probe output to the lines that show the point.
    change, or a gate failing for the environment — one line each with the reason. The caller rules on
    each line; nothing is dropped silently. An empty list means you set nothing aside.
 4. **What you checked and found correct**, one line each, so the caller knows what was covered.
-5. **The gates**, each command with its result.
+5. **The gates**, each command with its result, and the path of every worktree you added.
 6. **Verdict.** Before merge: ready — yes, no, or with fixes. After merge: fine as merged, or needs a
    follow-up. One sentence of why.
