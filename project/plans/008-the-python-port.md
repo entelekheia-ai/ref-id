@@ -16,13 +16,26 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-27 |
 | Author | Danilo Borges |
 | Depends on | Plan-007 (the local gates this plan extends) |
 | Related | Plan-001 (the decision this plan reverses), ADR-0001, ADR-0002 |
 
 ---
+
+## Read these first
+
+For anyone resuming this plan mid-run, in this order:
+
+1. This file's **Decision Log** — every decision the maintainer took while the tracks ran, including three
+   rounds of specification changes (the dialect `anchor`; spec 1.6.0's integers, maximum version and
+   Unicode digest members; the security review's refinement bound, scalar matching and declared errors).
+   The tracks below are the original scope; the Decision Log is what the work became.
+2. **Open questions** — two Package URL questions still with the maintainer, and one upstream report.
+3. The task dossiers `project/tasks/044` to `050`, one per track, each ending in the rulings and deferred
+   minors that track produced; `048` covers Track 7 and both security rounds.
+4. `.agents/skills/attack/SKILL.md` — the security review this plan produced as a reusable procedure.
 
 ## Summary
 
@@ -364,7 +377,21 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 
 ## Outcomes & Retrospective
 
-*Nothing shipped yet.*
+Every track landed on branch `plan-008-python-port`; nothing is merged or published yet, and the plan
+closes with `/vibe-ops:close-plan` after the pull request merges and the first release reaches PyPI.
+
+What exists that did not: a complete Python implementation (`python/`, 711 tests on 3.11 and 3.14,
+`mypy --strict`), a differential of five implementations over every identifier the vectors carry
+(304 inputs, 92,416 pairs, 0 disagreements), two local gates (`python-conformance`,
+`surface-generated`), PyPI publishing through trusted publishing, and the `attack` skill.
+
+What the port changed beyond itself: writing a fourth implementation and reviewing it adversarially
+found defects the three existing ones shared or split on — a dialect adaptation that broke a pattern,
+numbers with no canonical rule, an oversized version read as version 1 by three implementations, a lossy
+surrogate digest and prototype-keyed lookups in TypeScript, Swift trapping on hostile numbers and
+matching by grapheme cluster, quadratic relations in Rust — each fixed across every implementation and
+bound by vectors, in spec 1.6.0. Against the goals: all five are met on the branch; the PyPI one is met
+when the release runs.
 
 ---
 

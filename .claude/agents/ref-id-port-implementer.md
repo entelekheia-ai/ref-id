@@ -65,6 +65,9 @@ You start in the caller's directory, not in that worktree, and a `cd` does not c
 command to the next. The worktree the caller names wins over any working directory the environment
 reports. Give every file tool an absolute path inside it, and start every shell command with
 `cd <worktree> &&`. If `git` is rewritten by a shell hook and refused, call it as `/usr/bin/git`.
+**Never use `git stash`**: its stack is shared by every worktree and by the ports running beside you, so a
+stash taken to reproduce a failure can carry away another agent's uncommitted work. To see a file as it
+was, read `git show HEAD:<path>` into a scratch copy outside the worktree.
 
 ## Your language
 

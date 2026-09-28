@@ -190,6 +190,7 @@ literal, and a refinement declaring no `maximum` keeps today's behaviour.
   Evidence: the review's reproduction; `JSONSerialization` gives `18446744073709551615` an NSNumber of
   `objCType "Q"` whose `int64Value` is `-1`. Fixed with `Int64(exactly:)` and an unsigned-type refusal;
   `swift run ref-id-conformance` 1115/0 with three hostile-spec checks that crashed before.
+  > Promoted to learning on 2026-09-28
 
 - Observation (security review): Rust's `relate` was quadratic in the number of qualifiers — two sites,
   `declared_keys` and the per-key `.find()` after it. Evidence: 40,000 qualifiers per side took 16.0 s
@@ -200,6 +201,7 @@ literal, and a refinement declaring no `maximum` keeps today's behaviour.
   editing the same worktree. Nothing was lost — the dropped stash, found with `git fsck --unreachable`,
   held only `Sources/RefId/Canonical.swift` — but the stash stack is shared across worktrees and agents.
   Evidence: stash commit `36d1544`, "swift-security-fix-wip-008", one file changed.
+  > Promoted to .claude/agents/ref-id-port-implementer.md on 2026-09-28
 
 - Observation (security review): the Python port raised an undeclared `ValueError` from a single
   identifier with a digit run past CPython's 4300-digit int-conversion limit — a limit each host may lower
@@ -228,6 +230,7 @@ literal, and a refinement declaring no `maximum` keeps today's behaviour.
   `cargo test --workspace` 19/0; `swift run ref-id-conformance` 1145/0; `uv run pytest` 711/0; the Swift
   implementer's probe gluing U+0301, U+200D and U+20E3 to every separator of three inputs, 51 inputs, 0
   mismatches against TypeScript.
+  > Promoted to learning on 2026-09-28
 
 - Deferred minor: TypeScript and Rust check every digit run in a bounded refinement's value, Swift and
   Python split on `boundSeparator` first; the two agree for every refinement the specification declares,

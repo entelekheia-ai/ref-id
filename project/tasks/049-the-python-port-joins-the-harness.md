@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | Done |
+| Status | In Progress |
 | Created | 2026-09-28 |
 | Author | Danilo Borges |
 | Issue | <https://github.com/entelekheia-ai/ref-id/issues/49> |
@@ -96,6 +96,30 @@ the one implementation fix it exposed went to `ref-id-port-implementer`.
 - Deferred minor: Swift's namespace and name encoding leaves `!`, `*`, `'`, `(`, `)` out of its unreserved
   set, which `packageurl-js` keeps unencoded, and its qualifier values are reordered rather than
   re-encoded — no vector and no corpus input reaches either.
+
+## Review of Track 5 — findings to triage (review of cefa3d2..b79ff28, 2026-09-28; not yet reproduced by the caller)
+
+- BLOCKER: `astral-sh/setup-uv@v10` does not resolve — no `v10` tag exists, only `v10.2.0` and older full
+  tags; used at `.github/workflows/gates.yml` (three jobs) **and in `release.yml` (Track 6)**. Pin `v10.2.0`.
+- BLOCKER: `cd python && uv run ruff check` fails on `BLE001` at `tools/parse_lines.py:56` (blind
+  `except Exception`) — the CI `python` job would go red.
+- SHOULD: `scripts/differential.mjs` corpus keeps only strings starting `ref:`, so it lost
+  `vectors.parse[88].input = "pkg:npm/x@1.0.0"`; add every `input` of `parse`/`roundtrip`/`canonical`
+  whatever its prefix, and keep the walk for the rest.
+- SHOULD: Swift `Validators.swift:266` re-encodes a version whose escape does not decode (`@1%zz` →
+  `@1%25zz`), where TypeScript is `malformed`; refuse instead.
+- SHOULD: `compare.mjs` treats a row as Package URL when `pkg:` appears anywhere (a nested qualifier), and
+  exempts `serialised`; test the reference row's `type === "pkg"`, and treat a `serialised` difference with
+  equal status and part as a disagreement.
+- SHOULD: `timing.mjs` reads a crashed implementation (`exit 3`) as linear, lets process start-up hide a
+  quadratic, and measures amplification on top-level strings only.
+- SHOULD: the `surface-generated` tests pass with `--check` removed from the gate; add a fake generator
+  that exits 1 unless given `--check`.
+- NOTE: `python-conformance` passes an exit-0 run with no report (`examined: 0`); its fixture fires
+  through the non-zero-exit fallback, not the JUnit reading; no test covers `<error>`.
+- NOTE: the Python protocol exits 1 on invalid UTF-8 on stdin where TypeScript writes U+FFFD
+  (`errors="replace"`); `ports.mjs` ignores `CARGO_TARGET_DIR`; the changeset does not name Swift's
+  canonical change; four protocol differences in Rust/Swift predate this track.
 
 ## Closure
 
