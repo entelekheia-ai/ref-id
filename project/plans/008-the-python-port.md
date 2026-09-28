@@ -417,3 +417,11 @@ when the release runs.
 ## Open questions
 
 None. Every question this plan raised was answered and moved to the Decision Log.
+
+- Task dossiers closed and removed per the task lifecycle (`Planned → In Progress → Done → file removed, git history is the archive`):
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/044-the-specification-declares-python.md`
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/045-the-python-package-and-its-canonical-core.md`
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/046-python-parse-serialise-build-and-the-envelope.md`
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/047-python-relations.md`
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/048-the-edges-the-port-exposed.md`
+  - `git show 1f9a8139a12856298f9e59ad05790add19c44222:project/tasks/049-the-python-port-joins-the-harness.md`
