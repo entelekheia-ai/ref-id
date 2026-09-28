@@ -1,8 +1,42 @@
 {
-  "id": "spec-copies",
+  "id": "spec",
   "version": "0.0.1",
-  "summary": "The specification is embedded three times, and the three must not part company",
+  "summary": "The specification's own rules — sealed, self-consistent, tied to its openRPC surface — and its three embedded copies, which must not part company",
   "gates": [
+    {
+      "gate": "./.vibe-ops/gate-spec-sealed/index.mjs",
+      "label": "spec-sealed",
+      "paths": ["spec/ref-id.json", "spec/ref-id.json.sha256"],
+      "fixture": {
+        "expect": ["spec-unsealed"],
+        "files": {
+          "spec/ref-id.json": "{\"specVersion\":\"1.2.0\"}\n",
+          "spec/ref-id.json.sha256": "0000000000000000000000000000000000000000000000000000000000000000\n"
+        }
+      }
+    },
+    {
+      "gate": "./.vibe-ops/gate-relate-consistent/index.mjs",
+      "label": "relate-consistent",
+      "paths": ["spec/ref-id.json"],
+      "fixture": {
+        "expect": ["relate-disagrees"],
+        "files": {
+          "spec/ref-id.json": "{\"vectors\":{\"relate\":[{\"name\":\"fixture: a flipped boolean\",\"a\":\"ref:pkg:npm/x@1.0.0\",\"b\":\"ref:pkg:npm/x@1.0.0\",\"expect\":{\"relate\":{\"type\":\"equal\",\"version\":\"equal\",\"locatorStem\":\"equal\",\"locatorVersion\":\"equal\",\"fragmentPath\":\"equal\",\"fragmentRefinements\":{},\"qualifiers\":{}},\"samePackage\":true,\"covers\":false,\"coversReversed\":true}}],\"comparison\":[]}}\n"
+        }
+      }
+    },
+    {
+      "gate": "./.vibe-ops/gate-openrpc-valid/index.mjs",
+      "label": "openrpc-valid",
+      "paths": ["spec/ref-id.json"],
+      "fixture": {
+        "expect": ["openrpc-invalid"],
+        "files": {
+          "spec/ref-id.json": "{\"vectors\":{},\"openRPC\":{\"openrpc\":\"1.3.2\"}}\n"
+        }
+      }
+    },
     {
       "gate": "mirror",
       "label": "spec-bytes",

@@ -29,17 +29,30 @@ jobs:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
-      - name: the specification still matches its own sidecar
-        # Ahead of the suite because it is the failure that arrives as six unrelated-looking errors, and
-        # because this is the one drift the copy gate cannot see: four copies equally stale agree with
-        # each other perfectly. Reads the source, so no build is needed and none has happened yet.
-        run: node scripts/seal-spec.mjs --check
-      - name: the relate vectors reduce to what the comparison vectors say
-        # Reads the specification alone: a disagreement between the two groups is a defect of the data,
-        # which every port would otherwise report as its own failure on one group or the other.
-        run: npm run test:relate
-      - name: the declared surface is a valid OpenRPC document tied to the rules and vectors it names
-        run: npm run test:openrpc
+      - name: the commit gate, run the way the hook runs it
+        # Ahead of the suite because the specification's own rules live here: the sidecar seal (the
+        # failure that otherwise arrives as six unrelated-looking errors, and the one drift the copy gate
+        # cannot see), the relate vectors reducing to what the comparison vectors say, and the openRPC
+        # document staying valid and tied to the rules and vectors it names. They are local gates under
+        # .vibe-ops/, composed by vibeops.config.ts; they read the source, so no build is needed yet.
+        #
+        # The CLI itself is pinned; its own dependencies (core, the gates) resolve by caret range at install
+        # time, so a patch release of those can still move what runs here. The pin bounds the drift, it
+        # does not freeze it.
+        #
+        # A SKIP of one of this repository's own gates FAILS here. A gate skips only when its instrument is
+        # absent (a Node without type stripping, a devDependency not installed), and a non-verbose run
+        # prints nothing for a skip — so without this step, a dependency dropped from package.json would
+        # turn the OpenRPC check off while every line of this workflow stayed green.
+        run: |
+          npm i -g @entelekheia/vibe-ops-cli@0.2.0
+          vibe-ops check --self-test
+          out=$(vibe-ops check --verbose) || { printf '%s\n' "$out" | grep -E '^(FAIL|WARN) ' || printf '%s\n' "$out"; exit 1; }
+          if printf '%s\n' "$out" | grep -E '^SKIP +\[(spec-sealed|relate-consistent|openrpc-valid)\]'; then
+            echo "one of this repository's own gates skipped — its instrument is missing on this runner" >&2
+            exit 1
+          fi
+          npm run test:gates
       - name: build, tests, grammar in three engines, Rust port
         # typecheck is what holds the TypeScript surface to openRPC by signature: the generated
         # test/surface.generated.ts is checked by tsc alone, and `npm test` strips types without checking

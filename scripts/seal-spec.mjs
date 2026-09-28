@@ -1,64 +1,35 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Re-seal `spec/ref-id.json` against its sidecar digest.
  *
- * The loader refuses a specification whose bytes do not match `spec/ref-id.json.sha256`, which is what
- * stops one copy of the data drifting from the copy an implementation ships. Nothing wrote that sidecar:
- * the digest existed only inside the check that verifies it, so every edit to the specification needed
- * somebody to recompute it by hand and get it right — and getting it wrong disables every implementation
- * at once rather than failing one test.
+ * The rule and the writer both live in the `spec-sealed` gate (`.vibe-ops/gate-spec-sealed/`), which the
+ * commit gate runs: its `run()` compares the digest, its `fix()` writes it. This file is only the door a
+ * person can type. It exists because `vibe-ops check` does not forward `--fix`, and the one surface that
+ * does (`vibe-ops hook ops`) reads a hook payload from stdin. When the CLI can repair from a terminal,
+ * this file goes.
  *
- * It computes the digest through the package's own `canonicalise`, never a second serialisation of its
- * own. A resealer that canonicalised differently from the verifier would produce a file that seals
- * cleanly here and refuses to load everywhere.
- *
- *   node scripts/seal-spec.mjs [--check]
- *
- * `--check` reports without writing and exits non-zero on a mismatch, so a gate can call it.
+ *   node scripts/seal-spec.mjs
  */
-import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-// The SOURCE, not the build. `dist/` is gitignored, and `npm test` does not produce it — its `pretest`
-// only copies the spec — so a resealer reaching for the build fails on a fresh clone with a module-not-
-// found trace, at exactly the moment the failing test told somebody to run it. Reading the source also
-// means the digest is computed by the same file the verifier uses rather than by an artefact that can be
-// a build behind it.
-import { canonicalise } from '../packages/ref-id/src/spec.ts'
+import gate from '../.vibe-ops/gate-spec-sealed/index.mjs'
 
-const SPEC = fileURLToPath(new URL('../spec/ref-id.json', import.meta.url))
-const SIDECAR = `${SPEC}.sha256`
-const checkOnly = process.argv.includes('--check')
+const ctx = { repoRoot: fileURLToPath(new URL('..', import.meta.url)), files: [], options: {} }
+const outcome = await gate.run(ctx)
 
-const raw = readFileSync(SPEC, 'utf8')
-const computed = createHash('sha256').update(canonicalise(JSON.parse(raw)), 'utf8').digest('hex')
-
-let recorded
-try {
-  recorded = readFileSync(SIDECAR, 'utf8').trim()
-} catch {
-  // An absent sidecar is the first seal, not an error to trace. Writing it is the whole job.
-  if (checkOnly) {
-    console.error('spec/ref-id.json has no sidecar — run `node scripts/seal-spec.mjs` to write it')
-    process.exit(1)
-  }
-  writeFileSync(SIDECAR, `${computed}\n`)
-  console.log(`sealed for the first time: ${computed}`)
-  process.exit(0)
-}
-
-if (computed === recorded) {
-  console.log(`sealed: ${computed}`)
-  process.exit(0)
-}
-
-if (checkOnly) {
-  console.error('spec/ref-id.json does not match its sidecar')
-  console.error(`  recorded ${recorded}`)
-  console.error(`  computed ${computed}`)
-  console.error('run `node scripts/seal-spec.mjs` to re-seal it')
+if (outcome.skipped !== undefined) {
+  console.error(`cannot seal: ${outcome.skipped}`)
   process.exit(1)
 }
+if (outcome.findings.length === 0) {
+  console.log('sealed: spec/ref-id.json already matches its sidecar')
+  process.exit(0)
+}
 
-writeFileSync(SIDECAR, `${computed}\n`)
-console.log(`re-sealed: ${recorded} -> ${computed}`)
+const fixes = await gate.fix(ctx, outcome.findings)
+if (fixes.length === 0) {
+  // Not mechanical: the specification itself does not parse, and the finding says why.
+  for (const finding of outcome.findings) console.error(finding.evidence)
+  process.exit(1)
+}
+for (const fix of fixes) console.log(`${fix.file}: ${fix.action}`)

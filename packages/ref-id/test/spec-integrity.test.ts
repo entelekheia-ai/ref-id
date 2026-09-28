@@ -39,7 +39,7 @@ test("spec-integrity: the real embedded spec loads", () => {
         "    node scripts/seal-spec.mjs\n\n" +
         "  Then copy the pair into the ports, which embed their own:\n" +
         "    Sources/RefId/Resources/   crates/ref-id/spec/\n" +
-        "  The `spec-copies` gate refuses a commit where those have parted company.",
+        "  The `spec` gate refuses a commit where those have parted company.",
     )
   }
 })
