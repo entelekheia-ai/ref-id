@@ -176,7 +176,7 @@ with its `[model-routing]` declaration line, and each verified result is judged 
       the code, stop and cite `file:line`. Second, a refusal is an acceptable outcome, and weakening a
       fixture or a decoy to go green is forbidden. Third, no nested subagent. Fourth, report only work
       already done. Fifth, `git stash`, `git checkout` and `git restore` are forbidden by name.
-- [ ] **Track 2 — The scripts reduce to what is left.** Delete `scripts/check-relate.mjs` and
+- [x] **Track 2 — The scripts reduce to what is left.** Delete `scripts/check-relate.mjs` and
       `scripts/check-openrpc.mjs` and their `test:*` entries; reduce `scripts/seal-spec.mjs` to a call
       into the gate's `fix()`; update `docs/reference/the-ref-scheme.md`, the comment in
       `crates/ref-id/tests/relate.rs`, the gate name in `packages/ref-id/test/spec-integrity.test.ts`,

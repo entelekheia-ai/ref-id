@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Hold the `openRPC` document of the specification to OpenRPC and to the rest of the specification —
- * `scripts/check-openrpc.mjs`, moved.
+ * Hold the `openRPC` document of the specification to OpenRPC and to the rest of the specification.
  *
  * `openRPC` declares the public surface every implementation exposes. It must validate against the
  * OpenRPC meta-schema, and it is tied to the specification around it in two directions: `x-rule` is a

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Hold the `relate` vectors to the `comparison` vectors — `scripts/check-relate.mjs`, moved.
+ * Hold the `relate` vectors to the `comparison` vectors.
  *
  * `covers`, `coveredBy` and `samePackage` are declared as reductions of a `relate` result
  * (`comparison.relate.reductions`). A `relate` vector states a full result and the three booleans; a

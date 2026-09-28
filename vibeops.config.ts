@@ -11,8 +11,7 @@ export default {
   // Three rules hold `spec/ref-id.json` to itself: it must match its own sidecar digest
   // (`gate-spec-sealed`), its `relate` vectors must reduce to what the `comparison` vectors say
   // (`gate-relate-consistent`), and its `openRPC` document must validate and stay tied to the rules and
-  // vectors it names (`gate-openrpc-valid`) — Plan-007. Each is a plain `.mjs` gate under `.vibe-ops/`,
-  // holding the logic `scripts/check-relate.mjs` and `scripts/check-openrpc.mjs` used to hold, so the
+  // vectors it names (`gate-openrpc-valid`) — Plan-007. Each is a plain `.mjs` gate under `.vibe-ops/`, so the
   // commit gate refuses a broken specification at the moment it is made rather than on the pull request.
   //
   // The specification is also embedded three times: the root copy under `spec/`, the Swift resource,

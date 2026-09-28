@@ -521,9 +521,9 @@ A result reduces to `equal` when every relation in it is `equal`, to `covers` wh
 `covers`, to `coveredBy` for the mirror, and to `differ` otherwise. `covers(a, b)` is a reduction to
 `equal` or `covers` with the type and version equal; `samePackage(a, b)` is every dimension `equal` apart
 from the locator version, applying `samePackage` to each `nested` result. The `relate` vector group states
-full results and the three booleans for each pair; `npm run test:relate` checks, from the specification
-alone, that those booleans follow from the results and agree with the `comparison` group wherever the
-two groups hold the same pair.
+full results and the three booleans for each pair; the `relate-consistent` commit gate
+(`.vibe-ops/gate-relate-consistent/`) checks, from the specification alone, that those booleans follow
+from the results and agree with the `comparison` group wherever the two groups hold the same pair.
 
 **`verdict` reads `relate` and says what a difference means.** It returns an identity axis — `same`,
 `covers`, `coveredBy`, `distinct` or `undetermined` — a content axis — `same`, `different` or
@@ -730,9 +730,10 @@ document any OpenRPC tool reads. Four extensions tie it to the rest of the file:
 | `x-extensions` | what a language exposes beyond the shared surface, such as the browser build's `SPEC_DIGEST` |
 
 A `$ref` resolves against the OpenRPC document; an `x-rule` against the whole specification.
-`npm run test:openrpc` validates the value against the OpenRPC meta-schema, resolves both kinds of pointer,
-and requires every vector group to be claimed by a method. Each implementation's own suite compares its
-public surface, read from its compiler, with the methods.
+The `openrpc-valid` commit gate (`.vibe-ops/gate-openrpc-valid/`) validates the value against the
+OpenRPC meta-schema, resolves both kinds of pointer, and requires every vector group to be claimed by a
+method. Each implementation's own suite compares its public surface, read from its compiler, with the
+methods.
 
 ## Conformance vectors
 

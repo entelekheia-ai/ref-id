@@ -2,7 +2,8 @@
 //
 // One assertion per `relate` conformance vector: the result `relate` reports, and the three booleans the
 // same vector also carries (`samePackage`, `covers`, `coversReversed`) — so a disagreement between
-// `relate` and its own stated reductions is caught here rather than only by `scripts/check-relate.mjs`.
+// `relate` and its own stated reductions is caught here rather than only by the
+// `relate-consistent` gate (`.vibe-ops/gate-relate-consistent/`).
 
 use ref_id::{canonicalise, covers, load_spec, relate, same_package};
 
