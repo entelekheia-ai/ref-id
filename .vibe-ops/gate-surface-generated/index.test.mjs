@@ -41,3 +41,9 @@ test("near-miss: a generator the gate names and the tree lacks is a finding, nev
     assert.match(outcome.findings[0].evidence, /absent from the tree/)
     assert.equal(outcome.skipped, undefined)
   }))
+
+test("near-miss: the gate calls each generator in --check mode, never in the mode that writes", () =>
+  withGenerators({ "scripts/writer.mjs": 'if (!process.argv.includes("--check")) { console.error("wrote the surface"); process.exit(1) }\n' }, async (repoRoot) => {
+    const outcome = await gate.run({ repoRoot, files: [], options: { generators: ["scripts/writer.mjs"] } })
+    assert.deepEqual(outcome, { findings: [], examined: 1 })
+  }))

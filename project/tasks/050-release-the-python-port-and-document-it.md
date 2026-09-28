@@ -72,7 +72,7 @@ it and every document that counts or lists the implementations say so. The pendi
   changesets are pending; the release's `npm run version` writes it with the new version and spec
   1.6.0 — cost if wrong: none; `test:readme-refs` holds the block.
 
-## Review of Track 6 — findings to triage (review of e500271, 2026-09-28; not yet reproduced by the caller)
+## Review of Track 6 — findings (review of e500271, 2026-09-28; triaged below)
 
 - BLOCKER: `astral-sh/setup-uv@v10` does not exist (latest `v10.2.0`) — at `release.yml:103` and
   `gates.yml:32,79,108`; the runner resolves every action at "Set up job" regardless of `if:`, so every
@@ -91,6 +91,20 @@ it and every document that counts or lists the implementations say so. The pendi
   of `ref:pkg:npm/acme@1` (Node `pkg:npm/acme/%401`, Rust and Swift malformed); Swift keeps
   `pkg:pypi/Ref_ID@1` where the others normalise to `ref-id`. Belongs with the plan's open question on the
   Package URL canonical spelling.
+
+Triage, each finding reproduced first:
+
+- Ruling: the setup-uv BLOCKER and the relock SHOULD are fixed in `b4f2217`. The release job installs uv
+  before `changesets/action`, and `sync-versions.sh` relocks online and fails loudly. The release gates also
+  run the Python suite, which covers the pytest NOTE — cost if wrong: a network outage during `npm run version`
+  now fails the release, where it used to ship a stale lock.
+- Ruling: the edge table is measured on the line protocol and written in `AGENTS.md`, `scripts/differential.mjs`
+  and the `attack` skill. `packageurl-python` reads `pkg:npm/acme/@1` as `pkg:npm/acme@1`, and the Swift
+  grammar accepts a version ending in `/`: both earlier copies said otherwise — cost if wrong: none.
+- Ruling: the stale counts at `gates.yml:97` and `canonical.ts:67` now say four — cost if wrong: none.
+- Deferred minor: the `spec-bytes` message for the `LICENSE` pair tells the fixer to copy the specification.
+- Observation: the identity NOTE on `ref:pkg:npm/acme/@1` and `pkg:pypi/Ref_ID@1` is already part of the
+  plan's open question on the Package URL canonical spelling.
 
 ## Closure
 

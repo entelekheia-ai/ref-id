@@ -64,7 +64,7 @@ export const canonical = canonicalIdentifier
  * An identifier with no decomposition — malformed, or at a scheme version this package does not
  * implement — names nothing, so it is the same identifier as nothing, itself included: the answer is
  * `false`, never a thrown refusal. That is what `identifierEquivalence.comparison` states and what the
- * `sameIdentifier` expectation of every comparison vector binds, in all three implementations.
+ * `sameIdentifier` expectation of every comparison vector binds, in all four implementations.
  */
 export function sameIdentifier(a: string | ParseResult, b: string | ParseResult): boolean {
   const spec = loadSpec()

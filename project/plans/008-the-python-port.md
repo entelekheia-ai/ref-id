@@ -32,7 +32,7 @@ For anyone resuming this plan mid-run, in this order:
    rounds of specification changes (the dialect `anchor`; spec 1.6.0's integers, maximum version and
    Unicode digest members; the security review's refinement bound, scalar matching and declared errors).
    The tracks below are the original scope; the Decision Log is what the work became.
-2. **Open questions** — two Package URL questions still with the maintainer, and one upstream report.
+2. **Open questions** — three Package URL questions still with the maintainer, and one upstream report.
 3. The task dossiers `project/tasks/044` to `050`, one per track, each ending in the rulings and deferred
    minors that track produced; `048` covers Track 7 and both security rounds.
 4. `.agents/skills/attack/SKILL.md` — the security review this plan produced as a reusable procedure.
@@ -401,7 +401,10 @@ when the release runs.
   differently.** One identifier, `ref:pkg:npm/@AcMe/X@2.0.0`, gets three canonical forms: TypeScript
   lowercases namespace and name (`%40acme/x`), Rust and Python the name only (`%40AcMe/x`), Swift neither;
   and in a version the three libraries disagree on `/` (TypeScript `%2F`, Rust and Python literal), `&`
-  (Rust literal) and `+` (Rust and Python `%2B`), where Swift now follows TypeScript.
+  (Rust literal) and `+` (Rust and Python `%2B`), where Swift now follows TypeScript. The spelling reaches
+  identity once: Python canonicalises `ref:pkg:npm/acme/@1` to `pkg:npm/acme@1`, the form of
+  `ref:pkg:npm/acme@1`, where TypeScript writes `pkg:npm/acme/%401` and Rust and Swift answer `malformed`;
+  and Swift keeps `pkg:pypi/Ref_ID@1` where the others normalise the name to `ref-id`.
   The field is informational — a `ref:` identifier's identity is its `canonical_identifier`, which never
   passes through it — but the differential compares it, and a consumer may store it. Options: (a)
   **recommended** — the specification declares, per Package URL type it dispatches, the normalisation its
@@ -414,6 +417,14 @@ when the release runs.
   the trailing `/` already are; (b) the specification refuses an encoded `#` in a Package URL namespace
   itself, with a vector.
 
+- **No track — an undecodable percent-escape in a Package URL is `malformed` in TypeScript alone.** `%zz`
+  in the namespace, name, qualifier value or version is refused by `packageurl-js` and accepted by Rust,
+  Swift and Python, which re-encode it (`@1%zz` becomes `@1%25zz`); a truncated UTF-8 escape (`@1%C3`) is
+  also accepted by Swift and Python. No vector reaches it, so the differential is green over it (dossier 049,
+  triage). Options: (a) **recommended** — the specification refuses an undecodable escape in any Package URL
+  component, bound by parse vectors for each component, and Rust, Swift and Python refuse it before their
+  library; (b) record it among the known validity edges.
+
 - Whether `packageurl-python`'s acceptance of a version ending in `/` should be reported upstream, as the
-  Rust and Swift validators refuse it; it does not block this plan, which reports whatever the validator
-  says.
+  Rust crate refuses it (Swift accepts it too); it does not block this plan, which reports whatever the
+  validator says.

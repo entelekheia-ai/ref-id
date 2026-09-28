@@ -9,7 +9,10 @@
 //   verdict: package-url-edge-only <n>          the only differences sit on a Package URL locator and in
 //                                               its status, part, serialised or canonical — the four
 //                                               Package URL validators are different software and part
-//                                               there; listed, and weighed against the known edges
+//                                               there; listed, and weighed against the known edges. A
+//                                               serialised difference under the same status and part
+//                                               is a disagreement: both accepted it and wrote it back
+//                                               differently
 //   verdict: disagree <n>                       anything else — each group is a candidate finding
 // A `threw` row, a missing row or a non-zero exit is always reported, whatever else agrees. In `--pairs`
 // mode a pair counts as a Package URL edge when either member already parts that way on its own parse,
@@ -48,7 +51,7 @@ if (pairs) {
   }
   unique.forEach((line, i) => {
     const ref = parsed.typescript[i]
-    if (line.includes("pkg:") && Object.keys(parsed).some((n) => parsed[n][i]?.status !== ref?.status || parsed[n][i]?.part !== ref?.part)) edgeInputs.add(line)
+    if (parsed.typescript[i]?.type === "pkg" && Object.keys(parsed).some((n) => parsed[n][i]?.status !== ref?.status || parsed[n][i]?.part !== ref?.part)) edgeInputs.add(line)
   })
 }
 
@@ -63,7 +66,8 @@ const EDGE = new Set(["status", "part", "serialised", "canonical"])
 for (let i = 0; i < rows; i++) {
   const reference = results.typescript[i]
   const row = pairs ? [lines[2 * i], lines[2 * i + 1]] : lines[i]
-  const isPkg = JSON.stringify(row).includes("pkg:")
+  // A Package URL row is one whose own type is `pkg` — a `pkg:` inside a qualifier value is not one.
+  const isPkg = pairs ? row.some((member) => edgeInputs.has(member)) : reference?.type === "pkg"
   for (const name of Object.keys(results).filter((n) => n !== "typescript")) {
     const other = results[name][i]
     const a = flat(reference ?? { missing: true })
@@ -74,7 +78,10 @@ for (let i = 0; i < rows; i++) {
     if (fields.length === 0) continue
     const threw = "threw" in b || "missing" in b || "threw" in a
     const key = `${name} ${isPkg ? "pkg" : "non-pkg"} ${fields.map((f) => f.replace(/\.\d+/g, "")).sort().join(",")}`
-    const edge = pairs ? row.some((member) => edgeInputs.has(member)) : isPkg && fields.every((f) => EDGE.has(f))
+    // A different `serialised` under the same status and part is a real disagreement: both accepted the
+    // identifier and wrote it back differently, which no validator difference explains.
+    const rewrote = fields.includes("serialised") && !fields.includes("status") && !fields.includes("part")
+    const edge = pairs ? isPkg : isPkg && !rewrote && fields.every((f) => EDGE.has(f))
     const target = !threw && edge ? edges : groups
     if (!target.has(key)) target.set(key, { count: 0, example: row, reference: fields.map((f) => `${f}=${a[f]}`).join(" "), theirs: fields.map((f) => `${f}=${b[f]}`).join(" ") })
     target.get(key).count++

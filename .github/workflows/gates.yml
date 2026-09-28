@@ -94,7 +94,7 @@ jobs:
 
   # The only job where every implementation can run, because Swift needs macOS and the differential
   # needs them all on one machine. Each suite above proves its own implementation agrees with the
-  # specification; none of them proves the three agree with *each other*, and a field no vector
+  # specification; none of them proves the four agree with *each other*, and a field no vector
   # constrains can be decided three ways with every suite green — which is what happened to Package URL
   # canonicalisation for as long as the line protocol dropped that field.
   differential:

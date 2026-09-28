@@ -9,7 +9,10 @@
 // echoes the input in several fields, so its own length measures nothing) — then two verdict lines per generator:
 //   verdict <generator>: linear | super-linear <implementation> ×<growth> for ×<size growth>
 //   amplification <generator>: none | <implementation> out×<ratio>   (flagged above ×3)
-// Growth is judged between the two largest sizes that finished; a timeout counts as super-linear.
+// Growth is judged between the two largest sizes, on each run's time minus that implementation's start-up
+// (a one-line run timed first), so a process that starts slowly cannot hide a quadratic; a timeout counts
+// as super-linear. An implementation that exits non-zero or prints no row is a third verdict line:
+//   crashed <generator>: none | <implementation> n=<size> <status>
 // TIMEOUT (seconds, default 60) bounds each run.
 
 import { spawnSync } from "node:child_process"
@@ -45,11 +48,22 @@ if (!names.every((n) => generators[n])) {
   process.exit(2)
 }
 const timeout = Number(process.env.TIMEOUT ?? 60) * 1000
+const startup = {}
+for (const [impl, command, args] of ports("parse")) {
+  const start = process.hrtime.bigint()
+  spawnSync(command, args, { cwd: ROOT, input: "ref:folder:a\n", encoding: "utf8", timeout })
+  startup[impl] = Number(process.hrtime.bigint() - start) / 1e9
+}
+// The longest string anywhere in a row: `relate` and `nested` carry strings below the top level.
+const longestString = (value) =>
+  typeof value === "string" ? value.length : value && typeof value === "object" ? Math.max(0, ...Object.values(value).map(longestString)) : 0
 let slow = 0
+let crashed = 0
 let amplified = 0
 for (const name of names) {
   const seconds = {}
   const ratios = {}
+  const crashes = []
   for (const n of sizes) {
     const input = escape(generators[name](n)) + "\n"
     const cells = []
@@ -58,12 +72,11 @@ for (const name of names) {
       const run = spawnSync(command, args, { cwd: ROOT, input, encoding: "utf8", timeout, maxBuffer: 1 << 30 })
       const s = Number(process.hrtime.bigint() - start) / 1e9
       const status = run.error?.code === "ETIMEDOUT" ? "TIMEOUT" : (run.stdout.match(/"status":"([a-z]+)"|"threw":"([^"]{0,40})/) ?? [])[1] ?? `exit ${run.status}`
-      ;(seconds[impl] ??= []).push(status === "TIMEOUT" ? Infinity : s)
+      ;(seconds[impl] ??= []).push(status === "TIMEOUT" ? Infinity : Math.max(s - startup[impl], 0))
+      if (status !== "TIMEOUT" && (run.status !== 0 || !run.stdout.trim())) crashes.push(`${impl} n=${n} ${status}`)
       let longest = 0
       try {
-        for (const value of Object.values(JSON.parse(run.stdout.split("\n")[0] || "{}"))) {
-          if (typeof value === "string") longest = Math.max(longest, value.length)
-        }
+        longest = longestString(JSON.parse(run.stdout.split("\n")[0] || "{}"))
       } catch {
         longest = 0 // an unparsable row is reported by its status, not measured
       }
@@ -82,7 +95,9 @@ for (const name of names) {
   if (verdicts.length) slow++
   const big = Object.entries(ratios).filter(([, r]) => r > 3)
   if (big.length) amplified++
+  if (crashes.length) crashed++
+  console.log(`crashed ${name}: ${crashes.length ? crashes.join(", ") : "none"}`)
   console.log(`amplification ${name}: ${big.length ? big.map(([i, r]) => `${i} out×${r.toFixed(1)}`).join(", ") : "none"}`)
   console.log(`verdict ${name}: ${verdicts.length ? "super-linear " + verdicts.map(([i, g]) => `${i} ×${g === Infinity ? "timeout" : g.toFixed(0)}`).join(", ") + ` for ×${sizes[b] / sizes[a]}` : "linear"}`)
 }
-process.exitCode = slow || amplified ? 1 : 0
+process.exitCode = slow || amplified || crashed ? 1 : 0

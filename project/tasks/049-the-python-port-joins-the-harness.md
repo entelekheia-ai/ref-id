@@ -97,7 +97,7 @@ the one implementation fix it exposed went to `ref-id-port-implementer`.
   set, which `packageurl-js` keeps unencoded, and its qualifier values are reordered rather than
   re-encoded — no vector and no corpus input reaches either.
 
-## Review of Track 5 — findings to triage (review of cefa3d2..b79ff28, 2026-09-28; not yet reproduced by the caller)
+## Review of Track 5 — findings (review of cefa3d2..b79ff28, 2026-09-28; triaged below)
 
 - BLOCKER: `astral-sh/setup-uv@v10` does not resolve — no `v10` tag exists, only `v10.2.0` and older full
   tags; used at `.github/workflows/gates.yml` (three jobs) **and in `release.yml` (Track 6)**. Pin `v10.2.0`.
@@ -120,6 +120,36 @@ the one implementation fix it exposed went to `ref-id-port-implementer`.
 - NOTE: the Python protocol exits 1 on invalid UTF-8 on stdin where TypeScript writes U+FFFD
   (`errors="replace"`); `ports.mjs` ignores `CARGO_TARGET_DIR`; the changeset does not name Swift's
   canonical change; four protocol differences in Rust/Swift predate this track.
+
+Triage, each finding reproduced first:
+
+- Ruling: both BLOCKERs fixed in `b4f2217` — `gh api repos/astral-sh/setup-uv/git/ref/tags/v10` answered 404
+  and `v10.2.0` resolves; `ruff check` reported one `BLE001`, now a `noqa` naming the protocol's contract —
+  cost if wrong: none; the blind catch is what the protocol promises.
+- Ruling: the corpus adds every `parse`/`roundtrip`/`canonical` input whatever its prefix — 305 inputs and
+  93,025 pairs × 5 implementations, 0 disagreements — cost if wrong: none.
+- Observation: the `%zz` finding is wider than reported. An undecodable percent-escape in a Package URL
+  namespace, name, qualifier or version is `malformed` in TypeScript and `ok` in Rust, Swift and Python;
+  `%C3` (a truncated UTF-8 sequence) is also `ok` in Swift and Python. No vector reaches it, so the
+  differential stays green. Parked in the plan's Open questions, since the fix adds vectors to the
+  specification and touches three implementations.
+  Evidence: the parse line protocol of each implementation over `ref:pkg:npm/%zz/a@1`, `ref:pkg:npm/a%zz@1`,
+  `ref:pkg:npm/a@1?x=%zz`, `ref:pkg:npm/a@1%zz` and `ref:pkg:npm/a@1%C3`.
+- Ruling: `compare.mjs` takes a row as Package URL by the reference row's `type`, and a `serialised`
+  difference under an equal status and part is a disagreement — cost if wrong: an edge reported as a
+  disagreement, which a reader then dismisses by hand.
+- Ruling: `timing.mjs` subtracts each implementation's start-up time, reads nested strings for the
+  amplification, and reports a non-zero exit or an empty row as `crashed` — cost if wrong: a slow start-up
+  measured once, on a noisy machine, can make a linear growth look super-linear.
+- Ruling: the `surface-generated` test adds a generator that fails unless called with `--check`; removing
+  `--check` from the gate turns that test red — cost if wrong: none.
+- Deferred minor: `python-conformance` passes an exit-0 run with no report (`examined: 0`), its fixture fires
+  through the non-zero-exit fallback rather than the JUnit reading, and no test covers `<error>`.
+- Deferred minor: the Python line protocol exits 1 on invalid UTF-8 on stdin where TypeScript writes U+FFFD;
+  `ports.mjs` ignores `CARGO_TARGET_DIR`; the changeset does not name Swift's canonical change; four protocol
+  differences in Rust and Swift predate this track.
+- Deferred minor: the `crashed` line of `timing.mjs` was never seen firing — no generator crashes any
+  implementation today.
 
 ## Closure
 
