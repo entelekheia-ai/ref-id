@@ -1,9 +1,9 @@
 ---
-name: attack
-description: 'Attack every ref: implementation with hostile input and report what an attacker can make each one do — crash, hang, cost super-linear time, confuse two identities, trip on corrupted bytes, admit a forged envelope, trust a hostile specification file. Use before merging or releasing a change to how any implementation reads bytes, numbers, Unicode, Package URLs or the specification file; when asked for a security review of ref-id; or after an implementation is added.'
+name: verify-hostile-input
+description: 'Verify that every ref: implementation holds against hostile input — that no identifier, envelope, value or specification file someone else wrote can make one crash, hang, cost super-linear time, confuse two identities, trip on corrupted bytes, admit a forged envelope or trust a hostile specification file. Use before merging or releasing a change to how any implementation reads bytes, numbers, Unicode, Package URLs or the specification file; when a security review of ref-id is asked for; or after an implementation is added.'
 ---
 
-# Attack the implementations with hostile input
+# Verify the implementations against hostile input
 
 Fires before a change that touches how the TypeScript, Rust, Swift or Python implementation reads its
 input merges or ships, and whenever someone asks what hostile input can do to them. At the end there is a
@@ -28,7 +28,7 @@ stack is shared with every worktree and every agent working beside you.
 ## Step 1 — Every implementation is built once
 
 ```sh
-sh .agents/skills/attack/scripts/build.sh
+sh .agents/skills/verify-hostile-input/scripts/build.sh
 ```
 
 It prints `<implementation>: built` once for each of the four. A
@@ -40,7 +40,7 @@ Build four corpora and run each through every implementation's line protocol:
 
 ```sh
 S=$(mktemp -d)
-A=.agents/skills/attack/scripts
+A=.agents/skills/verify-hostile-input/scripts
 node $A/corpus.mjs vectors            > $S/vectors.txt
 node $A/corpus.mjs marks              > $S/marks.txt
 node $A/corpus.mjs fuzz 20000 7       > $S/fuzz.txt
@@ -157,7 +157,7 @@ meets:
 For each finding, say whether the change under review introduced it or it predates it, and propose the
 fix. The baseline is the base of the branch under review — `git merge-base HEAD origin/main`. Run the same
 probe there, in a detached worktree (`git worktree add --detach <dir> <base>`, then `sh
-.agents/skills/attack/scripts/build.sh` inside it), and remove it afterwards with `git worktree remove
+.agents/skills/verify-hostile-input/scripts/build.sh` inside it), and remove it afterwards with `git worktree remove
 <dir>`, or `git worktree prune` when the directory was deleted by hand. An implementation absent at the
 base means the finding was introduced with it. With no branch under review — a periodic run on `main` —
 write "present at <commit>" instead. A fix that changes what an identifier

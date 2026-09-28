@@ -3,7 +3,7 @@
 so the `python-re` adaptation is applied exactly as the port applies it. Same pumps and verdict as
 `backtrack.mjs`.
 
-    uv run --directory python python ../.agents/skills/attack/scripts/backtrack.py
+    uv run --directory python python ../.agents/skills/verify-hostile-input/scripts/backtrack.py
 """
 
 from __future__ import annotations

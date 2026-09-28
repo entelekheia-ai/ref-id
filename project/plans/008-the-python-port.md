@@ -36,7 +36,7 @@ For anyone resuming this plan mid-run, in this order:
    implementations, the one copy of that table.
 3. The task dossiers `project/tasks/044` to `050`, one per track, each ending in the rulings and deferred
    minors that track produced; `048` covers Track 7 and both security rounds.
-4. `.agents/skills/attack/SKILL.md` — the security review this plan produced as a reusable procedure.
+4. `.agents/skills/verify-hostile-input/SKILL.md` (first named `attack`) — the security review this plan produced as a reusable procedure.
 
 ## Summary
 
@@ -410,7 +410,7 @@ closes with `/vibe-ops:close-plan` after the pull request merges and the first r
 What exists that did not: a complete Python implementation (`python/`, 711 tests on 3.11 and 3.14,
 `mypy --strict`), a differential of five implementations over every identifier the vectors carry
 (304 inputs, 92,416 pairs, 0 disagreements), two local gates (`python-conformance`,
-`surface-generated`), PyPI publishing through trusted publishing, and the `attack` skill.
+`surface-generated`), PyPI publishing through trusted publishing, and the `verify-hostile-input` skill.
 
 What the port changed beyond itself: writing a fourth implementation and reviewing it adversarially
 found defects the three existing ones shared or split on — a dialect adaptation that broke a pattern,

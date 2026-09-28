@@ -99,7 +99,7 @@ Triage, each finding reproduced first:
   run the Python suite, which covers the pytest NOTE — cost if wrong: a network outage during `npm run version`
   now fails the release, where it used to ship a stale lock.
 - Ruling: the edge table is measured on the line protocol and written in `AGENTS.md`, `scripts/differential.mjs`
-  and the `attack` skill. `packageurl-python` reads `pkg:npm/acme/@1` as `pkg:npm/acme@1`, and the Swift
+  and the `verify-hostile-input` skill. `packageurl-python` reads `pkg:npm/acme/@1` as `pkg:npm/acme@1`, and the Swift
   grammar accepts a version ending in `/`: both earlier copies said otherwise — cost if wrong: none.
 - Ruling: the stale counts at `gates.yml:97` and `canonical.ts:67` now say four — cost if wrong: none.
 - Deferred minor: the `spec-bytes` message for the `LICENSE` pair tells the fixer to copy the specification.
@@ -108,7 +108,7 @@ Triage, each finding reproduced first:
   refuses a lock one version behind `pyproject.toml` — cost if wrong: none.
 - Ruling (maintainer, Decision Log): the measured Package URL edges live in one place,
   `docs/reference/implementation-differences.md`, linked from the four READMEs; `AGENTS.md`,
-  `scripts/differential.mjs` and the `attack` skill point at it. Re-measured for it: the `%23` edge exists
+  `scripts/differential.mjs` and the `verify-hostile-input` skill point at it. Re-measured for it: the `%23` edge exists
   only nested in `by=`, a scoped name with nothing after the scope and whitespace before the type are
   edges too, and `packageurl-python` turns a truncated escape into U+FFFD.
 - Observation: identity is unaffected by any of the edges — `same_identifier` and `same_package` agree in

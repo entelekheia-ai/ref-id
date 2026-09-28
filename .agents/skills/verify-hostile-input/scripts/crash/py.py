@@ -2,7 +2,7 @@
 # Hostile-input battery for the Python port. Each line is OK, decl (RefIdError, or TypeError from a
 # statically ill-typed call), typed (any error from a call labelled ill-typed) or ESCAPE (any other
 # exception) — an ESCAPE is a finding.
-#   uv run --directory python python ../.agents/skills/attack/scripts/crash/py.py
+#   uv run --directory python python ../.agents/skills/verify-hostile-input/scripts/crash/py.py
 import os, sys, json, shutil, tempfile, hashlib
 import ref_id
 from ref_id import RefIdError

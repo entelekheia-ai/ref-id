@@ -123,8 +123,9 @@ right inside the brief and wrong at its edge, a stop before the work was done, o
 the brief. Two further questions decide the next brief: when the brief was wrong, did the agent contest it
 with evidence or build on it; and when work was left undone, did the report say so.
 
-Agent tooling is the `vibe-ops` plugin. This repository owns two skills: [`identify`](.agents/skills/identify/SKILL.md)
-produces an identifier, and [`attack`](.agents/skills/attack/SKILL.md) runs hostile input against every
+Agent tooling is the `vibe-ops` plugin. This repository owns two skills:
+[`identify`](.agents/skills/identify/SKILL.md) produces an identifier, and
+[`verify-hostile-input`](.agents/skills/verify-hostile-input/SKILL.md) runs hostile input against every
 implementation before a change to how they read input merges. Closing a task is `/vibe-ops:close-task`.
 
 ## Keeping this file current
