@@ -2,7 +2,7 @@
 # Grammar-level conformance: the declared expression, adapted for pcre2, must decompose every parse vector as the JSON says.
 #!/usr/bin/env perl
 # Prove ref-id.json's grammar is engine-neutral: replay vectors.parse against
-# Perl's regex engine, using the unadapted expression (pcre2 adaptation is empty).
+# Perl's regex engine, using the expression through the declared pcre2 adaptation (its anchor).
 use strict;
 use warnings;
 use JSON::PP qw(decode_json);

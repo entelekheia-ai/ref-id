@@ -12,6 +12,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from .errors import BuildError
+
 __all__ = [
     "BuildParts",
     "EnvelopeResult",
@@ -97,6 +99,14 @@ class ParseResult:
         return out
 
 
+def _refusal(part: str, why: str) -> BuildError:
+    """A `BuildError` whose part the specification names, through the same path `build()` refuses by."""
+    from .build import _refuse
+    from .spec import load_spec
+
+    return _refuse(load_spec(), part, why)
+
+
 @dataclass(frozen=True, slots=True)
 class BuildParts:
     """What `build()` takes. `location` never reaches the identifier, so it is read by `from_json` and
@@ -110,11 +120,31 @@ class BuildParts:
     @classmethod
     def from_json(cls, obj: Mapping[str, Any], /) -> BuildParts:
         """Reads the vector shape: `qualifiers` a list of `[key, value]` pairs whose value is a string or
-        `{"nested": <identifier>}`; `fragment` a string or `{path, refinements}`."""
+        `{"nested": <identifier>}`; `fragment` a string or `{path, refinements}`. A shape this cannot
+        read raises `BuildError` naming the part, never `IndexError`/`KeyError`/`TypeError` — the same
+        kind `build()` itself raises for a badly typed part (`crates/ref-id/src/build.rs` has no
+        equivalent step; the TypeScript reference takes the JSON shape directly as `BuildParts`, so this
+        naming is this port's own)."""
+        type_ = obj.get("type")
+        if not isinstance(type_, str):
+            raise _refusal("type", "parts must have a string type")
+        locator = obj.get("locator")
+        if not isinstance(locator, str):
+            raise _refusal("locator", "parts must have a string locator")
+
         qualifiers: list[tuple[str, QualifierValue]] = []
         for pair in obj.get("qualifiers", []):
+            if not isinstance(pair, (list, tuple)) or len(pair) != 2 or not isinstance(pair[0], str):
+                raise _refusal("state", "a qualifier is a [key, value] pair with a string key")
             key, raw_value = pair[0], pair[1]
-            value: QualifierValue = raw_value if isinstance(raw_value, str) else NestedValue(raw_value["nested"])
+            value: QualifierValue
+            if isinstance(raw_value, str):
+                value = raw_value
+            elif isinstance(raw_value, Mapping) and "nested" in raw_value:
+                # `build()` raises `BuildError` at this same key if `nested` is not a string.
+                value = NestedValue(raw_value["nested"])
+            else:
+                raise _refusal(key, 'a qualifier value is a string or {"nested": string}')
             qualifiers.append((key, value))
 
         fragment_json = obj.get("fragment")
@@ -123,13 +153,15 @@ class BuildParts:
             fragment = None
         elif isinstance(fragment_json, str):
             fragment = fragment_json
-        else:
+        elif isinstance(fragment_json, Mapping) and isinstance(fragment_json.get("path"), str):
             refinements = tuple((pair[0], pair[1]) for pair in fragment_json.get("refinements", []))
             fragment = Fragment(path=fragment_json["path"], refinements=refinements)
+        else:
+            raise _refusal("fragment", "a fragment is a string or {path, refinements}")
 
         return cls(
-            type=obj["type"],
-            locator=obj["locator"],
+            type=type_,
+            locator=locator,
             qualifiers=tuple(qualifiers),
             fragment=fragment,
         )

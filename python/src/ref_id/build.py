@@ -20,7 +20,7 @@ from .grammar import (
 )
 from .parse import parse
 from .spec import Spec, load_spec
-from .types import BuildParts, NestedValue
+from .types import BuildParts, Fragment, NestedValue
 from .validators import folds_type
 
 __all__ = ["build"]
@@ -75,14 +75,18 @@ def build(parts: BuildParts, /) -> str:
         rendered = []
         for key, value in parts.qualifiers:
             if isinstance(value, NestedValue):
+                if not isinstance(value.nested, str):
+                    raise _refuse(spec, key, "a qualifier value is a string or NestedValue holding a string")
                 form = _nesting_form(spec, key)
                 if form is None:
                     raise _refuse(spec, key, "this qualifier declares no nesting form")
                 encoded = encode(value.nested, table_for(spec, form))
-            else:
+            elif isinstance(value, str):
                 if value.startswith(scheme_prefix(spec)) or contains_any(value, separators):
                     raise _refuse(spec, key, "a nested identifier is passed as Nested, never as a plain string")
                 encoded = value
+            else:
+                raise _refuse(spec, key, "a qualifier value is a string or NestedValue holding a string")
             rendering = f"{key}{PAIR}{encoded}"
             if grammar.state_pair.fullmatch(rendering) is None:
                 raise _refuse(spec, key, "the key does not fit the pair grammar")
@@ -95,9 +99,11 @@ def build(parts: BuildParts, /) -> str:
     if parts.fragment is not None:
         if isinstance(parts.fragment, str):
             path = parts.fragment
-        else:
+        elif isinstance(parts.fragment, Fragment):
             path = parts.fragment.path
             wanted_refinements = parts.fragment.refinements
+        else:
+            raise _refuse(spec, "fragment", "a fragment is a string or Fragment")
         if not path or contains_any(path, fragment_reserved):
             raise _refuse(spec, "fragment", "a declared-name path cannot be empty or carry the refinement separator")
         for key, value in wanted_refinements:

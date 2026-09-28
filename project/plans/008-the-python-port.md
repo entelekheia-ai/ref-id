@@ -207,12 +207,14 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 - [ ] **Track 4 — Relations.** `covers`, `same_package`, `same_identifier`, `relate`, `verdict`, including
       the descent into nested identifiers. Acceptance: every group passes, the group-refusal test lists
       none, and `mypy --strict` passes on the generated surface file.
-- [ ] **Track 7 — Integers in canonicalisation.** Runs after Track 4 and before Track 5. Add the rule to
+- [ ] **Track 7 — The edges the port exposed: integers, oversized versions, lone surrogates.** Runs after
+      Track 4 and before Track 5, carrying the three Decision Log entries of 2026-09-28 that name it. Add the rule to
       `/canonicalisation` and a `canonicalisation` vector group whose inputs are raw JSON text, reseal and
       copy; then each implementation parses the text with its own JSON parser and canonicalises it —
       TypeScript, Rust, Swift and Python, each adding the group to the list its runner executes.
       Acceptance: all four suites run the group; `1.0` and `1e2` canonicalise to `1` and `100`, `1.5` and
-      `9007199254740992` are refused, everywhere.
+      `9007199254740992` are refused, everywhere; an oversized version literal is `unsupported` with
+      `versionText` kept, and a lone-surrogate digest member is refused, in all four, each by a vector.
 - [ ] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
       `scripts/differential.mjs`, the `python` language in `scripts/check-surface.mjs`, the two new gates
       with fixtures and tests, and a `python` job in `.github/workflows/gates.yml` plus Python and `uv` in
@@ -304,6 +306,23 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   becomes, and the implementations disagreed; JavaScript cannot tell `1.0` from `1`, which forces the
   integral-value half, and cannot hold an integer at or above 2^53 exactly, which forces the bound. The
   Swift port already applied this rule. The maintainer chose to resolve it in this plan.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: a version literal an implementation cannot represent makes the identifier `unsupported`, with
+  `versionText` kept, as the TypeScript reference already does; a `parse` vector binds it, and Rust, Swift
+  and Python follow. Carried out in Track 7.
+  Rationale: reading `ref:9223372036854775808:pkg:npm/x@1.0.0` as version 1 canonicalised it to the key of
+  a different identifier, which a store would then file together; the review of Track 3 found Rust and
+  Swift already diverging and Python inheriting it from the crate. The maintainer chose to fix it here.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: `digest` refuses a member that does not encode as UTF-8 — a lone surrogate — with
+  `DigestError` in every implementation; a `digest` vector binds it, and TypeScript stops replacing the
+  surrogate with U+FFFD. Carried out in Track 7, and announced in Track 6's changeset because it changes
+  the published npm package's behaviour.
+  Rationale: TypeScript's lossy encoding made `digest(["…\ud800"])` equal `digest(["…\ufffd"])`, so its
+  `validateEnvelope` admitted members other than the ones a digest was minted over; Python already refused.
+  The maintainer chose to fix it here.
   Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective

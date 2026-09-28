@@ -218,6 +218,34 @@ The gate, from inside `python/`: `uv run pytest --ignore tests/test_surface.py`,
   tests — the vectors bind encoding thinly, though the detection holds.
   Evidence: `encode` returning its input unchanged: `2 failed, 272 passed`.
 
+- Observation (review): the Package URL edges between `packageurl-python` and `packageurl-js` are wider than
+  the two the plan names. Python refuses what TypeScript accepts: `npm/@x@1.0.0`, `npm/@@acme/x`,
+  `npm/@acme-tools` (Rust agrees with Python), a lone surrogate. Python accepts what TypeScript refuses: a
+  bare `%`, `%2` and `%zz` in the locator (Rust agrees on `%zz`), and `npm/x/`. The informational
+  `canonical` also differs: lowercase percent-escapes, `x@1%2F2` decoded to `x@1/2`, `:` left unencoded.
+  Evidence: the reviewer's corpus of 15,302 inputs through both implementations. The differential exempts
+  the verdict and `canonical` of a `pkg` locator per implementation, so Track 5 expects these.
+
+- Deferred minor: an anchor would silently change the meaning of a pattern ending in an escaped `\$`; no
+  pattern does today (all end in an unescaped `$`), so no reader guards it.
+
+- Parked, then decided (Plan-008 Decision Log, 2026-09-28): the oversized version literal — this port's
+  `parse.py` mirrors the crate's `i64` bound and reads it as version 1 — and TypeScript's lossy
+  lone-surrogate digest are fixed across implementations in Track 7.
+
+- Ruling (review follow-up): `build` and `BuildParts.from_json` refuse a badly typed part with `BuildError`
+  at the part TypeScript names (`type`, `locator`, `state`, `fragment`, or the qualifier key), never with
+  `AttributeError`/`TypeError`/`KeyError`/`IndexError`; the refused part goes through `spec.part()`, as the
+  rest of `build.py` does — the caller replaced string literals the follow-up had written — cost if wrong:
+  none observable.
+
+- Ruling (review follow-up): an envelope refused for a `DigestError` reports that error's own message;
+  `EnvelopeResult.reason` wording binds no vector — cost if wrong: a caller matching the old text.
+
+- Observation: the four build and envelope behaviours the review planted faults in were already correct
+  in `cc4d813`; they gained regression tests that fail with each fault planted.
+  Evidence: the follow-up's report, each checked against the TypeScript output for the same input.
+
 ## Closure
 
 - [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually

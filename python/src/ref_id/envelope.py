@@ -56,8 +56,8 @@ def validate_envelope(requested_id: str, envelope: object) -> EnvelopeResult:
             return _refused(f"{sets_field}.{key} is missing or is not an array of strings")
         try:
             recomputed = digest(members)
-        except DigestError:
-            return _refused(f"{sets_field}.{key} carries a member with the join character")
+        except DigestError as error:
+            return _refused(f"{sets_field}.{key} {error.message}")
         if recomputed != value:
             return _refused(f"{sets_field}.{key} does not recompute to the declared digest")
 
