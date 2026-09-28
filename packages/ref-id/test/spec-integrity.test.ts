@@ -61,3 +61,30 @@ test("spec-integrity: specVersion 2.0.0 with a matching sidecar throws SpecVersi
   writeFileSync(join(dir, "ref-id.json.sha256"), digestOf(parsed))
   assert.throws(() => loadSpecFrom(dir), SpecVersionError)
 })
+
+test("spec-integrity: ref-id.json that is not valid JSON throws SpecIntegrityError, not SyntaxError", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ref-id-spec-syntax-"))
+  writeFileSync(join(dir, "ref-id.json"), "{ this is not json")
+  writeFileSync(join(dir, "ref-id.json.sha256"), rawSidecar)
+  assert.throws(() => loadSpecFrom(dir), SpecIntegrityError)
+})
+
+test("spec-integrity: a missing spec directory throws SpecIntegrityError, not a raw file-system error", () => {
+  const dir = join(tmpdir(), "ref-id-spec-missing-does-not-exist")
+  assert.throws(() => loadSpecFrom(dir), SpecIntegrityError)
+})
+
+test("spec-integrity: JSON nested past the parser's own recursion limit throws SpecIntegrityError, not RangeError", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ref-id-spec-deep-"))
+  const depth = 200_000
+  const deep = "[".repeat(depth) + "]".repeat(depth)
+  writeFileSync(join(dir, "ref-id.json"), deep)
+  writeFileSync(join(dir, "ref-id.json.sha256"), rawSidecar)
+  assert.throws(() => loadSpecFrom(dir), SpecIntegrityError)
+})
+
+test("canonicalise: a cyclic object throws SpecIntegrityError, not RangeError", () => {
+  const cyclic: Record<string, unknown> = {}
+  cyclic.self = cyclic
+  assert.throws(() => canonicalise(cyclic), SpecIntegrityError)
+})

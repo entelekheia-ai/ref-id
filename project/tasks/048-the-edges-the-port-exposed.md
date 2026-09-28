@@ -110,6 +110,26 @@ Gate: `uv run pytest`, `uv run --python 3.11 pytest`, `uv run mypy --strict src 
 **For every language:** the maximum is read from `version.maximum`, never written as a literal; the
 bound for canonical numbers is the same value, read from the same key.
 
+## Second round — from the security review (Plan-008 Decision Log, 2026-09-28)
+
+**The specification edit (done by the caller, still spec 1.6.0):** `refinements.lines`, `.item` and
+`.para` declare `"maximum": "/version/maximum"` — a JSON Pointer into the specification; any integer in
+such a refinement's value above it makes the identifier malformed at that refinement
+(`version.maximumNote` says so). Ten `parse` vectors: five on refinement bounds (2^53, 2^63+1, 2^64+1,
+`item`, and the maximum itself admitted), five gluing U+0301 to each separator (fragment, qualifier,
+before a qualifier separator, refinement, scheme). Baseline: `npm test` 352/4; `cargo test` `parse_vectors`
+fails; `swift run ref-id-conformance` 1131/14; `uv run pytest` 703/8; grammar runners 171/171.
+
+| # | Item |
+|---|---|
+| 5 | TypeScript: the refinement bound, read through the `maximum` pointer; `loadSpecFrom` and `canonicalise` wrap `SyntaxError`, `RangeError` and file-system errors as `SpecIntegrityError`, each with a test |
+| 6 | Rust: the refinement bound — its ascending check treats an overflowing `u64` as holding today |
+| 7 | Swift: the refinement bound; the grammar matched and every split and separator search done by Unicode scalar, not grapheme cluster — `Regex` with `.matchingSemantics(.unicodeScalar)`, `components(separatedBy:)` and `containsAny` over `unicodeScalars` — so the five combining-mark vectors pass and `build` stops emitting what the others split differently |
+| 8 | Python: the refinement bound, by digit-string length as the version already is |
+
+For every language the bound is resolved from the pointer the refinement declares, never written as a
+literal, and a refinement declaring no `maximum` keeps today's behaviour.
+
 ## Implementation order
 
 - [x] P0 — caller: the specification edit, resealed and copied to the three ports' copies and the browser
@@ -201,6 +221,20 @@ bound for canonical numbers is the same value, read from the same key.
   with `SpecIntegrityError`, where the process's recursion limit would otherwise decide — cost if wrong: a
   document deeper than 500 levels is refused where another implementation's parser decides its own depth
   (`serde_json` stops at 128, `JSONSerialization` at 512).
+
+- Observation (second round): with the refinement bound, scalar matching in Swift and the TypeScript
+  refusals in, the four implementations agree everywhere.
+  Evidence: the differential 241 inputs and 58,081 pairs × 4, 0 disagreements; `npm test` 360/0;
+  `cargo test --workspace` 19/0; `swift run ref-id-conformance` 1145/0; `uv run pytest` 711/0; the Swift
+  implementer's probe gluing U+0301, U+200D and U+20E3 to every separator of three inputs, 51 inputs, 0
+  mismatches against TypeScript.
+
+- Deferred minor: TypeScript and Rust check every digit run in a bounded refinement's value, Swift and
+  Python split on `boundSeparator` first; the two agree for every refinement the specification declares,
+  and would part only for a pattern embedding digits in a non-numeric token.
+
+- Deferred minor: Swift's `Spec.pointer` resolves plain keys only (no `~0`/`~1`); every pointer the
+  specification writes is `/version/maximum`.
 
 ## Closure
 

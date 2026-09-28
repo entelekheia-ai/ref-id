@@ -10,8 +10,12 @@ enum Encoding {
         return spec.table("encoding", name, "table")
     }
 
+    /// Unicode scalar membership, not grapheme-cluster: a separator followed by a combining mark forms
+    /// one `Character` that no longer equals the bare separator, which would hide it from a
+    /// grapheme-based scan.
     static func containsAny(_ raw: String, _ characters: [Character]) -> Bool {
-        raw.contains { characters.contains($0) }
+        let scalars = Set(characters.flatMap { $0.unicodeScalars })
+        return raw.unicodeScalars.contains { scalars.contains($0) }
     }
 
     /// One left-to-right pass over the source characters; a produced percent-form is never re-scanned.

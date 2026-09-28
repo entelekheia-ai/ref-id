@@ -229,9 +229,30 @@ def validate_locator(spec: Spec, entry: dict[str, Any], delegated: str) -> Valid
     return validator(spec, entry, delegated)
 
 
-def range_holds(refinement: dict[str, Any], value: str) -> bool:
+def _refinement_maximum(spec: Spec, refinement: dict[str, Any]) -> str | None:
+    """`refinement["maximum"]`, a JSON Pointer into the specification (`/version/maximum`), resolved to a
+    digit string — never a literal here, and `None` when the refinement declares no bound, which keeps
+    today's behaviour for one."""
+    pointer = refinement.get("maximum")
+    if not isinstance(pointer, str):
+        return None
+    resolved = spec.pointer(pointer)
+    if not isinstance(resolved, int) or isinstance(resolved, bool):
+        return None
+    return _as_digits(str(resolved))
+
+
+def range_holds(spec: Spec, refinement: dict[str, Any], value: str) -> bool:
+    separator = refinement.get("boundSeparator", "")
     name = refinement.get("range")
     check = _RANGES.get(name) if isinstance(name, str) else None
-    if check is None:
-        return True
-    return check(value, refinement.get("boundSeparator", ""))
+    if check is not None and not check(value, separator):
+        return False
+    maximum = _refinement_maximum(spec, refinement)
+    if maximum is not None:
+        bounds = value.split(separator) if separator else [value]
+        for bound in bounds:
+            digits = _as_digits(bound)
+            if digits is not None and not _magnitude_at_most(digits, maximum):
+                return False
+    return True

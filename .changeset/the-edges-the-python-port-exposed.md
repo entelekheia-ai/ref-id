@@ -14,4 +14,9 @@ Spec 1.6.0: the edges a fourth implementation exposed are now rules, each bound 
   which let two different members digest alike; `validateEnvelope` inherits the refusal.
 - `parse` no longer throws on a qualifier key that names an `Object.prototype` member (`constructor`); every
   lookup keyed by a qualifier, refinement or type is an own-property test.
+- A refinement declaring `maximum` (`lines`, `item`, `para`, each pointing at `/version/maximum`) refuses,
+  as malformed at that refinement, any integer above it — before, a `lines` bound past 2^53 was admitted
+  after losing precision.
+- `loadSpecFrom` and `canonicalise` refuse with `SpecIntegrityError` instead of letting `SyntaxError`,
+  `RangeError` or a file-system error escape.
 - A dialect adaptation declares an `anchor`, replacing only the `$` that ends a pattern.

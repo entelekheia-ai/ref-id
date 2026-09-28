@@ -37,6 +37,12 @@ impl Spec {
         Some(current)
     }
 
+    /// Resolves a JSON Pointer (`/version/maximum`) against the specification document itself — used by
+    /// a refinement's declared `maximum`, which names the bound by pointer rather than restating it.
+    pub(crate) fn pointer(&self, ptr: &str) -> Option<&Value> {
+        self.root.pointer(ptr)
+    }
+
     pub(crate) fn string(&self, path: &[&str]) -> &str {
         self.value(path).and_then(Value::as_str).unwrap_or("")
     }

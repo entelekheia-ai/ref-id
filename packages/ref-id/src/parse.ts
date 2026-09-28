@@ -15,7 +15,7 @@ import { decodeReserved, tableFor } from "./encoding.ts"
 import { fragmentPairGrammar, pattern, schemePrefix, statePairGrammar, topLevelGrammar } from "./grammar.ts"
 import { loadSpec, part, status, type RefIdSpec } from "./spec.ts"
 import type { Fragment, Pair, ParseResult } from "./types.ts"
-import { assertImplemented, delegatedString, rangeHolds, validateLocator } from "./validators.ts"
+import { assertImplemented, delegatedString, rangeHolds, validateLocator, withinMaximum } from "./validators.ts"
 
 /**
  * `keyFromInput` marks a part that is a key the identifier itself carries — a repeated key the spec never
@@ -237,7 +237,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
       if (!declared) {
         continue // spec.unknownRefinement — carried through untouched, asserted in validators.ts
       }
-      if (!pattern(spec, declared.pattern).test(value) || !rangeHolds(declared, value)) {
+      if (!pattern(spec, declared.pattern).test(value) || !rangeHolds(declared, value) || !withinMaximum(spec, key, declared, value)) {
         return malformed(spec, input, key, head)
       }
     }

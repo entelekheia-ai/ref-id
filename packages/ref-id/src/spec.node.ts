@@ -18,12 +18,33 @@ import {
   type RefIdSpec,
 } from "./spec.ts"
 
+// A hostile or damaged spec file must reach the caller as `SpecIntegrityError` — the one error this
+// module's public functions promise — never as the native error the failing step happens to raise:
+// `readFileSync` for a missing file or a denied permission, `JSON.parse` for bytes that are not JSON,
+// and a `RangeError` for JSON nested deep enough to overflow the parser's own recursion (canonicalise
+// wraps the same error for its own recursion, but `JSON.parse` can already overflow before canonicalise
+// ever runs, so this file needs its own guard too).
 function readText(location: URL | string): string {
-  return readFileSync(location, "utf8")
+  try {
+    return readFileSync(location, "utf8")
+  } catch (error) {
+    throw new SpecIntegrityError(`cannot read ${String(location)}: ${(error as Error).message}`)
+  }
+}
+
+function parseJson(rawJson: string): unknown {
+  try {
+    return JSON.parse(rawJson) as unknown
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof RangeError) {
+      throw new SpecIntegrityError(`ref-id.json is not valid JSON: ${error.message}`)
+    }
+    throw error
+  }
 }
 
 function validate(rawJson: string, rawSidecar: string): RefIdSpec {
-  const parsed = JSON.parse(rawJson) as unknown
+  const parsed = parseJson(rawJson)
   // canonicalise's own default reads `loadSpec().version.maximum` — unusable here, this call is what
   // loadSpec() is waiting on. The bound is read straight off the document being verified instead; any
   // tampering with it is still caught, because it changes the very bytes the sidecar digest is over.

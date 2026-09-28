@@ -124,9 +124,30 @@ enum Validators {
         return try validator(spec, entry, delegated)
     }
 
-    static func rangeHolds(_ refinement: [String: Any], value: String) -> Bool {
+    /// True when no digit run in `value` exceeds the digit string named by a refinement's `maximum`
+    /// pointer — compared by digit-string length first, never by parsing into a fixed-width integer,
+    /// so a literal past `Int64` or `UInt64` still refuses rather than silently holding.
+    static func maximumHolds(_ spec: Spec, _ refinement: [String: Any], value: String, boundSeparator: String) -> Bool {
+        guard let pointer = refinement["maximum"] as? String, let maximum = spec.int64(atPointer: pointer) else { return true }
+        let maximumDigits = String(maximum)
+        let parts = boundSeparator.isEmpty ? [value] : value.components(separatedBy: boundSeparator)
+        return !parts.contains { exceedsDigitMaximum($0, maximumDigits: maximumDigits) }
+    }
+
+    /// Compares two non-negative decimal digit strings by magnitude — first by length once leading
+    /// zeros are stripped, then lexicographically, which agrees with numeric order for equal lengths.
+    static func exceedsDigitMaximum(_ digits: String, maximumDigits: String) -> Bool {
+        var stripped = digits
+        while stripped.count > 1 && stripped.hasPrefix("0") { stripped.removeFirst() }
+        if stripped.count != maximumDigits.count { return stripped.count > maximumDigits.count }
+        return stripped > maximumDigits
+    }
+
+    static func rangeHolds(_ spec: Spec, _ refinement: [String: Any], value: String) -> Bool {
+        let boundSeparator = refinement["boundSeparator"] as? String ?? ""
+        if !maximumHolds(spec, refinement, value: value, boundSeparator: boundSeparator) { return false }
         guard let range = refinement["range"] as? String, let check = ranges[range] else { return true }
-        return check(value, refinement["boundSeparator"] as? String ?? "")
+        return check(value, boundSeparator)
     }
 }
 

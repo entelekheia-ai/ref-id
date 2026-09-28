@@ -64,7 +64,7 @@ export interface RefIdSpec {
   roles: Record<string, string[]>
   qualifiers: Record<string, { role: string; forms: string[] }>
   forms: Record<string, { pattern?: string; reference?: string; nested?: boolean; depth?: number; encoding?: string; digest?: boolean }>
-  refinements: Record<string, { pattern: string; range?: string; boundSeparator?: string; reference?: string }>
+  refinements: Record<string, { pattern: string; range?: string; boundSeparator?: string; maximum?: string; reference?: string }>
   unknownRefinement: string
   resolutionStates: string[]
   stateLevels: string[]
@@ -114,9 +114,24 @@ export type Spec = RefIdSpec
  *
  * Every value this package refuses to canonicalise is a `SpecIntegrityError` — `openRPC` declares it
  * as `canonicalise`'s one error (`components.errors.SpecIntegrity`) — rather than a plain `Error`, so
- * that a caller's one `instanceof RefIdError` covers everything this package throws.
+ * that a caller's one `instanceof RefIdError` covers everything this package throws. This includes a
+ * `RangeError` the recursion itself raises — a cyclic object or a structure nested deep enough to
+ * overflow the call stack — caught once here at the entry point rather than on every recursive call, and
+ * rethrown as the same `SpecIntegrityError` a caller already knows to catch instead of an opaque native
+ * error a hostile document should never be able to surface as.
  */
 export function canonicalise(value: unknown, maximum: number = loadSpec().version.maximum): string {
+  try {
+    return canonicaliseValue(value, maximum)
+  } catch (error) {
+    if (error instanceof RangeError) {
+      throw new SpecIntegrityError(`value could not be canonicalised: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+function canonicaliseValue(value: unknown, maximum: number): string {
   if (value === null) {
     return "null"
   }
@@ -133,12 +148,12 @@ export function canonicalise(value: unknown, maximum: number = loadSpec().versio
     return JSON.stringify(value)
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalise(item, maximum)).join(",")}]`
+    return `[${value.map((item) => canonicaliseValue(item, maximum)).join(",")}]`
   }
   if (typeof value === "object") {
     const record = value as Record<string, unknown>
     const keys = Object.keys(record).sort()
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalise(record[key], maximum)}`).join(",")}}`
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicaliseValue(record[key], maximum)}`).join(",")}}`
   }
   throw new SpecIntegrityError(`value of type ${typeof value} has no canonical form`)
 }

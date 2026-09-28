@@ -10,7 +10,7 @@ use crate::encoding::{decode, strictly_encoded, table_for};
 use crate::grammar::{scheme_prefix, Grammar};
 use crate::spec::{load_spec, Spec};
 use crate::types::{Fragment, Pair, ParseResult, RefIdError};
-use crate::validators::{assert_implemented, delegated_string, range_holds, validate_locator};
+use crate::validators::{assert_implemented, delegated_string, range_holds, validate_locator, within_maximum};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -221,7 +221,10 @@ impl<'a> Parser<'a> {
             for pair in &fragment.refinements {
                 let Some(declared) = refinements_table.and_then(|m| m.get(&pair.key)) else { continue }; // unknownRefinement: carry-through
                 let pattern = declared.get("pattern").and_then(Value::as_str).unwrap_or("");
-                if !self.grammar.matches(self.spec, pattern, &pair.value)? || !range_holds(declared, &pair.value) {
+                if !self.grammar.matches(self.spec, pattern, &pair.value)?
+                    || !range_holds(declared, &pair.value)
+                    || !within_maximum(self.spec, &pair.key, declared, &pair.value)?
+                {
                     return self.malformed(input, &pair.key, Some(&head));
                 }
             }

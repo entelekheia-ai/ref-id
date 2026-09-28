@@ -130,17 +130,52 @@ fn delegator(mode: &str) -> Option<Delegator> {
     }
 }
 
+/// True when the decimal digit string `value` is numerically no greater than `bound` — compared by
+/// length then lexicographically after stripping leading zeros, never by parsing into a fixed-width
+/// integer, because a digit run the grammar admits (`^[0-9]+$`) has no declared width and a value that
+/// overflows `u64` must still compare as what it is, not fall back to "holds".
+fn digits_at_most(value: &str, bound: &str) -> bool {
+    let normalise = |s: &str| {
+        let trimmed = s.trim_start_matches('0');
+        if trimmed.is_empty() { "0".to_string() } else { trimmed.to_string() }
+    };
+    let (v, b) = (normalise(value), normalise(bound));
+    (v.len(), v.as_str()) <= (b.len(), b.as_str())
+}
+
 fn range(name: &str) -> Option<fn(&str, &str) -> bool> {
     match name {
         "ascending" => Some(|value, separator| {
             let bounds: Vec<&str> = if separator.is_empty() { vec![value] } else { value.split(separator).collect() };
-            match (bounds.first().and_then(|b| b.parse::<u64>().ok()), bounds.get(1).and_then(|b| b.parse::<u64>().ok())) {
-                (Some(first), Some(second)) => first <= second,
+            match (bounds.first(), bounds.get(1)) {
+                (Some(first), Some(second)) => digits_at_most(first, second),
                 _ => true,
             }
         }),
         _ => None,
     }
+}
+
+/// Resolves a refinement's `maximum` — a JSON Pointer such as `/version/maximum` into the specification
+/// itself — to the bound it names, as a decimal digit string. A pointer that does not resolve to a
+/// number is the specification declaring a bound this crate cannot back, refused loudly (`SpecVersion`)
+/// rather than silently treated as no bound at all.
+fn resolve_maximum(spec: &Spec, pointer: &str, key: &str) -> Result<String, RefIdError> {
+    match spec.pointer(pointer) {
+        Some(v) if v.is_i64() || v.is_u64() => Ok(v.to_string()),
+        _ => Err(RefIdError::SpecVersion(format!("spec.refinements.{key}.maximum points at {pointer:?}, which is not a number"))),
+    }
+}
+
+/// True when every digit run inside `value` is at most the refinement's declared `maximum` (or it
+/// declares none). `refinements.lines`, `.item` and `.para` each point the same key, `/version/maximum`,
+/// but the pointer is read generically rather than assuming that — and the value is compared as a digit
+/// string, never parsed into `u64`, so a digit run many times longer than the bound never overflows into
+/// silently holding.
+pub(crate) fn within_maximum(spec: &Spec, key: &str, refinement: &Value, value: &str) -> Result<bool, RefIdError> {
+    let Some(pointer) = refinement.get("maximum").and_then(Value::as_str) else { return Ok(true) };
+    let bound = resolve_maximum(spec, pointer, key)?;
+    Ok(value.split(|c: char| !c.is_ascii_digit()).filter(|run| !run.is_empty()).all(|run| digits_at_most(run, &bound)))
 }
 
 const UNKNOWN_KEY_POLICY: &str = "carry-through";
@@ -167,6 +202,9 @@ pub(crate) fn assert_implemented(spec: &Spec) -> Result<(), RefIdError> {
                         if range(name).is_none() {
                             return Err(RefIdError::SpecVersion(format!("spec.refinements.{key}.range declares {name:?}, which this crate does not implement")));
                         }
+                    }
+                    if let Some(pointer) = refinement.get("maximum").and_then(Value::as_str) {
+                        resolve_maximum(spec, pointer, key)?;
                     }
                 }
             }

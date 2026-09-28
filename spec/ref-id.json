@@ -56,7 +56,7 @@
    1
   ],
   "maximum": 9007199254740991,
-  "maximumNote": "the largest integer every implementation holds exactly; a version literal above it is unsupported, versionText keeps the literal and version reports this maximum",
+  "maximumNote": "the largest integer every implementation holds exactly; a version literal above it is unsupported, versionText keeps the literal and version reports this maximum; a refinement declaring this maximum refuses, as malformed at that refinement, any integer above it",
   "mints": [
    "normalisation or percent-encoding",
    "separators or shape"
@@ -340,13 +340,16 @@
    "pattern": "^[0-9]+(,[0-9]+)?$",
    "range": "ascending",
    "boundSeparator": ",",
+   "maximum": "/version/maximum",
    "reference": "RFC 5147 placement"
   },
   "item": {
-   "pattern": "^[0-9]+$"
+   "pattern": "^[0-9]+$",
+   "maximum": "/version/maximum"
   },
   "para": {
-   "pattern": "^[0-9]+$"
+   "pattern": "^[0-9]+$",
+   "maximum": "/version/maximum"
   }
  },
  "unknownRefinement": "carry-through",
@@ -1367,6 +1370,107 @@
  },
  "vectors": {
   "parse": [
+   {
+    "name": "a lines bound above the maximum is malformed at the refinement, even ascending",
+    "input": "ref:folder:a#x;lines=9007199254740992,9007199254740993",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound past a 64-bit signed integer is malformed at the refinement",
+    "input": "ref:folder:a#x;lines=1,9223372036854775809",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound past a 64-bit unsigned integer is malformed at the refinement",
+    "input": "ref:folder:a#x;lines=1,18446744073709551617",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound at the maximum is admitted",
+    "input": "ref:folder:a#x;lines=9007199254740991,9007199254740991",
+    "expect": {
+     "status": "ok",
+     "fragment": {
+      "path": "x",
+      "refinements": [
+       [
+        "lines",
+        "9007199254740991,9007199254740991"
+       ]
+      ]
+     }
+    }
+   },
+   {
+    "name": "an item above the maximum is malformed at the refinement",
+    "input": "ref:folder:a#x;item=9007199254740992",
+    "expect": {
+     "status": "malformed",
+     "part": "item"
+    }
+   },
+   {
+    "name": "a combining mark after the fragment separator does not hide it",
+    "input": "ref:pkg:npm/a@1#́/x",
+    "expect": {
+     "status": "ok",
+     "type": "pkg",
+     "locator": "npm/a@1",
+     "fragment": {
+      "path": "́/x",
+      "refinements": []
+     }
+    }
+   },
+   {
+    "name": "a combining mark after a qualifier separator does not hide it",
+    "input": "ref:folder:a;x=1;́y=2",
+    "expect": {
+     "status": "malformed",
+     "part": "state",
+     "type": "folder",
+     "locator": "a"
+    }
+   },
+   {
+    "name": "a combining mark before a qualifier separator stays in the locator",
+    "input": "ref:folder:á;x=1",
+    "expect": {
+     "status": "malformed",
+     "part": "locator",
+     "type": "folder",
+     "locator": "á"
+    }
+   },
+   {
+    "name": "a combining mark after a refinement separator does not hide it",
+    "input": "ref:foo:x#p;́a=1",
+    "expect": {
+     "status": "malformed",
+     "part": "fragment",
+     "type": "foo",
+     "locator": "x"
+    }
+   },
+   {
+    "name": "a combining mark after the scheme separator does not join the type",
+    "input": "ref:́foo:x",
+    "expect": {
+     "status": "malformed",
+     "part": "grammar",
+     "type": "",
+     "locator": ""
+    }
+   },
    {
     "name": "a version literal above the maximum is unsupported, keeping its text and reporting the maximum",
     "input": "ref:9223372036854775808:pkg:npm/x@1.0.0",

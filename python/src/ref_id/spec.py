@@ -64,6 +64,17 @@ class Spec:
             return []
         return [item for item in value if isinstance(item, int) and not isinstance(item, bool)]
 
+    def pointer(self, pointer: str, /) -> Any | None:
+        """Resolves a JSON Pointer (RFC 6901) against the raw document — `refinements.lines.maximum`
+        declares `"/version/maximum"` rather than a literal, so a refinement's bound is read from wherever
+        it points instead of being assumed to be one fixed key."""
+        if pointer == "":
+            return self._root
+        if not pointer.startswith("/"):
+            return None
+        segments = [segment.replace("~1", "/").replace("~0", "~") for segment in pointer[1:].split("/")]
+        return self.value(*segments)
+
     def get_table(self, *path: str) -> list[tuple[str, str]]:
         obj = self.get_object(*path)
         if obj is None:

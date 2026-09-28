@@ -72,7 +72,10 @@ final class Grammar {
             adapted = String(adapted.dropLast()) + anchor
         }
         do {
-            return try Regex(adapted)
+            // Unicode scalar semantics, not the default extended grapheme clusters: a combining mark
+            // glued right after a structural literal (`#`, `;`, a scheme colon) must not join it into
+            // one grapheme that no longer equals the literal and so hides it from the match.
+            return try Regex(adapted).matchingSemantics(.unicodeScalar)
         } catch {
             throw RefIdError.specVersion("pattern \(pattern) does not compile in \(dialect): \(error)")
         }

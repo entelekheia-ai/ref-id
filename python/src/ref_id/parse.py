@@ -211,7 +211,7 @@ class _Parser:
                 if not isinstance(declared, dict):
                     continue  # unknownRefinement: carry-through
                 pattern = declared.get("pattern", "")
-                if not self.grammar.matches(self.spec, pattern, value) or not range_holds(declared, value):
+                if not self.grammar.matches(self.spec, pattern, value) or not range_holds(self.spec, declared, value):
                     return self._malformed(input_, key, head)
 
         dispatch = self.spec.get_object("dispatch") or {}

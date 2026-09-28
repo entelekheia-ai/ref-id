@@ -54,12 +54,20 @@ private struct Parser {
         return .ok(out)
     }
 
+    /// Splits on the separator's Unicode scalar, not the default grapheme-cluster `components(separatedBy:)`
+    /// — a combining mark glued right after the separator forms one `Character` with it that no longer
+    /// equals the plain separator, which would hide the split from a grapheme-based scan.
+    func splitOnSeparator(_ raw: String, _ separator: String) -> [String] {
+        guard let scalar = separator.unicodeScalars.first else { return [raw] }
+        return raw.split(byScalar: scalar, omittingEmpty: false)
+    }
+
     func state(_ raw: String) -> Decomposed<[Pair]> {
-        pairs(grammar.statePair, raw.components(separatedBy: spec.string("grammar", "state", "separator")), "state")
+        pairs(grammar.statePair, splitOnSeparator(raw, spec.string("grammar", "state", "separator")), "state")
     }
 
     func fragment(_ raw: String) -> Decomposed<Fragment> {
-        let segments = raw.components(separatedBy: spec.string("grammar", "fragment", "separator"))
+        let segments = splitOnSeparator(raw, spec.string("grammar", "fragment", "separator"))
         let path = segments.first ?? ""
         if path.isEmpty { return .failed(part: "fragment") }
         switch pairs(grammar.fragmentPair, Array(segments.dropFirst()), "fragment") {
@@ -166,7 +174,7 @@ private struct Parser {
             for pair in fragment.refinements {
                 guard let declared = refinementsTable[pair.key] as? [String: Any] else { continue } // unknownRefinement: carry-through
                 let pattern = declared["pattern"] as? String ?? ""
-                if try !grammar.pattern(pattern).matches(pair.value) || !Validators.rangeHolds(declared, value: pair.value) {
+                if try !grammar.pattern(pattern).matches(pair.value) || !Validators.rangeHolds(spec, declared, value: pair.value) {
                     return try malformed(input, pair.key, head)
                 }
             }

@@ -43,6 +43,18 @@ public final class Spec: @unchecked Sendable {
     func array(_ path: String...) -> [Any] { value(path) as? [Any] ?? [] }
     func table(_ path: String...) -> [String: String] { value(path) as? [String: String] ?? [:] }
 
+    /// Resolves a JSON Pointer (RFC 6901) written as a spec field's value — e.g. a refinement's
+    /// `maximum` naming `/version/maximum` — against this document itself. Only the unescaped case is
+    /// needed: every pointer this spec writes names plain object keys, never one containing `~` or `/`.
+    func pointer(_ ptr: String) -> Any? {
+        guard ptr.hasPrefix("/") else { return nil }
+        return value(ptr.dropFirst().split(separator: "/").map(String.init))
+    }
+
+    /// An integer read through a JSON Pointer into this document, as `Int64` for a magnitude an `Int`
+    /// might not hold.
+    func int64(atPointer ptr: String) -> Int64? { (pointer(ptr) as? NSNumber)?.int64Value }
+
     public var specVersion: String { string("specVersion") }
     public var scheme: String { string("scheme") }
     var statuses: [String] { strings("statuses") }
