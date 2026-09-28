@@ -166,10 +166,9 @@ implementation follows it; a fix inside one implementation's code is that implem
 
 **Known edges — read, never re-reported as new:**
 
-- The Package URL validity verdict differs per implementation: `packageurl-js` accepts an empty name after a
-  namespace (`pkg:npm/acme/@1`), which the Rust crate and the Swift grammar refuse and `packageurl-python`
-  reads as `pkg:npm/acme@1` by dropping the `/`; a version ending in `/` is refused by the crate alone; the
-  libraries also differ on scoped names (`npm/@x@1.0.0`), stray `%` sequences and whitespace in the type.
+- The Package URL validity verdict and canonical spelling differ per implementation, in the ways
+  `docs/reference/implementation-differences.md` measures; read its two tables before calling a `pkg`
+  difference new, and add a row there when one is.
 - `serialise` and `canonical_identifier` of a result malformed at an undeclared qualifier key raise
   `SpecVersionError` rather than `SerialiseError`, in every implementation alike.
 - A lone surrogate has no vector: a JSON string holding one stops the Rust crate from loading the

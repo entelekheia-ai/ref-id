@@ -36,7 +36,7 @@ jobs:
           npm run test:grammar
           npm run test:readme-refs
           cargo test --quiet
-          uv run --directory python pytest -q
+          uv run --locked --directory python pytest -q
       - uses: changesets/action@v1
         id: changesets
         with:

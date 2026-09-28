@@ -41,6 +41,10 @@ and `canonicalise` produce canonical forms. `load_spec()` exposes the embedded s
 The scheme itself — the grammar, the types, the qualifiers `state`, `by`, `over`, `when`, `path`, `origin` and `corpus`, the
 fragment grammars — is documented in the repository's `docs/reference/the-ref-scheme.md`.
 
+The `packageurl` crate decides whether a Package URL locator is valid and how its `canonical` field is spelled,
+and the other implementations use other validators. Where they differ is measured in the repository's
+`docs/reference/implementation-differences.md`.
+
 ## Requirements
 
 Rust 2021 edition, no platform assumptions; the regular

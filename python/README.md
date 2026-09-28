@@ -49,6 +49,10 @@ Every function but `validate_envelope` takes its arguments by position only, as 
 them unlabelled. Results are frozen dataclasses; `to_json()` gives the specification's own field names.
 Errors are `RefIdError` and its five kinds.
 
+`packageurl-python` decides whether a Package URL locator is valid and how its `canonical` field is spelled,
+and the other implementations use other validators. Where they differ is measured in
+[Known differences between implementations](https://github.com/entelekheia-ai/ref-id/blob/main/docs/reference/implementation-differences.md).
+
 ## License
 
 Apache-2.0. Source, specification and issues: <https://github.com/entelekheia-ai/ref-id>.

@@ -103,6 +103,18 @@ Triage, each finding reproduced first:
   grammar accepts a version ending in `/`: both earlier copies said otherwise — cost if wrong: none.
 - Ruling: the stale counts at `gates.yml:97` and `canonical.ts:67` now say four — cost if wrong: none.
 - Deferred minor: the `spec-bytes` message for the `LICENSE` pair tells the fixer to copy the specification.
+- Ruling (re-review of `b4f2217`): no BLOCKER, no SHOULD; its one NOTE — nothing refused a stale
+  `python/uv.lock` — is met by `uv run --locked` in the gates `python` job and the release gates, which
+  refuses a lock one version behind `pyproject.toml` — cost if wrong: none.
+- Ruling (maintainer, Decision Log): the measured Package URL edges live in one place,
+  `docs/reference/implementation-differences.md`, linked from the four READMEs; `AGENTS.md`,
+  `scripts/differential.mjs` and the `attack` skill point at it. Re-measured for it: the `%23` edge exists
+  only nested in `by=`, a scoped name with nothing after the scope and whitespace before the type are
+  edges too, and `packageurl-python` turns a truncated escape into U+FFFD.
+- Observation: identity is unaffected by any of the edges — `same_identifier` and `same_package` agree in
+  all four implementations on `ref:pkg:npm/acme/@1` against `ref:pkg:npm/acme@1`, and on
+  `ref:pkg:npm/foo@1.0.0/` against `ref:pkg:npm/foo@1.0.0`.
+  Evidence: the pairs line protocol of each implementation over those two pairs.
 - Observation: the identity NOTE on `ref:pkg:npm/acme/@1` and `pkg:pypi/Ref_ID@1` is already part of the
   plan's open question on the Package URL canonical spelling.
 

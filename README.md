@@ -86,7 +86,9 @@ Swift: add `https://github.com/entelekheia-ai/ref-id` as a package dependency an
 ## Usage
 
 See the package README: [`packages/ref-id/`](packages/ref-id/README.md). The specification itself is
-[`spec/ref-id.json`](spec/); the reasoning behind each rule is in [`docs/explanation/`](docs/explanation/).
+[`spec/ref-id.json`](spec/); the reasoning behind each rule is in [`docs/explanation/`](docs/explanation/). The four implementations
+agree on every input the specification names; where their Package URL libraries differ is measured in
+[Known differences between implementations](docs/reference/implementation-differences.md).
 
 ## Requirements
 

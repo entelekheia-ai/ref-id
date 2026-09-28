@@ -61,10 +61,9 @@ is expected and is checked against the same vectors, never against this code.
   core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL core
   grammar (no maintained Swift library). **The purl exemption in the differential is per implementation**: the
   browser build resolves the same `packageurl-js` the Node build does, so a purl disagreement between those
-  two is a defect. The four purl validators differ at the edge, measured: `pkg:npm/acme/@1` passes
-  `packageurl-js`, is refused by the crate and Swift, and `packageurl-python` reads it as `pkg:npm/acme@1`;
-  `pkg:npm/foo@1.0.0/` is refused by the crate alone. A locator's validity is the format's, so the
-  differential compares every field except that verdict.
+  two is a defect. Where the four purl validators differ is measured in
+  `docs/reference/implementation-differences.md` — a new edge goes there. A locator's validity is the
+  format's, so the differential compares every field except that verdict.
 - **Each suite proves its own implementation; only the differential proves they agree with each other.**
   `npm run test:differential` runs **five implementations** — the Node build, the browser build, Rust,
   Swift and Python — over every input the specification names, drawn from the

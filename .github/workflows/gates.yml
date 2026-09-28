@@ -80,7 +80,7 @@ jobs:
       - name: the Python port's suite, types and lint
         working-directory: python
         run: |
-          uv run pytest -q
+          uv run --locked pytest -q
           uv run --python 3.11 pytest -q
           uv run mypy --strict src tests
           uv run ruff check

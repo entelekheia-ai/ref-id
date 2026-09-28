@@ -71,11 +71,9 @@ function port(command, args, inputs) {
  *
  * `delegated` and `nested` are shapes each implementation forms for itself. The **validity verdict of a
  * Package URL** is excluded by policy, not by convenience: a locator's validity belongs to the format,
- * and the four purl validators differ at the edge — an empty name after a namespace passes
- * `packageurl-js`, is refused by the Rust crate and the in-house Swift validator, and `packageurl-python`
- * reads it as a name with the `/` dropped; a version ending in `/` is refused by the crate alone. So a
- * row where the ports disagree only on `status` between `ok` and `malformed`, for a `pkg` locator, is
- * reported as a known edge rather than as a failure. Every other field must match.
+ * and the four purl validators differ at the edge, as `docs/reference/implementation-differences.md`
+ * measures. So a row where the ports disagree only on `status` between `ok` and `malformed`, for a `pkg`
+ * locator, is reported as a known edge rather than as a failure. Every other field must match.
  *
  * THE EXEMPTION IS PER IMPLEMENTATION, NOT BLANKET. It is bought by the four validators being four
  * different pieces of software; the browser build resolves the same `packageurl-js` the Node build

@@ -7,3 +7,5 @@ no opinions. Mirror the code; when they diverge, the code wins.
 - [`the-ref-scheme.md`](the-ref-scheme.md) — the `ref:` identifier scheme and its envelope, rule by rule:
   the expression, the version slot, parse statuses, encodings, qualifiers, comparison and `relate`, the
   digest, and the eight conformance-vector classes. Explains `spec/ref-id.json`, which is the authority.
+- [`implementation-differences.md`](implementation-differences.md) — where the four implementations'
+  Package URL validators differ: which locators each accepts, and how each spells the `canonical` field.

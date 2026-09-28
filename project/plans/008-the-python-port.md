@@ -32,7 +32,8 @@ For anyone resuming this plan mid-run, in this order:
    rounds of specification changes (the dialect `anchor`; spec 1.6.0's integers, maximum version and
    Unicode digest members; the security review's refinement bound, scalar matching and declared errors).
    The tracks below are the original scope; the Decision Log is what the work became.
-2. **Open questions** — three Package URL questions still with the maintainer, and one upstream report.
+2. `docs/reference/implementation-differences.md` — the measured Package URL edges between the four
+   implementations, the one copy of that table.
 3. The task dossiers `project/tasks/044` to `050`, one per track, each ending in the rulings and deferred
    minors that track produced; `048` covers Track 7 and both security rounds.
 4. `.agents/skills/attack/SKILL.md` — the security review this plan produced as a reusable procedure.
@@ -374,6 +375,24 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   error the surface does not declare. The review's other findings fit the tracks that introduced them
   and were fixed there. The maintainer chose all three.
   Date / Author: 2026-09-28 / Danilo Borges
+- Decision: the Package URL canonical spelling becomes the specification's. The specification will
+  declare, per Package URL type it dispatches, the normalisation its canonical form applies (npm lowercases
+  namespace and name), bound by vectors, and every implementation applies it after its library. This is a
+  plan of its own, outside Plan-008.
+  Rationale: the field is informational — measured 2026-09-28, `same_identifier` and `same_package` agree
+  in all four implementations on every pair of two spellings of one locator — but the differential
+  compares it and a consumer may store it, so leaving it to four libraries leaves four answers.
+  Date / Author: 2026-09-28 / Danilo Borges
+- Decision: an encoded `#` in a nested npm namespace, and an undecodable or truncated percent-escape in any
+  Package URL component, are known edges rather than specification rules. They are written, with every
+  other measured edge, in `docs/reference/implementation-differences.md`, which becomes the one copy of the
+  edge table: `AGENTS.md`, `scripts/differential.mjs` and the `attack` skill point at it, and the four
+  package READMEs link it. `packageurl-python`'s acceptance of a version ending in `/` is not reported
+  upstream.
+  Rationale: the table had three copies, and all three were wrong somewhere when re-measured; a user who
+  moves identifiers between implementations needs it more than a contributor does. The trailing `/` is
+  accepted by Swift too, and the Package URL specification does not settle it.
+  Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective
 
@@ -397,34 +416,4 @@ when the release runs.
 
 ## Open questions
 
-- **No track — the Package URL canonical spelling is the library's, and the four libraries spell it
-  differently.** One identifier, `ref:pkg:npm/@AcMe/X@2.0.0`, gets three canonical forms: TypeScript
-  lowercases namespace and name (`%40acme/x`), Rust and Python the name only (`%40AcMe/x`), Swift neither;
-  and in a version the three libraries disagree on `/` (TypeScript `%2F`, Rust and Python literal), `&`
-  (Rust literal) and `+` (Rust and Python `%2B`), where Swift now follows TypeScript. The spelling reaches
-  identity once: Python canonicalises `ref:pkg:npm/acme/@1` to `pkg:npm/acme@1`, the form of
-  `ref:pkg:npm/acme@1`, where TypeScript writes `pkg:npm/acme/%401` and Rust and Swift answer `malformed`;
-  and Swift keeps `pkg:pypi/Ref_ID@1` where the others normalise the name to `ref-id`.
-  The field is informational — a `ref:` identifier's identity is its `canonical_identifier`, which never
-  passes through it — but the differential compares it, and a consumer may store it. Options: (a)
-  **recommended** — the specification declares, per Package URL type it dispatches, the normalisation its
-  canonical form applies (npm lowercases namespace and name), bound by vectors, and every implementation
-  applies it after its library; (b) the canonical form is declared informational and dropped from the
-  differential's comparison; (c) leave it recorded.
-- **No track — `%23` inside an npm namespace is valid only for `packageurl-js`.** `ref:folder:a;by=
-  ref:pkg:npm/@ac%23me/profiles@0.1.0` parses as `ok` in TypeScript and `malformed` at `by` in the other
-  three. Options: (a) **recommended** — record it among the known validity edges, as the empty name and
-  the trailing `/` already are; (b) the specification refuses an encoded `#` in a Package URL namespace
-  itself, with a vector.
-
-- **No track — an undecodable percent-escape in a Package URL is `malformed` in TypeScript alone.** `%zz`
-  in the namespace, name, qualifier value or version is refused by `packageurl-js` and accepted by Rust,
-  Swift and Python, which re-encode it (`@1%zz` becomes `@1%25zz`); a truncated UTF-8 escape (`@1%C3`) is
-  also accepted by Swift and Python. No vector reaches it, so the differential is green over it (dossier 049,
-  triage). Options: (a) **recommended** — the specification refuses an undecodable escape in any Package URL
-  component, bound by parse vectors for each component, and Rust, Swift and Python refuse it before their
-  library; (b) record it among the known validity edges.
-
-- Whether `packageurl-python`'s acceptance of a version ending in `/` should be reported upstream, as the
-  Rust crate refuses it (Swift accepts it too); it does not block this plan, which reports whatever the
-  validator says.
+None. Every question this plan raised was answered and moved to the Decision Log.
