@@ -13,6 +13,7 @@
 
 import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
+import { availableParallelism } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -55,7 +56,7 @@ function corpus() {
  * Command failed: node …`, while the child was saying `ENOENT … packages/ref-id/spec/ref-id.json` on
  * every line. A failure that names no cause is a failure nobody acts on.
  */
-function port(command, args, inputs) {
+function port(command, args, inputs, { parse = true } = {}) {
   return new Promise((resolvePort, rejectPort) => {
     const child = spawn(command, args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] })
     const out = []
@@ -71,6 +72,7 @@ function port(command, args, inputs) {
         rejectPort(new Error(said ? `${message}\n${said.split("\n").slice(0, 5).join("\n")}` : message))
         return
       }
+      if (!parse) return resolvePort([])
       try {
         resolvePort(stdout.trim().split("\n").map((line) => JSON.parse(line)))
       } catch (error) {
@@ -82,8 +84,26 @@ function port(command, args, inputs) {
   })
 }
 
-/** Settles every run at once; each entry is `{ rows }` or `{ error }`, in the order given. */
-const settle = (runs) => Promise.all(runs.map((run) => run.then((rows) => ({ rows }), (error) => ({ error }))))
+/**
+ * Runs each task — a label and a function starting one run — at most `limit` at a time, and settles
+ * them in the order given: each entry is `{ rows }` or `{ error }`. The seconds each run took go to
+ * stderr, so a slow job says which implementation it waited on.
+ */
+async function settle(tasks, limit = availableParallelism()) {
+  const results = new Array(tasks.length)
+  let next = 0
+  const worker = async () => {
+    while (next < tasks.length) {
+      const index = next++
+      const [label, start] = tasks[index]
+      const began = Date.now()
+      results[index] = await start().then((rows) => ({ rows }), (error) => ({ error }))
+      console.error(`${label}: ${((Date.now() - began) / 1000).toFixed(1)} s`)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
+  return results
+}
 
 /**
  * Which fields are compared, and the one that is deliberately not.
@@ -152,19 +172,23 @@ const pairPorts = [
 const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))
 const pairLines = pairs.flatMap(([a, b]) => [a, b])
 
-// **Every run starts at once and is compared afterwards, in row order.** The ten runs — five
-// implementations, parse and pairs — are independent processes, and run one after another they were
-// most of the job's time on one core. The compiled ports are built first, once each and side by side,
-// so two runs of one port never contend for its build directory. Starting together changes no verdict:
-// each row is still judged against row 0, which is still the reference whether or not it ran first.
-await settle([
-  port("cargo", ["build", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines"], []),
-  port("swift", ["build", "-q", "--product", "ref-id-conformance"], []),
-]).then((built) => built.forEach(({ error }) => error && console.error(`build: ${error.message}`)))
-const [parseRuns, pairRuns] = await Promise.all([
-  settle(ports.map(([, command, args]) => port(command, args, inputs))),
-  settle(pairPorts.map(([, command, args]) => port(command, args, pairLines))),
+// **The runs overlap, one per core, and are compared afterwards in row order.** The ten runs — five
+// implementations, parse and pairs — are independent processes, and run one after another they used a
+// single core. The compiled ports are built first, side by side, so two runs of one port never contend
+// for its build directory. Overlapping changes no verdict: each row is still judged against row 0,
+// which is still the reference whether or not it ran first.
+const built = await settle([
+  ["build rust", () => port("cargo", ["build", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines"], [], { parse: false })],
+  ["build swift", () => port("swift", ["build", "-q", "--product", "ref-id-conformance"], [], { parse: false })],
 ])
+for (const { error } of built) if (error) console.error(`build: ${error.message}`)
+// The pair runs are the long ones, so they start first and the short parse runs fill the gaps.
+const runs = await settle([
+  ...pairPorts.map(([name, command, args]) => [`${name} (pairs)`, () => port(command, args, pairLines)]),
+  ...ports.map(([name, command, args]) => [name, () => port(command, args, inputs)]),
+])
+const pairRuns = runs.slice(0, pairPorts.length)
+const parseRuns = runs.slice(pairPorts.length)
 
 let failures = 0
 let known = 0
