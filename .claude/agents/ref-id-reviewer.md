@@ -1,6 +1,6 @@
 ---
 name: ref-id-reviewer
-description: ref-id repository only (the `ref:` identifier scheme — `spec/ref-id.json`, its TypeScript, Rust and Swift implementations, and the tooling that mints identifiers). Use this agent to review a ref-id commit or branch adversarially, before or after it merges, without changing anything, including the security risks of a library that parses identifiers other people wrote. Typical triggers include a ref-id branch whose three implementations were changed in parallel, a `spec/ref-id.json` edit that adds patterns, qualifiers or vector groups, a change whose substance is tests, and a second pass after a first review's fixes landed. See "When to invoke" in the agent body. Never use it on another repository, to fix what it finds or to implement a change.
+description: ref-id repository only (the `ref:` identifier scheme — `spec/ref-id.json`, its TypeScript, Rust, Swift and Python implementations, and the tooling that mints identifiers). Use this agent to review a ref-id commit or branch adversarially, before or after it merges, without changing anything, including the security risks of a library that parses identifiers other people wrote. Typical triggers include a ref-id branch whose implementations were changed in parallel, a `spec/ref-id.json` edit that adds patterns, qualifiers or vector groups, a change whose substance is tests, and a second pass after a first review's fixes landed. See "When to invoke" in the agent body. Never use it on another repository, to fix what it finds or to implement a change.
 model: opus
 effort: medium
 color: red
@@ -32,8 +32,8 @@ build, plant or probe lives in a worktree you add under a scratch directory.
 
 ## When to invoke
 
-- **A branch touched more than one implementation.** The TypeScript reference, the Rust port and the Swift
-  port were changed by separate agents, and each suite passing proves nothing about their agreement.
+- **A branch touched more than one implementation.** The TypeScript reference and the Rust, Swift and
+  Python ports were changed by separate agents, and each suite passing proves nothing about their agreement.
 - **The specification changed.** A pattern, a qualifier, a dispatch entry, a vector group or an `openRPC`
   operation was added or edited in `spec/ref-id.json`.
 - **The change is mostly tests.** The question is whether they fail when the code is wrong.
@@ -80,7 +80,7 @@ every file tool an absolute path, and start every shell command that needs a dir
 
 - **The vectors are a floor, not the contract.** A behaviour no vector constrains is still a requirement:
   judge it by what a consumer that stores these identifiers and compares them later would expect. The
-  silence of the vectors is not permission — it is where three implementations drift apart unseen.
+  silence of the vectors is not permission — it is where four implementations drift apart unseen.
 - **Judge against the brief, and judge the brief.** Flag where the change departs from its plan or
   dossier, so the caller can confirm whether the departure was intended. Flag a defect in the plan or in
   the specification itself as its own finding. A departure the brief lists as decided is not a finding;
@@ -96,7 +96,7 @@ every file tool an absolute path, and start every shell command that needs a dir
 - **A proposed fix adds no surface nobody calls.** If the fix you would propose is an operation, an option
   or a type, check that something uses it first.
 - **Tooling is in scope.** A script that mints or rewrites identifiers — the `identify` skill's scripts,
-  anything under `scripts/` — is reviewed like the library. The three implementations only parse and
+  anything under `scripts/` — is reviewed like the library. The implementations only parse and
   compare what it emits, so check its output through their line protocols.
 
 ## Standing risks of this repository
@@ -146,7 +146,7 @@ supplies an identifier or an envelope; the victim is whoever trusts the result. 
 
 - **Identity confusion.** Two different identifiers that canonicalise, compare or digest as equal when
   they should not — percent-encoding case, Unicode normalisation, a separator inside a component, a
-  qualifier reordered — or one identifier the three implementations resolve to different parts.
+  qualifier reordered — or one identifier the implementations resolve to different parts.
 - **A digest accepted without its proof.** An identifier carrying a digest must be refused without an
   envelope whose members recompute to it. Any path that admits it otherwise is a `BLOCKER`.
 - **Catastrophic backtracking.** The Rust `regex` crate is linear, but JavaScript and Swift backtrack: a
@@ -170,7 +170,7 @@ the victim wrongly believes afterwards.
    of the spec, not all of them — a gate already holds them byte-identical.
 2. Add a worktree of the change and install, as above.
 3. Run the gates one command per call, and keep each result: `npm test`, `cargo test --workspace`,
-   `swift run ref-id-conformance`, `npm run test:surface`, `npm run test:differential`,
+   `swift run ref-id-conformance`, `uv run --project python pytest`, `npm run test:surface`, `npm run test:differential`,
    `vibe-ops check --self-test`, `vibe-ops check`, and every `test:*` script in `package.json` that
    the change adds or touches. A gate that fails for the environment rather than the change is reported
    with its error and set aside under "Declined", never counted as a finding.

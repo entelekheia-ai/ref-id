@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Done |
 | Created | 2026-09-27 |
 | Author | Danilo Borges |
 | Issue | https://github.com/entelekheia-ai/ref-id/issues/44 |
@@ -122,7 +122,7 @@ The inputs no test below exercises and a reader would expect handled:
 
 All steps run in the main loop (Plan-008 Decision Log: the shared harness is not delegated).
 
-- [ ] P0 — **Step 1: declare.** Edit `spec/ref-id.json`:
+- [x] P0 — **Step 1: declare.** Edit `spec/ref-id.json`:
 
   ```json
   "x-casing": { "typescript": "camelCase", "rust": "snake_case", "swift": "camelCase", "python": "snake_case" },
@@ -131,7 +131,7 @@ All steps run in the main loop (Plan-008 Decision Log: the shared harness is not
   and add `"python": ["embedded_spec_text"]` as the last member of `x-extensions`. Then
   `node scripts/seal-spec.mjs` — expected: `spec/ref-id.json.sha256: …` (the fix line). Then
   `cp spec/ref-id.json spec/ref-id.json.sha256 Sources/RefId/Resources/ && cp spec/ref-id.json spec/ref-id.json.sha256 crates/ref-id/spec/`.
-- [ ] P0 — **Step 2: failing generator test.** Create `scripts/gen-surface-python.test.mjs`:
+- [x] P0 — **Step 2: failing generator test.** Create `scripts/gen-surface-python.test.mjs`:
 
   ```js
   // SPDX-License-Identifier: Apache-2.0
@@ -175,7 +175,7 @@ All steps run in the main loop (Plan-008 Decision Log: the shared harness is not
   ```
 
   Run `node --test scripts/gen-surface-python.test.mjs` — expected: fails, module not found.
-- [ ] P0 — **Step 3: the generator.** Create `scripts/gen-surface-python.mjs` exporting `render(doc)` (pure;
+- [x] P0 — **Step 3: the generator.** Create `scripts/gen-surface-python.mjs` exporting `render(doc)` (pure;
   throws `Error` naming method and parameter on an unmappable schema) and, when run as a script, writing
   `python/tests/test_surface.py` or, under `--check`, diffing and exiting 1 with
   `gen-surface-python: python/tests/test_surface.py is stale — run node scripts/gen-surface-python.mjs`.
@@ -217,11 +217,11 @@ All steps run in the main loop (Plan-008 Decision Log: the shared harness is not
 
   `Sequence` and `os` are imported only when a binding uses them, so `ruff` finds no unused import. Run the
   test — expected: 4 pass.
-- [ ] P0 — **Step 4: generate.** `node scripts/gen-surface-python.mjs`, then
+- [x] P0 — **Step 4: generate.** `node scripts/gen-surface-python.mjs`, then
   `node scripts/gen-surface-python.mjs --check` — expected: exit 0.
-- [ ] P0 — **Step 5: nothing else moved.** `node scripts/gen-surface-rust.mjs --check && node scripts/gen-surface-swift.mjs --check && npm run build && npm test && npm run test:gates && vibe-ops check`
+- [x] P0 — **Step 5: nothing else moved.** `node scripts/gen-surface-rust.mjs --check && node scripts/gen-surface-swift.mjs --check && npm run build && npm test && npm run test:gates && vibe-ops check`
   — expected: all exit 0; `openrpc-valid`, `spec-sealed`, `spec-bytes`, `spec-seal` report run, not skipped.
-- [ ] P0 — **Step 6: commit.** `git add spec/ref-id.json spec/ref-id.json.sha256 Sources/RefId/Resources/ crates/ref-id/spec/ scripts/gen-surface-python.mjs scripts/gen-surface-python.test.mjs python/tests/test_surface.py project/tasks/044-the-specification-declares-python.md`
+- [x] P0 — **Step 6: commit.** `git add spec/ref-id.json spec/ref-id.json.sha256 Sources/RefId/Resources/ crates/ref-id/spec/ scripts/gen-surface-python.mjs scripts/gen-surface-python.test.mjs python/tests/test_surface.py project/tasks/044-the-specification-declares-python.md`
   then `git commit -m "plan(008) track 1: the specification declares Python (#44)"`.
 
 ## Surprises & Discoveries
@@ -229,6 +229,25 @@ All steps run in the main loop (Plan-008 Decision Log: the shared harness is not
 - Observation: Plan-008 said the `openRPC` additions mint a `specVersion` minor; they do not.
   Evidence: `git show 001c51c -- spec/ref-id.json` changes no `specVersion` line while adding the whole
   `openRPC` document. Plan-008's Design and Track 1 were corrected before this dossier was written.
+
+- Observation: the specification has a fourth generated copy the dossier did not list —
+  `packages/ref-id/src/spec.browser.ts`, the browser build's constant.
+  Evidence: `node scripts/gen-spec.mjs` rewrote two lines of it after the reseal; its staleness test in
+  `npm test` would have failed otherwise.
+
+- Ruling: the two agent definitions (`.claude/agents/ref-id-port-implementer.md`, `ref-id-reviewer.md`)
+  learn Python in this track, not in Track 6 — Tracks 2–4 dispatch the implementer, whose language table
+  had no Python row and whose hook did not protect the Python generated files — cost if wrong: none; the
+  edit is the one Track 6 would have made, earlier.
+
+- Ruling: no changeset in this track — the branch lands as one pull request, `changeset status` runs per
+  pull request, and Track 6 adds the changeset that announces the port — cost if wrong: a red
+  `changeset` check on a pull request opened before Track 6, fixed by adding it.
+
+- Ruling: the generated runtime test recomputes `DECLARED` from the specification in Python rather than
+  comparing against a list, and a second test holds `DECLARED` to `ref_id.__all__` — so both the spec
+  direction and the package direction fail at `pytest` time, before `check-surface.mjs` learns Python in
+  Track 5 — cost if wrong: one redundant assertion once Track 5 lands.
 
 ## Closure
 

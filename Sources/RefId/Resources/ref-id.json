@@ -476,7 +476,8 @@
   "x-casing": {
    "typescript": "camelCase",
    "rust": "snake_case",
-   "swift": "camelCase"
+   "swift": "camelCase",
+   "python": "snake_case"
   },
   "x-extensions": {
    "typescript-browser": [
@@ -488,6 +489,9 @@
    "swift": [
     "embeddedSpecURLs",
     "sha256Hex"
+   ],
+   "python": [
+    "embedded_spec_text"
    ]
   },
   "methods": [

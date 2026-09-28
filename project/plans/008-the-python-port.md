@@ -189,7 +189,7 @@ four artifacts, as it already does for three.
 Tracks 2–4 are the port itself and run in order, each behind `uv run pytest` and `uv run mypy --strict`.
 Tracks 1, 5 and 6 are the harness shared between languages.
 
-- [ ] **Track 1 — The specification declares Python.** Add `python` to `openRPC.x-casing` and
+- [x] **Track 1 — The specification declares Python.** Add `python` to `openRPC.x-casing` and
       `x-extensions`, reseal, and copy the specification into the port copies. Write
       `scripts/gen-surface-python.mjs` with `--check`. At the end, the generator emits a surface file for a
       package that does not yet exist, and `npm run test:openrpc` and the `openrpc-valid` gate pass.
@@ -216,8 +216,8 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       `.github/workflows/release.yml`, the changeset, and every place that counts or lists the
       implementations: `AGENTS.md`, `README.md` and `scripts/gen-readme-refs.mjs`, `vibeops.config.ts`,
       the `.vibe-ops/ops.json` summary, the comments in `scripts/differential.mjs` and the line servers,
-      and `.claude/agents/ref-id-port-implementer.md` and `ref-id-reviewer.md`, which gain Python's gate
-      row. Acceptance: `npm run version` leaves the three manifests on one version, and the first release
+      and the line-protocol row Python gains in `.claude/agents/ref-id-reviewer.md` (both agent definitions
+      learned Python's gate in Track 1, before the implementer was first dispatched). Acceptance: `npm run version` leaves the three manifests on one version, and the first release
       puts `ref-id` on PyPI through the pending publisher already declared.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
