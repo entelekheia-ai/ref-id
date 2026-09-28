@@ -27,8 +27,8 @@ public final class Spec: @unchecked Sendable {
 
     func string(_ path: String...) -> String { value(path) as? String ?? "" }
     func optionalString(_ path: String...) -> String? { value(path) as? String }
-    /// `int64Value`, not `intValue`: a table entry (`version.maximum`) can carry a magnitude past
-    /// `Int32`, and `intValue` would silently truncate it.
+    /// `int64Value`, not `intValue`: a table entry (`version.maximum`) carries a magnitude past
+    /// `Int32`, and `intValue` returns the platform `Int` — 64 bits on macOS, 32 on a 32-bit target.
     func int(_ path: String...) -> Int { Int((value(path) as? NSNumber)?.int64Value ?? 0) }
     /// Same lookup as `int(_:)`, kept as `Int64` for a magnitude the platform `Int` might not hold
     /// (irrelevant on the 64-bit platforms this package targets, but the type says what is guaranteed).

@@ -169,8 +169,9 @@ literal, and a refinement declaring no `maximum` keeps today's behaviour.
   threw `formNames is not iterable` before and is `uncovered` after.
 
 - Observation: Swift's bound was enforced only on the `Double` path — a JSON integer such as
-  `9007199254740992` passed unchecked — and `Spec.int` read through `NSNumber.intValue`, 32 bits, which
-  would have truncated `version.maximum` itself.
+  `9007199254740992` passed unchecked — and `Spec.int` read through `NSNumber.intValue`, the platform
+  `Int`, which holds `version.maximum` on macOS and would truncate it on a 32-bit target (the implementer
+  reported 32 bits everywhere; `NSNumber(value: 9007199254740991).intValue` is exact on macOS).
   Evidence: the Swift implementer's report; `swift run ref-id-conformance` 1100/4 before, 1112/0 after.
 
 - Observation: the seal gate and both grammar runners are bootstrap callers too — the gate imports the
