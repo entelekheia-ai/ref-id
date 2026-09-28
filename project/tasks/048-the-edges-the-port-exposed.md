@@ -164,6 +164,23 @@ bound for canonical numbers is the same value, read from the same key.
   346/0; `cargo test --workspace` 18/0; `swift run ref-id-conformance` 1112/0; `uv run pytest` 677/0;
   `npm run test:gates` 38/0; `vibe-ops check` and `--self-test` clean.
 
+- Observation (security review, after this track): Swift's `loadSpecFrom` trapped the process on a
+  hostile file — `{"a":9223372036854775808.0}`, "Double value cannot be converted to Int64" — because its
+  default bound `Int64.max` becomes 2^63 as a `Double`, and `canonicalise` wrote `UInt64.max` as `-1`.
+  Evidence: the review's reproduction; `JSONSerialization` gives `18446744073709551615` an NSNumber of
+  `objCType "Q"` whose `int64Value` is `-1`. Fixed with `Int64(exactly:)` and an unsigned-type refusal;
+  `swift run ref-id-conformance` 1115/0 with three hostile-spec checks that crashed before.
+
+- Observation (security review): Rust's `relate` was quadratic in the number of qualifiers — two sites,
+  `declared_keys` and the per-key `.find()` after it. Evidence: 40,000 qualifiers per side took 16.0 s
+  in debug before and 0.16 s after, pinned by `crates/ref-id/tests/relate_perf.rs`; `BTreeSet`/`BTreeMap`,
+  never `HashMap`, because the crate also compiles to WASM.
+
+- Observation (process): the Swift follow-up used `git stash` on one file while the Python follow-up was
+  editing the same worktree. Nothing was lost — the dropped stash, found with `git fsck --unreachable`,
+  held only `Sources/RefId/Canonical.swift` — but the stash stack is shared across worktrees and agents.
+  Evidence: stash commit `36d1544`, "swift-security-fix-wip-008", one file changed.
+
 ## Closure
 
 - [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually

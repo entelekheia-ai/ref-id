@@ -218,7 +218,9 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 - [ ] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
       `scripts/differential.mjs`, the `python` language in `scripts/check-surface.mjs`, the two new gates
       with fixtures and tests, and a `python` job in `.github/workflows/gates.yml` plus Python and `uv` in
-      the macOS `differential` job, and `node --test scripts/gen-surface-python.test.mjs` in the Node job — the
+      the macOS `differential` job, the differential's corpus drawn from every vector group carrying
+      identifiers — `relate`, `verdict`, `build` and `envelope` too, which the security review found
+      omitted — and `node --test scripts/gen-surface-python.test.mjs` in the Node job — the
       generator's own tests run nowhere until then. Retire `spec/conformance/grammar-check.py`: `test:grammar` runs Perl
       alone and the step names stop saying "three engines". Acceptance: `npm run test:differential`
       reports five rows and no failure; `vibe-ops check --self-test` sees both new gates fire on their
@@ -346,6 +348,17 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   fixed with an own-property lookup and bound by a `parse` vector.
   Rationale: the three shapes survived planted faults in the Python suite and would in any port; the
   throw breaks the rule that parsing never raises, and Rust and Python already return `uncovered`.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: a security review over the four implementations, after Track 7, and three of its findings
+  fixed in a second round of Track 7 within spec 1.6.0 (not yet published): refinement integers take the
+  `version.maximum` bound, a literal above it making the identifier malformed at that refinement, with
+  vectors at 2^53+1, 2^63+1 and 2^64+1; Swift matches the grammar and splits by Unicode scalar rather than
+  by grapheme cluster, with `parse` vectors gluing a combining mark to each separator; TypeScript wraps
+  the exceptions `loadSpecFrom` and `canonicalise` let escape as `SpecIntegrityError`.
+  Rationale: each is a place where one store would admit what another refuses, or where a caller meets an
+  error the surface does not declare. The review's other findings fit the tracks that introduced them
+  and were fixed there. The maintainer chose all three.
   Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective

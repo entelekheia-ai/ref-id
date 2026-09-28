@@ -355,6 +355,40 @@ func run() throws {
     try (RefId.sha256Hex(try RefId.canonicalise(try JSONSerialization.jsonObject(with: data))) + "\n").write(to: tmp.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
     do { _ = try loadSpecFrom(tmp); check(false, "integrity: specVersion 2.0.0 loaded") } catch RefIdError.specVersion { check(true, "") } catch { check(false, "integrity: version 2 threw \(error)") }
     check(try loadSpec().scheme == "ref", "integrity: the embedded spec does not load")
+
+    // security: a hostile spec file must never crash the process — `loadSpecFrom` canonicalises the
+    // raw JSON to check it against the sidecar digest before anything else, and every number in it
+    // must come back either an `Int64` or a refusal, never a trap. The sidecar content does not matter
+    // here: canonicalisation runs, and must refuse, before the digest comparison is reached.
+    let hostile = FileManager.default.temporaryDirectory.appendingPathComponent("ref-id-hostile-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: hostile, withIntermediateDirectories: true)
+    try "not a digest\n".write(to: hostile.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
+
+    func expectHostileRefusal(_ json: String, _ label: String) throws {
+        try json.write(to: hostile.appendingPathComponent("ref-id.json"), atomically: true, encoding: .utf8)
+        do {
+            _ = try loadSpecFrom(hostile)
+            check(false, "security: \(label) loaded instead of being refused")
+        } catch RefIdError.specIntegrity {
+            check(true, "")
+        } catch {
+            check(false, "security: \(label) threw the wrong error: \(error)")
+        }
+    }
+    // A Double at the Int64 magnitude bound: `Double(Int64.max)` rounds up to `2^63`, one past what
+    // `Int64` holds, so a naive `abs(double) <= Double(maximum)` guard passes and `Int64(double)` traps.
+    try expectHostileRefusal(#"{"a":9223372036854775808.0}"#, "a Double at Int64's magnitude bound")
+    // The same bound, reached through `version.maximum` itself rather than through the default —
+    // paired with a value at that same bound, the field the bound is meant to police.
+    try expectHostileRefusal(
+        #"{"version":{"maximum":9223372036854775807},"a":9223372036854775808.0}"#,
+        "version.maximum at Int64.max, paired with a Double at that bound"
+    )
+    // An unsigned NSNumber above Int64.max: JSONSerialization parses `18446744073709551615` as an
+    // NSNumber whose objCType is "Q" (unsigned long long) and whose `int64Value` wraps to `-1` — the
+    // form the other three implementations refuse rather than silently reinterpreting.
+    try expectHostileRefusal(#"{"a":[18446744073709551615]}"#, "an unsigned NSNumber above Int64.max")
+
     // the dialect measurement: does the canonical expression compile unchanged here?
     let expression = try loadSpec().grammarExpression()
     check((try? Regex(expression)) != nil, "dialect: the canonical expression does not compile unchanged in swift-regex")
