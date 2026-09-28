@@ -24,6 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, because the commit gate reads it: the `breadcrumb` gate resolves the
+          # `git show <sha>:<path>` a plan in progress carries once its task dossiers close before it,
+          # and a depth-1 clone holds none of those commits. Shipped plans are outside the gate.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
