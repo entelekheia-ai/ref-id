@@ -49,13 +49,33 @@ def _split_subpath(delegated: str) -> tuple[str, str | None]:
     return delegated, None
 
 
+def _uppercase_percent_escapes(text: str) -> str:
+    """`packageurl-python`'s `to_string()` lowercases its percent-escapes (`%2b`); the other three
+    implementations agree on uppercase (`%2B`, per RFC 3986 §2.1 and what `packageurl-js` and the `purl`
+    crate both emit), so this port's canonical form is uppercased to match rather than left to the one
+    validator that happens to disagree. A left-to-right index scan, mirroring `decode`/`strictly_encoded`
+    above, so it stays linear rather than copying the tail at each `%`."""
+    out: list[str] = []
+    length = len(text)
+    index = 0
+    while index < length:
+        if text[index] == "%" and index + 2 < length:
+            out.append("%")
+            out.append(text[index + 1 : index + 3].upper())
+            index += 3
+        else:
+            out.append(text[index])
+            index += 1
+    return "".join(out)
+
+
 def _package_url(_spec: Spec, _entry: dict[str, Any], delegated: str) -> Validation:
     base, subpath = _split_subpath(delegated)
     try:
         purl = PackageURL.from_string(base)
         if subpath is not None:
             purl = PackageURL(purl.type, purl.namespace, purl.name, purl.version, purl.qualifiers, subpath)
-        return Validation(ok=True, canonical=purl.to_string())
+        return Validation(ok=True, canonical=_uppercase_percent_escapes(purl.to_string()))
     except ValueError:
         return Validation(ok=False)
 
@@ -115,19 +135,31 @@ _DELEGATORS: dict[str, _Delegator] = {
 }
 
 
-def _as_u64(text: str) -> int | None:
-    """As Rust's `str::parse::<u64>()`: digits only, no sign, no separators."""
-    return int(text) if text.isascii() and text.isdigit() else None
+def _as_digits(text: str) -> str | None:
+    """As Rust's `str::parse::<u64>()` reads a bound: digits only, no sign, no separators — but returned
+    as a leading-zero-stripped digit string rather than converted to an `int`, so a value with thousands
+    of digits (this package does not bound refinement values to `u64`, unlike Rust — the open spec
+    question `_ascending`'s docstring names) never hits CPython's int-conversion digit-count guard."""
+    return text.lstrip("0") or "0" if text.isascii() and text.isdigit() else None
+
+
+def _magnitude_at_most(a: str, b: str) -> bool:
+    """Whether digit string `a` is numerically `<=` digit string `b`, both already leading-zero-stripped:
+    magnitude order is decided by length first, then lexicographically — equivalent to comparing the two
+    as integers without ever converting either to one."""
+    if len(a) != len(b):
+        return len(a) < len(b)
+    return a <= b
 
 
 def _ascending(value: str, separator: str) -> bool:
     bounds = value.split(separator) if separator else [value]
     if len(bounds) < 2:
         return True
-    first, second = _as_u64(bounds[0]), _as_u64(bounds[1])
+    first, second = _as_digits(bounds[0]), _as_digits(bounds[1])
     if first is None or second is None:
         return True
-    return first <= second
+    return _magnitude_at_most(first, second)
 
 
 _RANGES: dict[str, Callable[[str, str], bool]] = {"ascending": _ascending}

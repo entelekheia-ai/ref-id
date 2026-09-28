@@ -39,31 +39,40 @@ def encode(raw: str, table: Table) -> str:
 
 
 def decode(encoded: str, table: Table) -> str:
-    """One left-to-right pass over the encoded text; decoding `%2523` yields `%23`, never `#`."""
+    """One left-to-right pass over the encoded text; decoding `%2523` yields `%23`, never `#`.
+
+    Scans by index rather than slicing a fresh `rest` string every step: `rest = rest[1:]` (and the
+    matching `rest.startswith(form)`) copies the remaining text on every character, which is quadratic in
+    the input length. `str.startswith(form, i)` matches at an offset without copying anything."""
     if not table:
         return encoded
     out: list[str] = []
-    rest = encoded
-    while rest:
-        match = next(((character, form) for character, form in table if rest.startswith(form)), None)
+    length = len(encoded)
+    index = 0
+    while index < length:
+        match = next(((character, form) for character, form in table if encoded.startswith(form, index)), None)
         if match is not None:
             character, form = match
             out.append(character)
-            rest = rest[len(form) :]
+            index += len(form)
         else:
-            out.append(rest[0])
-            rest = rest[1:]
+            out.append(encoded[index])
+            index += 1
     return "".join(out)
 
 
 def strictly_encoded(value: str, table: Table) -> bool:
     """True when every `%` in the value begins one of the table's percent-forms — the strict nested
-    encoding."""
+    encoding.
+
+    `value[at:]` builds a fresh substring at every `%` found, which is quadratic when `%` recurs densely
+    (`"%25" * n`, say); `value.startswith(form, at)` checks the same forms at that offset without copying
+    the tail."""
     index = 0
     while True:
         at = value.find("%", index)
         if at < 0:
             return True
-        if not any(value[at:].startswith(form) for _character, form in table):
+        if not any(value.startswith(form, at) for _character, form in table):
             return False
         index = at + 1

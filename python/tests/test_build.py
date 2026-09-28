@@ -88,3 +88,13 @@ class TestBuildRefusesBadlyTypedParts:
         with pytest.raises(ref_id.BuildError) as excinfo:
             BuildParts.from_json({"type": "folder"})
         assert excinfo.value.part == "locator"
+
+    def test_qualifiers_given_as_a_dict_instead_of_pairs(self) -> None:
+        """Security review finding 5: `build()`'s docstring promises `BuildError` for a part the grammar
+        cannot carry; a `BuildParts.qualifiers` handed a `dict` (rather than a tuple of `(key, value)`
+        pairs) used to iterate `for key, value in parts.qualifiers`, which iterates a dict's *keys* —
+        unpacking each key string into two variables. A two-character key such as `"by"` silently built
+        the wrong identifier instead of refusing; a key of any other length raised a bare `ValueError`.
+        Either way this must raise `BuildError`, exactly as the TypeScript reference refuses this shape."""
+        with pytest.raises(ref_id.BuildError):
+            ref_id.build(BuildParts("folder", "x", qualifiers={"origin": "1"}))  # type: ignore[arg-type]

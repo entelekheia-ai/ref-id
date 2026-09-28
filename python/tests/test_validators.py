@@ -56,3 +56,18 @@ def test_unknown_range_name_raises_spec_version_error(tmp_path: Path) -> None:
     spec = _reseal_and_load(tmp_path, document)
     with pytest.raises(SpecVersionError):
         assert_implemented(spec)
+
+
+class TestPackageUrlCanonicalUsesUppercasePercentEscapes:
+    """Security review finding 4: `packageurl-python`'s `to_string()` lowercases its percent-escapes
+    (`%2b`); the other three implementations agree on uppercase (`%2B`), so a canonical form this port
+    produces must be uppercased to match. Expected values taken from
+    `node --experimental-strip-types` against `packages/ref-id/src/index.ts` (2026-09-28)."""
+
+    def test_a_plus_in_a_package_name(self) -> None:
+        result = ref_id.parse("ref:pkg:npm/a+b@1")
+        assert result.canonical == "pkg:npm/a%2Bb@1"
+
+    def test_a_semicolon_and_equals_in_a_github_repository_path(self) -> None:
+        result = ref_id.parse("ref:pkg:github/ggml-org/llama.cpp%3Bstate=none")
+        assert result.canonical == "pkg:github/ggml-org/llama.cpp%3Bstate%3Dnone"

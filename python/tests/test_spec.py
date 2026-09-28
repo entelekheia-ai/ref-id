@@ -66,6 +66,32 @@ def test_load_spec_from_a_missing_directory_raises_integrity_error(tmp_path: Pat
         ref_id.load_spec_from(tmp_path / "does-not-exist")
 
 
+class TestLoadSpecFromRaisesOnlySpecIntegrityError:
+    """Security review finding 5: a malformed spec document must never surface `json.loads`'/CPython's
+    own exception kinds — invalid UTF-8, a huge integer literal or deep nesting each used to raise past
+    `_validate`'s `json.JSONDecodeError` catch instead of the declared `SpecIntegrityError`."""
+
+    def test_invalid_utf8_bytes(self, tmp_path: Path) -> None:
+        (tmp_path / "ref-id.json").write_bytes(b"\xff\xfe{\"a\":1}")
+        (tmp_path / "ref-id.json.sha256").write_text("deadbeef", encoding="utf-8")
+        with pytest.raises(SpecIntegrityError):
+            ref_id.load_spec_from(tmp_path)
+
+    def test_a_five_thousand_digit_number(self, tmp_path: Path) -> None:
+        (tmp_path / "ref-id.json").write_text('{"a":' + ("9" * 5000) + "}", encoding="utf-8")
+        (tmp_path / "ref-id.json.sha256").write_text("deadbeef", encoding="utf-8")
+        with pytest.raises(SpecIntegrityError):
+            ref_id.load_spec_from(tmp_path)
+
+    def test_deep_nesting(self, tmp_path: Path) -> None:
+        depth = 100_000
+        text = "[" * depth + "]" * depth
+        (tmp_path / "ref-id.json").write_text(text, encoding="utf-8")
+        (tmp_path / "ref-id.json.sha256").write_text("deadbeef", encoding="utf-8")
+        with pytest.raises(SpecIntegrityError):
+            ref_id.load_spec_from(tmp_path)
+
+
 class _FakeResource:
     """A minimal `importlib.resources.abc.Traversable` stand-in whose `read_text` reproduces the
     universal-newline translation the real one performs, so a regression to it is caught the same way

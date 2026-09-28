@@ -85,14 +85,33 @@ def _sort_key(key: str) -> bytes:
     return key.encode("utf-16-be", "surrogatepass")
 
 
-def _write(value: object, out: list[str], maximum: int) -> None:
+# A depth this deep has no legitimate use in a specification document (the real one nests a handful of
+# levels); it exists so a pathologically deep or cyclic input is refused with `SpecIntegrityError` well
+# before it could exhaust CPython's own call stack (`RecursionError`) — Security review finding 5.
+_MAX_DEPTH = 500
+
+
+def _describe_int(value: int) -> str:
+    """A safe textual magnitude for an error message — `str()`/`repr()` on an integer long enough hits
+    CPython's own int-conversion digit-count guard, which would turn *reporting* the refusal into the
+    same crash this function exists to avoid."""
+    try:
+        return repr(value)
+    except ValueError:
+        sign = "-" if value < 0 else ""
+        return f"{sign}<integer of magnitude 2**{value.bit_length()}>"
+
+
+def _write(value: object, out: list[str], maximum: int, depth: int, seen: set[int]) -> None:
+    if depth > _MAX_DEPTH:
+        raise SpecIntegrityError(f"canonicalisation nests more than {_MAX_DEPTH} levels deep")
     if value is None:
         out.append("null")
     elif isinstance(value, bool):
         out.append("true" if value else "false")
     elif isinstance(value, int):
         if abs(value) > maximum:
-            raise SpecIntegrityError(f"canonicalisation covers magnitudes up to {maximum}, got {value!r}")
+            raise SpecIntegrityError(f"canonicalisation covers magnitudes up to {maximum}, got {_describe_int(value)}")
         out.append(str(value))
     elif isinstance(value, float):
         # A number is an integer whose magnitude is at most `version.maximum`, written as that integer;
@@ -104,22 +123,43 @@ def _write(value: object, out: list[str], maximum: int) -> None:
     elif isinstance(value, str):
         out.append(_escape(value))
     elif isinstance(value, (list, tuple)):
-        out.append("[")
-        for i, item in enumerate(value):
-            if i > 0:
-                out.append(",")
-            _write(item, out, maximum)
-        out.append("]")
+        # `id(value)` marks a container as "on the path from the root to here" for the length of its own
+        # recursion (added on entry, discarded on exit) — a reference cycle (a container that reaches
+        # itself through its own descendants) is refused instead of recursing forever, while the same
+        # object appearing twice in separate, non-nested branches (aliasing, not a cycle) still
+        # canonicalises normally.
+        marker = id(value)
+        if marker in seen:
+            raise SpecIntegrityError("canonicalisation cannot serialise a cyclic structure")
+        seen.add(marker)
+        try:
+            out.append("[")
+            for i, item in enumerate(value):
+                if i > 0:
+                    out.append(",")
+                _write(item, out, maximum, depth + 1, seen)
+            out.append("]")
+        finally:
+            seen.discard(marker)
     elif isinstance(value, dict):
-        keys = sorted(value.keys(), key=_sort_key)
-        out.append("{")
-        for i, key in enumerate(keys):
-            if i > 0:
-                out.append(",")
-            out.append(_escape(key))
-            out.append(":")
-            _write(value[key], out, maximum)
-        out.append("}")
+        marker = id(value)
+        if marker in seen:
+            raise SpecIntegrityError("canonicalisation cannot serialise a cyclic structure")
+        seen.add(marker)
+        try:
+            if any(not isinstance(key, str) for key in value):
+                raise SpecIntegrityError("canonicalisation covers string-keyed objects only")
+            keys = sorted(value.keys(), key=_sort_key)
+            out.append("{")
+            for i, key in enumerate(keys):
+                if i > 0:
+                    out.append(",")
+                out.append(_escape(key))
+                out.append(":")
+                _write(value[key], out, maximum, depth + 1, seen)
+            out.append("}")
+        finally:
+            seen.discard(marker)
     else:
         raise SpecIntegrityError(f"canonicalisation cannot serialise a value of type {type(value).__name__}")
 
@@ -127,5 +167,5 @@ def _write(value: object, out: list[str], maximum: int) -> None:
 def canonicalise(value: object, /) -> str:
     """The canonical serialisation the specification digest is computed over."""
     out: list[str] = []
-    _write(value, out, _maximum())
+    _write(value, out, _maximum(), 0, set())
     return "".join(out)

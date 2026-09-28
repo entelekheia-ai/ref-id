@@ -73,7 +73,15 @@ def build(parts: BuildParts, /) -> str:
 
     if parts.qualifiers:
         rendered = []
-        for key, value in parts.qualifiers:
+        for pair in parts.qualifiers:
+            # `parts.qualifiers` is declared as a tuple of `(key, value)` pairs; a caller who hands a
+            # `dict` instead bypasses the type checker (as `BuildParts.from_json`'s own malformed-shape
+            # guard already does for the JSON entry point) and would otherwise unpack each dict *key*
+            # string into `key, value` — silently wrong for a two-character key, a bare `ValueError` for
+            # any other length. Checked and refused here the same way `from_json` refuses its own shape.
+            if not isinstance(pair, (tuple, list)) or len(pair) != 2 or not isinstance(pair[0], str):
+                raise _refuse(spec, "state", "a qualifier is a (key, value) pair with a string key")
+            key, value = pair
             if isinstance(value, NestedValue):
                 if not isinstance(value.nested, str):
                     raise _refuse(spec, key, "a qualifier value is a string or NestedValue holding a string")

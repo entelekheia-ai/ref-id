@@ -139,10 +139,15 @@ def _qualifier_relation(
 
 
 def _declared_keys(x: tuple[Pair, ...], y: tuple[Pair, ...]) -> list[str]:
-    """The keys of two pair tuples, each once, in first-seen order across both sides."""
+    """The keys of two pair tuples, each once, in first-seen order across both sides.
+
+    `pair_key not in keys` against a growing list is quadratic in the qualifier count; a set kept beside
+    the ordered list turns that membership check constant while `keys` still carries the order."""
     keys: list[str] = []
+    seen: set[str] = set()
     for pair_key, _pair_value in x + y:
-        if pair_key not in keys:
+        if pair_key not in seen:
+            seen.add(pair_key)
             keys.append(pair_key)
     return keys
 

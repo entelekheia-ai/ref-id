@@ -26,6 +26,18 @@ from .validators import (
 __all__ = ["parse"]
 
 
+def _bounded_int(text: str, maximum: int) -> int:
+    """A digit-only literal capped at `maximum`, without ever handing CPython's `int()` a literal longer
+    than `maximum` itself can be — which keeps this independent of `sys.get_int_max_str_digits()`. Leading
+    zeros are stripped first (`"007"` and `"7"` must compare the same); a literal whose stripped digit
+    count exceeds `str(maximum)`'s is above `maximum` on digit count alone, so it is never converted.
+    Whatever survives to `int()` is no longer than `maximum`'s own digit count, which is always small."""
+    stripped = text.lstrip("0") or "0"
+    if len(stripped) > len(str(maximum)):
+        return maximum
+    return min(int(stripped), maximum)
+
+
 class _Parser:
     def __init__(self, spec: Spec, grammar: Grammar) -> None:
         self.spec = spec
@@ -126,15 +138,15 @@ class _Parser:
         type_ = opt("type") or ""
         locator = opt("locator") or ""
         explicit_version = version_text is not None
-        # `[0-9]+` guarantees a digit-only literal, so Python's arbitrary-precision `int()` never raises;
-        # a literal above `version.maximum` reports that maximum instead of the parsed value (still
-        # `unsupported`, since the maximum itself is never a member of `version.supported`), while
-        # `versionText` below keeps the literal exactly as written.
+        # `[0-9]+` guarantees a digit-only literal, but `int()` on one long enough hits CPython's
+        # int-conversion digit-count guard (`sys.get_int_max_str_digits()`, 4300 by default and settable
+        # as low as 640) — a literal that long is already far above `version.maximum`, so `_bounded_int`
+        # decides by digit count before ever converting; `versionText` below keeps the literal exactly as
+        # written regardless.
         version = self.spec.get_int("version", "default")
         if version_text is not None:
-            parsed = int(version_text)
             maximum = self.spec.get_int("version", "maximum")
-            version = min(parsed, maximum)
+            version = _bounded_int(version_text, maximum)
 
         head = ParseResult(
             input=input_,

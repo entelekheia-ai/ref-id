@@ -4,6 +4,8 @@ the task dossier (project/tasks/045) are pinned here directly.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 import ref_id
@@ -75,3 +77,33 @@ def test_bool_serialises_as_json_bool_not_as_a_number() -> None:
 
 def test_reexported_from_package() -> None:
     assert ref_id.canonicalise({"a": 1}) == '{"a":1}'
+
+
+class TestCanonicaliseRaisesOnlySpecIntegrityError:
+    """Security review finding 5: `canonicalise` must refuse deep or cyclic input, a non-string key and a
+    magnitude far beyond `version.maximum` with `SpecIntegrityError` alone — never `RecursionError`,
+    `AttributeError` or a bare `ValueError` a caller would have to know to special-case."""
+
+    def test_a_non_string_key(self) -> None:
+        with pytest.raises(SpecIntegrityError):
+            canonicalise({1: 2})
+
+    def test_a_ten_thousand_digit_integer(self) -> None:
+        with pytest.raises(SpecIntegrityError):
+            canonicalise(10**5000)
+
+    def test_deeply_nested_lists(self) -> None:
+        value: list[Any] = []
+        cursor = value
+        for _ in range(100_000):
+            nxt: list[Any] = []
+            cursor.append(nxt)
+            cursor = nxt
+        with pytest.raises(SpecIntegrityError):
+            canonicalise(value)
+
+    def test_a_cyclic_object(self) -> None:
+        value: dict[str, Any] = {}
+        value["a"] = value
+        with pytest.raises(SpecIntegrityError):
+            canonicalise(value)

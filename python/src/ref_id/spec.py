@@ -122,6 +122,13 @@ def _validate(text: str, sidecar: str) -> Spec:
         parsed = json.loads(text)
     except json.JSONDecodeError as error:
         raise SpecIntegrityError(f"spec/ref-id.json is not JSON: {error}") from error
+    except (ValueError, RecursionError) as error:
+        # `json.loads` itself converts a number literal to `int`/`float` and recurses per nesting level:
+        # a literal long enough hits CPython's int-conversion digit-count guard (`ValueError`, not
+        # `json.JSONDecodeError`), and nesting deep enough hits its call-stack limit (`RecursionError`).
+        # Both are the document's shape being unreadable, reported the same way as malformed JSON rather
+        # than surfacing CPython's own exception kinds to a caller who would have to know to expect them.
+        raise SpecIntegrityError(f"spec/ref-id.json cannot be parsed: {error}") from error
     canonical = canonicalise(parsed)
     computed = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     expected = sidecar.strip()
@@ -142,7 +149,10 @@ def load_spec_from(directory: str | os.PathLike[str], /) -> Spec:
             text = handle.read()
         with open(os.path.join(directory, "ref-id.json.sha256"), encoding="utf-8") as handle:
             sidecar = handle.read()
-    except OSError as error:
+    except (OSError, UnicodeDecodeError) as error:
+        # A missing file or directory raises `OSError`; a file that is not valid UTF-8 raises
+        # `UnicodeDecodeError` from `handle.read()` — neither belongs on a caller who was promised
+        # `SpecIntegrityError` for every way this pair can fail to be the specification it claims to be.
         raise SpecIntegrityError(str(error)) from error
     return _validate(text, sidecar)
 

@@ -181,6 +181,27 @@ bound for canonical numbers is the same value, read from the same key.
   held only `Sources/RefId/Canonical.swift` — but the stash stack is shared across worktrees and agents.
   Evidence: stash commit `36d1544`, "swift-security-fix-wip-008", one file changed.
 
+- Observation (security review): the Python port raised an undeclared `ValueError` from a single
+  identifier with a digit run past CPython's 4300-digit int-conversion limit — a limit each host may lower
+  with `PYTHONINTMAXSTRDIGITS`. Evidence: `ref:` + 4301 digits + `:folder:a`; fixed by comparing digit
+  strings by length before converting; with the variable at its minimum, 640, a 5000-digit version is
+  `unsupported` and a 5000-digit `lines=` bound `malformed`, neither raising.
+
+- Observation (security review): Python percent-decoding and relations were quadratic, its Package URL
+  canonical form wrote lowercase escapes (`%2b`) where the other three write `%2B`, and `load_spec_from`,
+  `canonicalise` and `build` let undeclared exception types escape. Evidence: 1M characters decoded in
+  2.6–6.1 s before and 0.1 s after; 40,000 qualifiers related in 2.9 s before and 0.002 s after; each
+  refusal pinned by a test; `uv run pytest` 693/0 on 3.14 and 3.11.
+
+- Observation: a `build` given its qualifiers as a dict with a two-letter key built a wrong identifier
+  silently — Python unpacked the key string itself (`{"by": "1"}` became `;b=y`); it now raises
+  `BuildError` at `state`. Evidence: the follow-up's reproduction.
+
+- Ruling (Python follow-up): `canonicalise` refuses input nested past 500 levels and a cyclic structure
+  with `SpecIntegrityError`, where the process's recursion limit would otherwise decide — cost if wrong: a
+  document deeper than 500 levels is refused where another implementation's parser decides its own depth
+  (`serde_json` stops at 128, `JSONSerialization` at 512).
+
 ## Closure
 
 - [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually

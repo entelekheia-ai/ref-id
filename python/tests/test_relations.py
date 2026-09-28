@@ -175,3 +175,19 @@ def test_decided_by_follows_fixed_order_not_insertion_order() -> None:
     verdict = ref_id.verdict(a, b)
     assert verdict is not None
     assert verdict.decided_by.identity == ("qualifiers.aaa", "qualifiers.zzz")
+
+
+def test_relate_with_forty_thousand_qualifiers_completes_well_under_a_second() -> None:
+    """Security review finding 3: `_declared_keys`' `if pair_key not in keys` searched a growing list —
+    quadratic in the qualifier count. 40k qualifiers on one side must relate in well under a second, not
+    the many seconds the list-membership scan took."""
+    import time
+
+    a = "ref:folder:acme-tools;" + ";".join(f"k{i}=v" for i in range(40000))
+    b = "ref:folder:acme-tools"
+    start = time.perf_counter()
+    result = ref_id.relate(a, b)
+    elapsed = time.perf_counter() - start
+    assert result is not None
+    assert len(result.qualifiers) == 40000
+    assert elapsed < 1.0, f"relate took {elapsed:.2f}s for 40k qualifiers — still quadratic?"
