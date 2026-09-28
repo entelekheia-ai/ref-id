@@ -110,8 +110,9 @@ validator.
 **Naming.** `openRPC.x-casing` gains `"python": "snake_case"`, so the port spells `canonicalIdentifier`
 as `canonical_identifier`, as Rust does. `openRPC.x-extensions` gains `"python": ["embedded_spec_text"]`.
 The error type is `RefIdError`, a subclass of `ValueError`. Both additions are spec edits made first, per
-the rule that a public surface change is a spec edit before it is code; they are additions, so they mint
-a `specVersion` minor and a reseal.
+the rule that a public surface change is a spec edit before it is code. They change no identifier's
+meaning, so they need a reseal and no `specVersion` change — the commit that introduced the whole
+`openRPC` document (`001c51c`) left `specVersion` where it was.
 
 ### How the port is held
 
@@ -189,7 +190,7 @@ Tracks 2–4 are the port itself and run in order, each behind `uv run pytest` a
 Tracks 1, 5 and 6 are the harness shared between languages.
 
 - [ ] **Track 1 — The specification declares Python.** Add `python` to `openRPC.x-casing` and
-      `x-extensions`, reseal, bump `specVersion` minor, and regenerate the committed copies. Write
+      `x-extensions`, reseal, and copy the specification into the port copies. Write
       `scripts/gen-surface-python.mjs` with `--check`. At the end, the generator emits a surface file for a
       package that does not yet exist, and `npm run test:openrpc` and the `openrpc-valid` gate pass.
 - [ ] **Track 2 — The package, its specification and the canonical core.** `python/pyproject.toml`, the
