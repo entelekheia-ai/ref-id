@@ -96,13 +96,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      # .build/, keyed on the Swift sources; a miss restores the nearest earlier build and rebuilds only
-      # what changed.
-      - uses: actions/cache@v6
-        with:
-          path: .build
-          key: swift-build-${{ runner.os }}-${{ hashFiles('Package.swift', 'Sources/**') }}
-          restore-keys: swift-build-${{ runner.os }}-
       - name: swift conformance
         run: swift run ref-id-conformance
 
@@ -115,13 +108,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      # .build/, keyed on the Swift sources; a miss restores the nearest earlier build and rebuilds only
-      # what changed.
-      - uses: actions/cache@v6
-        with:
-          path: .build
-          key: swift-build-${{ runner.os }}-${{ hashFiles('Package.swift', 'Sources/**') }}
-          restore-keys: swift-build-${{ runner.os }}-
       - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
