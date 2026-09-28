@@ -56,7 +56,7 @@ function corpus() {
  * Command failed: node …`, while the child was saying `ENOENT … packages/ref-id/spec/ref-id.json` on
  * every line. A failure that names no cause is a failure nobody acts on.
  */
-function port(command, args, inputs, { parse = true } = {}) {
+function port(command, args, inputs, { parse = true, raw = false } = {}) {
   return new Promise((resolvePort, rejectPort) => {
     const child = spawn(command, args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] })
     const out = []
@@ -72,7 +72,7 @@ function port(command, args, inputs, { parse = true } = {}) {
         rejectPort(new Error(said ? `${message}\n${said.split("\n").slice(0, 5).join("\n")}` : message))
         return
       }
-      if (!parse) return resolvePort([])
+      if (!parse) return resolvePort(raw ? stdout : [])
       try {
         resolvePort(stdout.trim().split("\n").map((line) => JSON.parse(line)))
       } catch (error) {
@@ -85,24 +85,26 @@ function port(command, args, inputs, { parse = true } = {}) {
 }
 
 /**
- * Runs each task — a label and a function starting one run — at most `limit` at a time, and settles
- * them in the order given: each entry is `{ rows }` or `{ error }`. The seconds each run took go to
- * stderr, so a slow job says which implementation it waited on.
+ * At most `slots` runs at once: `limited(label, start)` waits for a slot, runs `start()`, and settles to
+ * `{ rows }` or `{ error }`. The seconds each run took go to stderr, so a slow job says what it waited on.
  */
-async function settle(tasks, limit = availableParallelism()) {
-  const results = new Array(tasks.length)
-  let next = 0
-  const worker = async () => {
-    while (next < tasks.length) {
-      const index = next++
-      const [label, start] = tasks[index]
-      const began = Date.now()
-      results[index] = await start().then((rows) => ({ rows }), (error) => ({ error }))
+function limiter(slots) {
+  const queue = []
+  const release = () => {
+    slots += 1
+    queue.shift()?.()
+  }
+  return async (label, start) => {
+    if (slots === 0) await new Promise((wake) => queue.push(wake))
+    slots -= 1
+    const began = Date.now()
+    try {
+      return await start().then((rows) => ({ rows }), (error) => ({ error }))
+    } finally {
       console.error(`${label}: ${((Date.now() - began) / 1000).toFixed(1)} s`)
+      release()
     }
   }
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
-  return results
 }
 
 /**
@@ -153,48 +155,68 @@ const inputs = corpus()
 // and both are installed identically from source. The property that belongs to the emitted artifact is
 // a different one (no Node builtin survives into the closure), and it is proven where it lives, by
 // scripts/check-browser-purity.mjs at postbuild.
-const ports = [
-  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical"]],
-  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical", "--browser"]],
-  ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--canonical"]],
-  ["swift", "swift", ["run", "-q", "ref-id-conformance", "--parse", "--canonical"]],
-  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--canonical"]],
-]
+// **Each compiled port is built once, then run as its own binary.** The builds start at once, side by
+// side; a binary is run directly rather than through `cargo run` or `swift run`, so the several runs of
+// one port share no build lock. A run through the build tool and a run of the binary it built speak the
+// same protocol from the same code: the path is shorter, not different.
+const timed = (label, promise) => {
+  const began = Date.now()
+  return promise.finally(() => console.error(`${label}: ${((Date.now() - began) / 1000).toFixed(1)} s`))
+}
+const run = (command, args) => port(command, args, [], { parse: false, raw: true })
+const rustBinary = timed("build rust", run("cargo", ["build", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--message-format=json-render-diagnostics"]))
+  .then((out) => out.split("\n").filter(Boolean).map((line) => JSON.parse(line)).find((message) => message.target?.name === "parse_lines" && message.executable)?.executable)
+  .then((binary) => (binary ? [binary, []] : Promise.reject(new Error("cargo build reported no parse_lines executable"))))
+const swiftBinary = timed("build swift", run("swift", ["build", "-q", "--product", "ref-id-conformance"]))
+  .then(() => run("swift", ["build", "--show-bin-path"]))
+  .then((dir) => [join(dir.trim(), "ref-id-conformance"), []])
 
-const pairPorts = [
-  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs"]],
-  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs", "--browser"]],
-  ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--pairs"]],
-  ["swift", "swift", ["run", "-q", "ref-id-conformance", "--pairs"]],
-  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--pairs"]],
+const typescript = Promise.resolve(["node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts"]])
+const python = Promise.resolve(["uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py"]])
+
+// [name, how it is launched, its parse arguments, its pair arguments, whether its pair pass is split]
+const ports = [
+  ["typescript", typescript, ["--canonical"], ["--pairs"], false],
+  ["typescript-browser", typescript, ["--canonical", "--browser"], ["--pairs", "--browser"], false],
+  ["rust", rustBinary, ["--canonical"], ["--pairs"], true],
+  ["swift", swiftBinary, ["--parse", "--canonical"], ["--pairs"], true],
+  ["python", python, ["--canonical"], ["--pairs"], true],
 ]
+const pairPorts = ports
 
 const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))
 const pairLines = pairs.flatMap(([a, b]) => [a, b])
 
-// **The runs overlap, one per core, and are compared afterwards in row order.** The ten runs — five
-// implementations, parse and pairs — are independent processes, and run one after another they used a
-// single core. The compiled ports are built first, side by side, so two runs of one port never contend
-// for its build directory. Overlapping changes no verdict: each row is still judged against row 0,
-// which is still the reference whether or not it ran first.
-const built = await settle([
-  ["build rust", () => port("cargo", ["build", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines"], [], { parse: false })],
-  ["build swift", () => port("swift", ["build", "-q", "--product", "ref-id-conformance"], [], { parse: false })],
-])
-for (const { error } of built) if (error) console.error(`build: ${error.message}`)
-// The pair runs are the long ones, so they start first and the short parse runs fill the gaps.
-const runs = await settle([
-  ...pairPorts.map(([name, command, args]) => [`${name} (pairs)`, () => port(command, args, pairLines)]),
-  ...ports.map(([name, command, args]) => [name, () => port(command, args, inputs)]),
-])
-const pairRuns = runs.slice(0, pairPorts.length)
-const parseRuns = runs.slice(pairPorts.length)
+// **Every run starts as soon as its own port can, and all are compared afterwards, in row order.** The
+// interpreted ports start at once; a compiled one starts when its build finishes, while the others run.
+// The slow pair passes are split into one slice per core, each slice a separate process, and their rows
+// joined back in order. At most one run per core is live at a time, since the macOS runner has few
+// cores and an unbounded start made the job slower there. None of this changes a verdict: every row is
+// still judged against row 0, which is still the reference whether or not it finished first.
+const slots = availableParallelism()
+const limited = limiter(slots)
+const launch = (launcher, label, args, lines) =>
+  launcher.then(
+    ([command, prefix]) => limited(label, () => port(command, [...prefix, ...args], lines)),
+    (error) => ({ error }),
+  )
+const slices = (lines, count) => {
+  const size = Math.ceil(lines.length / 2 / count) * 2 // whole pairs: two lines each
+  return Array.from({ length: Math.ceil(lines.length / size) }, (_, i) => lines.slice(i * size, (i + 1) * size))
+}
+const pairRunsStarted = ports.map(([name, launcher, , pairArgs, split]) => {
+  const parts = split ? slices(pairLines, slots) : [pairLines]
+  return Promise.all(parts.map((lines, i) => launch(launcher, `${name} (pairs${parts.length > 1 ? ` ${i + 1}/${parts.length}` : ""})`, pairArgs, lines)))
+    .then((settled) => settled.find((part) => part.error) ?? { rows: settled.flatMap((part) => part.rows) })
+})
+const parseRunsStarted = ports.map(([name, launcher, parseArgs]) => launch(launcher, name, parseArgs, inputs))
+const [pairRuns, parseRuns] = await Promise.all([Promise.all(pairRunsStarted), Promise.all(parseRunsStarted)])
 
 let failures = 0
 let known = 0
 let reference = null
 
-for (const [index, [name, command, args]] of ports.entries()) {
+for (const [index, [name]] of ports.entries()) {
   // THE REFERENCE IS ROW 0, AND IT IS NOT WHICHEVER ROW HAPPENS TO RUN FIRST. This used to read
   // `if (reference === null)`, so a reference that failed to start promoted the next row into its
   // place, silently. Measured on 2026-09-17: the TypeScript row could not run, the browser build
@@ -257,7 +279,7 @@ console.log(`differential: ${inputs.length} inputs × ${ports.length} implementa
 
 let pairFailures = 0
 let pairReference = null
-for (const [index, [name, command, args]] of pairPorts.entries()) {
+for (const [index, [name]] of pairPorts.entries()) {
   const isReference = index === 0
   const { rows, error } = pairRuns[index]
   if (error) {
