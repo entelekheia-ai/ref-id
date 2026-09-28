@@ -393,6 +393,14 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   moves identifiers between implementations needs it more than a contributor does. The trailing `/` is
   accepted by Swift too, and the Package URL specification does not settle it.
   Date / Author: 2026-09-28 / Danilo Borges
+- Decision: the tasks close in the publication pull request and the plan closes in a later one, after the
+  release has published to PyPI; so the `node-and-rust` job checks out full history again (`fetch-depth: 0`),
+  which Plan-007 had dropped.
+  Rationale: Plan-007 took shipped plans out of the `breadcrumb` gate on the premise that only a shipped plan
+  carries `git show` pointers; a plan whose dossiers close before it carries them while in progress, and a
+  depth-1 checkout resolved none of them (six findings on PR #51, none with full history). The pointers name
+  this branch's commits, so the pull request merges with a merge commit, never squash or rebase.
+  Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective
 
