@@ -1,5 +1,5 @@
 {
- "specVersion": "1.5.0",
+ "specVersion": "1.6.0",
  "scheme": "ref",
  "grammar": {
   "dialect": "ecmascript-2018",
@@ -12,18 +12,14 @@
    "fragment"
   ],
   "adaptationsApplyTo": "every pattern in this file — the expression, the pair grammars, the forms, the dispatch and refinement patterns",
-  "anchors": "the canonical dialect ends a pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares the replacement above",
+  "anchors": "the canonical dialect ends every pattern with $ meaning end of input; an engine whose $ also matches before a final line break declares an anchor, which replaces that final $ and no other — a $ inside a character class is a literal and stays; replace pairs apply everywhere, then the anchor",
   "adaptations": {
    "ecmascript-2018": {
     "replace": []
    },
    "pcre2": {
-    "replace": [
-     [
-      "$",
-      "\\z"
-     ]
-    ]
+    "replace": [],
+    "anchor": "\\z"
    },
    "rust-regex": {
     "replace": []
@@ -33,12 +29,9 @@
      [
       "(?<",
       "(?P<"
-     ],
-     [
-      "$",
-      "\\Z"
      ]
-    ]
+    ],
+    "anchor": "\\Z"
    },
    "swift-regex": {
     "replace": []
@@ -62,6 +55,8 @@
   "supported": [
    1
   ],
+  "maximum": 9007199254740991,
+  "maximumNote": "the largest integer every implementation holds exactly; a version literal above it is unsupported, versionText keeps the literal and version reports this maximum; a refinement declaring this maximum refuses, as malformed at that refinement, any integer above it",
   "mints": [
    "normalisation or percent-encoding",
    "separators or shape"
@@ -345,13 +340,16 @@
    "pattern": "^[0-9]+(,[0-9]+)?$",
    "range": "ascending",
    "boundSeparator": ",",
+   "maximum": "/version/maximum",
    "reference": "RFC 5147 placement"
   },
   "item": {
-   "pattern": "^[0-9]+$"
+   "pattern": "^[0-9]+$",
+   "maximum": "/version/maximum"
   },
   "para": {
-   "pattern": "^[0-9]+$"
+   "pattern": "^[0-9]+$",
+   "maximum": "/version/maximum"
   }
  },
  "unknownRefinement": "carry-through",
@@ -372,6 +370,7 @@
   "order": "declared",
   "join": "\n",
   "encoding": "utf-8",
+  "unicode": "a member is valid Unicode: one that holds a lone surrogate is refused, never replaced, because two members would otherwise digest alike",
   "dedupe": false,
   "output": "sha256:<64 lowercase hex>"
  },
@@ -448,7 +447,7 @@
    "object keys sorted by UTF-16 code unit order",
    "no whitespace outside strings",
    "strings escaped as JSON.stringify does",
-   "numbers are integers only",
+   "a number is an integer whose magnitude is at most 9007199254740991, written as that integer; an integral value written with a fraction or an exponent (1.0, 1e2) is that integer; any other number is refused",
    "UTF-8 bytes of the result are what the digest covers"
   ],
   "sidecar": "ref-id.json.sha256 holds the digest of this file; the file never contains its own digest"
@@ -476,7 +475,8 @@
   "x-casing": {
    "typescript": "camelCase",
    "rust": "snake_case",
-   "swift": "camelCase"
+   "swift": "camelCase",
+   "python": "snake_case"
   },
   "x-extensions": {
    "typescript-browser": [
@@ -488,6 +488,9 @@
    "swift": [
     "embeddedSpecURLs",
     "sha256Hex"
+   ],
+   "python": [
+    "embedded_spec_text"
    ]
   },
   "methods": [
@@ -844,8 +847,7 @@
      }
     ],
     "x-rule": "/canonicalisation",
-    "x-vectors": null,
-    "x-vectors-reason": "exercised by every implementation's specification-integrity test, which recomputes the sidecar digest through it",
+    "x-vectors": "canonicalisation",
     "x-deprecated-aliases": {
      "swift": [
       "canonicalJSON(_:)"
@@ -1368,6 +1370,146 @@
  },
  "vectors": {
   "parse": [
+   {
+    "name": "a lines bound above the maximum is malformed at the refinement, even ascending",
+    "input": "ref:folder:a#x;lines=9007199254740992,9007199254740993",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound past a 64-bit signed integer is malformed at the refinement",
+    "input": "ref:folder:a#x;lines=1,9223372036854775809",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound past a 64-bit unsigned integer is malformed at the refinement",
+    "input": "ref:folder:a#x;lines=1,18446744073709551617",
+    "expect": {
+     "status": "malformed",
+     "part": "lines"
+    }
+   },
+   {
+    "name": "a lines bound at the maximum is admitted",
+    "input": "ref:folder:a#x;lines=9007199254740991,9007199254740991",
+    "expect": {
+     "status": "ok",
+     "fragment": {
+      "path": "x",
+      "refinements": [
+       [
+        "lines",
+        "9007199254740991,9007199254740991"
+       ]
+      ]
+     }
+    }
+   },
+   {
+    "name": "an item above the maximum is malformed at the refinement",
+    "input": "ref:folder:a#x;item=9007199254740992",
+    "expect": {
+     "status": "malformed",
+     "part": "item"
+    }
+   },
+   {
+    "name": "a combining mark after the fragment separator does not hide it",
+    "input": "ref:pkg:npm/a@1#́/x",
+    "expect": {
+     "status": "ok",
+     "type": "pkg",
+     "locator": "npm/a@1",
+     "fragment": {
+      "path": "́/x",
+      "refinements": []
+     }
+    }
+   },
+   {
+    "name": "a combining mark after a qualifier separator does not hide it",
+    "input": "ref:folder:a;x=1;́y=2",
+    "expect": {
+     "status": "malformed",
+     "part": "state",
+     "type": "folder",
+     "locator": "a"
+    }
+   },
+   {
+    "name": "a combining mark before a qualifier separator stays in the locator",
+    "input": "ref:folder:á;x=1",
+    "expect": {
+     "status": "malformed",
+     "part": "locator",
+     "type": "folder",
+     "locator": "á"
+    }
+   },
+   {
+    "name": "a combining mark after a refinement separator does not hide it",
+    "input": "ref:foo:x#p;́a=1",
+    "expect": {
+     "status": "malformed",
+     "part": "fragment",
+     "type": "foo",
+     "locator": "x"
+    }
+   },
+   {
+    "name": "a combining mark after the scheme separator does not join the type",
+    "input": "ref:́foo:x",
+    "expect": {
+     "status": "malformed",
+     "part": "grammar",
+     "type": "",
+     "locator": ""
+    }
+   },
+   {
+    "name": "a version literal above the maximum is unsupported, keeping its text and reporting the maximum",
+    "input": "ref:9223372036854775808:pkg:npm/x@1.0.0",
+    "expect": {
+     "status": "unsupported",
+     "version": 9007199254740991,
+     "explicitVersion": true,
+     "versionText": "9223372036854775808",
+     "type": "pkg",
+     "locator": "npm/x@1.0.0"
+    }
+   },
+   {
+    "name": "the first version literal past the maximum is already unsupported",
+    "input": "ref:9007199254740992:pkg:npm/x@1.0.0",
+    "expect": {
+     "status": "unsupported",
+     "version": 9007199254740991,
+     "explicitVersion": true,
+     "versionText": "9007199254740992",
+     "type": "pkg",
+     "locator": "npm/x@1.0.0"
+    }
+   },
+   {
+    "name": "a qualifier key that names a member of a language's base object is an ordinary key",
+    "input": "ref:foo:x;constructor=1",
+    "expect": {
+     "status": "uncovered",
+     "type": "foo",
+     "locator": "x",
+     "qualifiers": [
+      [
+       "constructor",
+       "1"
+      ]
+     ]
+    }
+   },
    {
     "name": "pkg with declared name",
     "input": "ref:pkg:npm/@acme/scanner-core@0.1.0#Observation",
@@ -3735,6 +3877,28 @@
   ],
   "comparison": [
    {
+    "name": "one scoped package at two versions is the same package, and neither version covers the other",
+    "a": "ref:pkg:npm/@acme/x@1.0.0",
+    "b": "ref:pkg:npm/@acme/x@2.0.0",
+    "expect": {
+     "samePackage": true,
+     "covers": false,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
+    "name": "a scoped package with no version covers that package at a version",
+    "a": "ref:pkg:npm/@acme/x",
+    "b": "ref:pkg:npm/@acme/x@1.0.0",
+    "expect": {
+     "samePackage": true,
+     "covers": true,
+     "coversReversed": false,
+     "sameIdentifier": false
+    }
+   },
+   {
     "name": "identical identifiers are the same package and cover each other",
     "a": "ref:pkg:npm/x@1.0.0",
     "b": "ref:pkg:npm/x@1.0.0",
@@ -4221,6 +4385,29 @@
   ],
   "relate": [
    {
+    "name": "a nested pair refused on one side only differs, without descending",
+    "a": "ref:folder:acme-tools;by=ref:2:pkg:npm/x",
+    "b": "ref:folder:acme-tools;by=ref:pkg:npm/x@1.0.0",
+    "expect": {
+     "relate": {
+      "type": "equal",
+      "version": "equal",
+      "locatorStem": "equal",
+      "locatorVersion": "equal",
+      "fragmentPath": "equal",
+      "fragmentRefinements": {},
+      "qualifiers": {
+       "by": {
+        "relation": "differ"
+       }
+      }
+     },
+     "samePackage": false,
+     "covers": false,
+     "coversReversed": false
+    }
+   },
+   {
     "name": "identical identifiers are equal in every dimension",
     "a": "ref:pkg:npm/x@1.0.0#Observation",
     "b": "ref:pkg:npm/x@1.0.0#Observation",
@@ -4651,6 +4838,23 @@
   ],
   "verdict": [
    {
+    "name": "a fragment refinement that differs decides the identity",
+    "a": "ref:foo:x#p;a=1",
+    "b": "ref:foo:x#p;a=2",
+    "expect": {
+     "verdict": {
+      "identity": "distinct",
+      "content": "unknown",
+      "decidedBy": {
+       "identity": [
+        "fragmentRefinements.a"
+       ],
+       "content": []
+      }
+     }
+    }
+   },
+   {
     "name": "identical identifiers carrying the same origin are the same thing",
     "a": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
     "b": "ref:folder:acme-tools/docs/guide.md;origin=https://github.com/acme/acme-tools#Setup",
@@ -5006,6 +5210,48 @@
       }
      }
     }
+   }
+  ],
+  "canonicalisation": [
+   {
+    "name": "an integral value written with a fraction is that integer",
+    "json": "{\"a\":1.0}",
+    "expect": "{\"a\":1}"
+   },
+   {
+    "name": "an integral value written with an exponent is that integer",
+    "json": "{\"a\":1e2}",
+    "expect": "{\"a\":100}"
+   },
+   {
+    "name": "negative zero is zero",
+    "json": "{\"a\":-0}",
+    "expect": "{\"a\":0}"
+   },
+   {
+    "name": "the largest magnitude is written as it is",
+    "json": "{\"a\":9007199254740991,\"b\":-9007199254740991}",
+    "expect": "{\"a\":9007199254740991,\"b\":-9007199254740991}"
+   },
+   {
+    "name": "numbers inside arrays and nested objects follow the same rule, keys sorted",
+    "json": "{\"b\":[1,2.0],\"a\":{\"d\":3e0,\"c\":true}}",
+    "expect": "{\"a\":{\"c\":true,\"d\":3},\"b\":[1,2]}"
+   },
+   {
+    "name": "a fraction is refused",
+    "json": "{\"a\":1.5}",
+    "refused": true
+   },
+   {
+    "name": "a magnitude past the maximum is refused",
+    "json": "{\"a\":9007199254740992}",
+    "refused": true
+   },
+   {
+    "name": "a negative magnitude past the maximum is refused",
+    "json": "{\"a\":-9007199254740992}",
+    "refused": true
    }
   ]
  }

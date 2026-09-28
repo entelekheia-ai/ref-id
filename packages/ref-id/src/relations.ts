@@ -28,7 +28,7 @@ import type { Pair, ParseResult, QualifierRelation, RelateResult, Relation, Verd
  * share the stem `npm/x/docs/guide.md` and are the same package, while two files in one release do not.
  */
 function split(spec: RefIdSpec, type: string, locator: string): { stem: string; version?: string } {
-  if (!spec.dispatch[type]?.versionTail) return { stem: locator }
+  if (!(Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined)?.versionTail) return { stem: locator }
   for (let index = 1; index < locator.length; index += 1) {
     if (locator[index] !== "@" || locator[index - 1] === "/") continue
     const slash = locator.indexOf("/", index)
@@ -48,6 +48,14 @@ function split(spec: RefIdSpec, type: string, locator: string): { stem: string; 
  */
 function stemReaches(general: string, specific: string): boolean {
   return general === specific || specific.startsWith(`${general}/`)
+}
+
+/** The nested identifier a parsed result carries at a qualifier key, own-property only — `nested` is
+ * indexed by a qualifier key straight off the identifier, and a key naming a member of the language's
+ * base object (`constructor`, `toString`, …) must never resolve through the prototype chain instead of
+ * coming back empty. */
+function nestedAt(result: ParseResult, key: string): string | undefined {
+  return result.nested && Object.hasOwn(result.nested, key) ? result.nested[key] : undefined
 }
 
 /**
@@ -99,7 +107,7 @@ function qualifiersCovered(general: ParseResult, specific: ParseResult): boolean
   const specMap = new Map(specific.qualifiers)
   return general.qualifiers.every(([key, value]) => {
     const specificValue = specMap.get(key)
-    return specificValue !== undefined && qualifierCovers(value, specificValue, general.nested?.[key], specific.nested?.[key])
+    return specificValue !== undefined && qualifierCovers(value, specificValue, nestedAt(general, key), nestedAt(specific, key))
   })
 }
 
@@ -119,7 +127,7 @@ function qualifiersEqual(a: ParseResult, b: ParseResult): boolean {
   const bMap = new Map(b.qualifiers)
   return a.qualifiers.every(([key, value]) => {
     const bValue = bMap.get(key)
-    return bValue !== undefined && qualifierSame(value, bValue, a.nested?.[key], b.nested?.[key])
+    return bValue !== undefined && qualifierSame(value, bValue, nestedAt(a, key), nestedAt(b, key))
   })
 }
 
@@ -268,7 +276,7 @@ export function relate(a: string | ParseResult, b: string | ParseResult): Relate
   const yQualifiers = new Map(y.qualifiers)
   const qualifiers: Record<string, QualifierRelation> = {}
   for (const key of qualifierKeys) {
-    qualifiers[key] = qualifierRelation(xQualifiers.get(key), yQualifiers.get(key), x.nested?.[key], y.nested?.[key])
+    qualifiers[key] = qualifierRelation(xQualifiers.get(key), yQualifiers.get(key), nestedAt(x, key), nestedAt(y, key))
   }
 
   return {
@@ -296,7 +304,7 @@ interface QualifierVerdictSpec {
 
 function qualifierVerdictSpec(spec: RefIdSpec, key: string): QualifierVerdictSpec | undefined {
   const qualifiers = spec.qualifiers as unknown as Record<string, { verdict?: QualifierVerdictSpec }>
-  return qualifiers[key]?.verdict
+  return Object.hasOwn(qualifiers, key) ? qualifiers[key]?.verdict : undefined
 }
 
 /** `decidedBy`'s fixed order: the five dimensions in `FIXED_DIMENSIONS`'s order, then refinement keys,

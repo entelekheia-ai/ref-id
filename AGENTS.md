@@ -13,9 +13,10 @@ is expected and is checked against the same vectors, never against this code.
 | `spec/` | **The specification, as data.** `ref-id.json` is the only place the grammar, the dispatch and qualifier tables, the digest canonicalisation and the conformance vectors live. Prose in `docs/` explains it; nothing in `packages/` restates it. |
 | `packages/ref-id/` | `@entelekheia/ref-id` — the TypeScript reference: parse, serialise, build, digest, envelope validation. Its tests are the vectors. **Two builds of one source**, picked by `exports`: the default reads `spec/ref-id.json` from disk, the `browser` condition serves a build whose specification is a constant `scripts/gen-spec.mjs` compiled in. |
 | `Package.swift`, `Sources/RefId/` | The Swift port (`RefId`), at the root because SwiftPM resolves a git dependency's manifest only there. `Sources/RefId/Resources/` holds a byte-identical copy of `spec/` (the runner proves it). Gate: `swift run ref-id-conformance` — an executable, because Command Line Tools ship neither XCTest nor the Swift Testing macros. |
+| `python/` | The Python port (`ref-id` on PyPI, `ref_id` on import), `uv`-managed, `src/` layout. Embeds `python/src/ref_id/spec/`, a byte-identical copy the `spec-bytes` gate holds; version synced by `scripts/sync-versions.sh`. Gate: `uv run pytest`, `mypy --strict`, `ruff`; the `python-conformance` gate runs the suite at commit. |
 | `Cargo.toml`, `crates/ref-id/` | The Rust port (`ref-id` crate, `ref_id` library) under a root Cargo workspace. Embeds `crates/ref-id/spec/`, a byte-identical copy of the root spec held by a test, so the crate packages on its own. Version synced from the npm package by `scripts/sync-versions.sh`. Gate: `cargo test --workspace`. Delegates the purl to the `packageurl` crate. |
-| `spec/conformance/` | Grammar-level runners in Python and Perl: the declared dialects, proven on every parse vector (`npm run test:grammar`). |
-| `.vibe-ops/` | **The specification's own commit gates**: its seal, the `relate` reductions against the `comparison` group, the `openRPC` document, and the byte-identity of the ports' copies. Plain-module gates composed by `vibeops.config.ts`, run by `vibe-ops check` from `.githooks/pre-commit` and CI; `npm run test:gates` holds their decoys. `node scripts/seal-spec.mjs` reseals through the seal gate's `fix()`. |
+| `spec/conformance/` | The grammar-level runner for the `pcre2` dialect, in Perl — the one dialect no implementation proves (`npm run test:grammar`). |
+| `.vibe-ops/` | **The specification's own commit gates**: its seal, the `relate` reductions against the `comparison` group, the `openRPC` document, and the byte-identity of the ports' copies, the Python suite, and every generated surface file. Plain-module gates composed by `vibeops.config.ts`, run by `vibe-ops check` from `.githooks/pre-commit` and CI; `npm run test:gates` holds their decoys. `node scripts/seal-spec.mjs` reseals through the seal gate's `fix()`. |
 | `docs/` | Diátaxis: `explanation/` carries the scheme's rationale and the rejected alternatives; `reference/` the API. |
 | `project/` | Governance records (ADR / RFC / plan / task / log / research) — lifecycles in `.agents/rules/governance.md`. |
 
@@ -56,28 +57,27 @@ is expected and is checked against the same vectors, never against this code.
   `.github/workflows/release.yml` through npm trusted publishing: a push to `main` opens the "Version
   Packages" pull request, and merging it publishes the npm package, the crate (crates.io trusted
   publishing) and the `v<version>` tag Swift Package Manager resolves. No publishing token exists anywhere.
-- Every delegated validation goes to the library that owns the format. Two exceptions are declared: the
-  SWHID core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL
-  core grammar (no maintained Swift library). **The purl exemption in the differential is per
-  implementation**: the browser build resolves the same `packageurl-js` the Node build does, so a purl
-  disagreement between those two is a defect rather than a known edge. The three purl validators differ at the edge — `packageurl-js`
-  accepts an empty name after a namespace and a version ending in `/`; the `packageurl` crate and the Swift
-  validator refuse them — and a locator's validity is the format's, so the differential test compares every
-  field except that verdict.
+- Every delegated validation goes to the library that owns the format. Two exceptions are declared: the SWHID
+  core form (ADR-0002, no maintained validator on npm) and, in the Swift port only, the Package URL core
+  grammar (no maintained Swift library). **The purl exemption in the differential is per implementation**: the
+  browser build resolves the same `packageurl-js` the Node build does, so a purl disagreement between those
+  two is a defect. Where the four purl validators differ is measured in
+  `docs/reference/implementation-differences.md` — a new edge goes there. A locator's validity is the
+  format's, so the differential compares every field except that verdict.
 - **Each suite proves its own implementation; only the differential proves they agree with each other.**
-  `npm run test:differential` runs **four implementations** — the Node build, the browser build, Rust and
-  Swift — over every input the specification names, drawn from the
+  `npm run test:differential` runs **five implementations** — the Node build, the browser build, Rust,
+  Swift and Python — over every input the specification names, drawn from the
   vector groups themselves, so the corpus grows with the spec, and then over **every ordered pair** of
   that corpus for `covers`, `samePackage`, `sameIdentifier`, `relate` and `verdict`; it fails on the first
   disagreement. The pair pass exists because parse agreeing everywhere did not make comparison agree: two
   divergences no vector named were found only by building pairs. The
   browser build is a row there rather than a suite of its own, because the failure it can reintroduce is
   the one this harness exists for, one build apart instead of one language apart. All
-  four speak one line protocol (`packages/ref-id/parse-lines.ts`, with `--browser` selecting the browser
+  five speak one line protocol (`packages/ref-id/parse-lines.ts`, with `--browser` selecting the browser
   entry, `cargo run --example parse_lines`,
-  `swift run ref-id-conformance --parse`, each with a `--pairs` mode), and all are run the same way for a reason: calling the
+  `swift run ref-id-conformance --parse`, `python/tools/parse_lines.py`, each with a `--pairs` mode), and all are run the same way for a reason: calling the
   reference in-process would judge it by a path the ports never take. It runs in CI on the macOS runner,
-  the only job where the three can coexist. A field no vector constrains can otherwise be decided three
+  the only job where they can all run. A field no vector constrains can otherwise be decided three
   ways with every suite green, which is what happened to Package URL canonicalisation.
 - **The public surface is declared in the specification, and each implementation is held to it.**
   `spec/ref-id.json`'s `openRPC` key is one OpenRPC document: every operation (`x-vectors` names its
@@ -87,7 +87,7 @@ is expected and is checked against the same vectors, never against this code.
   operation or a moved signature; `npm run test:surface` adds the other direction, a public function
   nobody declared. The generated files come from `scripts/gen-surface-*.mjs`, which read the
   specification alone, and each has a `--check` staleness guard. **A new public operation is a spec edit
-  first**: declare it in `openRPC`, regenerate, and only then implement it in all three.
+  first**: declare it in `openRPC`, regenerate, and only then implement it in every implementation.
 
 ## Source of truth
 
@@ -109,7 +109,7 @@ is expected and is checked against the same vectors, never against this code.
 | Subagents (Claude-only, no `.agents/` equivalent) | `.claude/agents/<name>.md` | directly |
 
 Two subagents carry the fixed half of the delegations this repository repeats: `ref-id-port-implementer` (one
-change in one of the three implementations, behind that language's gate) and `ref-id-reviewer`
+change in one of the four implementations, behind that language's gate) and `ref-id-reviewer`
 (read-only review before merge). Their frontmatter pins `model` and `effort`. A per-call `model` overrides the
 definition, so a call omits it — except to escalate `ref-id-port-implementer` to `opus` after its gate failed.
 Findings reach `ref-id-port-implementer` already triaged: deciding which review findings stand is the caller's.
@@ -123,10 +123,10 @@ right inside the brief and wrong at its edge, a stop before the work was done, o
 the brief. Two further questions decide the next brief: when the brief was wrong, did the agent contest it
 with evidence or build on it; and when work was left undone, did the report say so.
 
-Agent tooling is the `vibe-ops` plugin — no per-repo copy of anything it ships. The one skill this
-repository owns is [`identify`](.agents/skills/identify/SKILL.md), which decides whether something can be
-identified under the scheme and produces the identifier. Closing a task goes through
-`/vibe-ops:close-task`, never a plain delete.
+Agent tooling is the `vibe-ops` plugin. This repository owns two skills:
+[`identify`](.agents/skills/identify/SKILL.md) produces an identifier, and
+[`verify-hostile-input`](.agents/skills/verify-hostile-input/SKILL.md) runs hostile input against every
+implementation before a change to how they read input merges. Closing a task is `/vibe-ops:close-task`.
 
 ## Keeping this file current
 

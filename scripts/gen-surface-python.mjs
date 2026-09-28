@@ -1,0 +1,186 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Generate `python/tests/test_surface.py` from `openRPC` — one annotated binding per declared method, so
+ * `mypy --strict` fails the moment a function goes missing or its signature moves.
+ *
+ * Each method becomes `_<snake_case name>: Callable[[...], ...] = ref_id.<snake_case name>`. A schema maps
+ * to a Python type by the fixed table in `pyType` below; a schema outside it throws, naming the method and
+ * the parameter, rather than widening to `Any` — a binding that accepts anything checks nothing. Unlike the
+ * Rust generator, one binding per method is enough: `IdentifierOrParsed` is the union
+ * `str | ref_id.ParseResult`, and a Python function that raises has no `Result` in its signature, so
+ * neither `x-error-type` nor `x-result-cached` changes a binding.
+ *
+ * Also emits `DECLARED` — the public names the package owes: every method not `x-absent-from` python, its
+ * python `x-deprecated-aliases`, `x-extensions.python`, `x-error-type` and one `<Kind>Error` per
+ * `components.errors` kind, sorted — and a runtime test that recomputes that list from the specification,
+ * so a spec edit with no regeneration fails even where every signature still type-checks.
+ *
+ * Also emits `PARAMETERS` — each method's arity, and its parameter names where `x-argument-labels` makes
+ * them part of the contract — and a runtime test that every other method's parameters are positional-only,
+ * Python's spelling of the specification's "unlabelled arguments". A `Callable` binding checks types by
+ * position only, so without it `covers(specific=…, general=…)` would type-check and invert the answer.
+ *
+ * `--check` regenerates in memory and diffs against the committed file instead of writing it, exiting
+ * non-zero when they differ.
+ *
+ *   node scripts/gen-surface-python.mjs [--check]
+ */
+import { readFileSync, writeFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+
+const SPEC_PATH = new URL("../spec/ref-id.json", import.meta.url)
+const OUT_PATH = new URL("../python/tests/test_surface.py", import.meta.url)
+const LANG = "python"
+
+const snakeCase = (name) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
+const refName = (schema) => (schema && schema.$ref ? schema.$ref.split("/").pop() : undefined)
+
+/** Map one schema to a Python type, or `undefined` when the table cannot express it. */
+function pyType(schema, { asParam }) {
+  const ref = refName(schema)
+  if (ref === "Identifier") return "str"
+  if (ref === "IdentifierOrParsed") return asParam ? "str | ref_id.ParseResult" : undefined
+  if (ref) return `ref_id.${ref}`
+  if (!schema) return undefined
+  if (asParam && schema.type === "string" && schema["x-kind"] === "directory") return "str | os.PathLike[str]"
+  if (schema.type === "boolean") return "bool"
+  if (schema.type === "array" && refName(schema.items) === "Identifier") return asParam ? "Sequence[str]" : "list[str]"
+  if (Object.keys(schema).length === 0) return "object"
+  if (schema.oneOf) {
+    const nonNull = schema.oneOf.filter((s) => s.type !== "null")
+    if (nonNull.length === 1 && schema.oneOf.length === 2) {
+      const inner = pyType(nonNull[0], { asParam })
+      return inner === undefined ? undefined : `${inner} | None`
+    }
+    return undefined
+  }
+  if (schema.type === "string" && !schema["x-kind"]) return "str"
+  return undefined
+}
+
+/** The public names the package owes, per the specification — the list `DECLARED` carries. */
+function declaredNames(doc) {
+  const live = doc.methods.filter((m) => !(m["x-absent-from"] ?? []).includes(LANG))
+  return [
+    ...live.map((m) => snakeCase(m.name)),
+    ...live.flatMap((m) => m["x-deprecated-aliases"]?.[LANG] ?? []),
+    ...(doc["x-extensions"][LANG] ?? []),
+    doc["x-error-type"],
+    ...Object.keys(doc.components.errors).map((kind) => `${kind}Error`),
+  ].sort()
+}
+
+/** Render the whole file for one `openRPC` document. Pure; throws on a schema the table cannot map. */
+export function render(doc) {
+  if (doc["x-casing"]?.[LANG] !== "snake_case") {
+    throw new Error(`gen-surface-python: openRPC x-casing.${LANG} is ${JSON.stringify(doc["x-casing"]?.[LANG])}; this generator spells snake_case only`)
+  }
+  const bindings = []
+  const parameters = []
+  for (const method of doc.methods) {
+    if ((method["x-absent-from"] ?? []).includes(LANG)) continue
+    const name = snakeCase(method.name)
+    const params = method.params.map((p) => {
+      const ty = pyType(p.schema, { asParam: true })
+      if (ty === undefined) throw new Error(`gen-surface-python: method "${method.name}" param "${p.name}" has a schema this generator cannot map: ${JSON.stringify(p.schema)}`)
+      return ty
+    })
+    const result = method.result ? pyType(method.result.schema, { asParam: false }) : "None"
+    if (result === undefined) throw new Error(`gen-surface-python: method "${method.name}" result has a schema this generator cannot map: ${JSON.stringify(method.result.schema)}`)
+    bindings.push(`_${name}: Callable[[${params.join(", ")}], ${result}] = ref_id.${name}`)
+    const labels = method["x-argument-labels"] ? `[${method.params.map((p) => `"${snakeCase(p.name)}"`).join(", ")}]` : "None"
+    parameters.push(`    "${name}": (${method.params.length}, ${labels}),`)
+  }
+
+  const body = bindings.join("\n")
+  const imports = ["from __future__ import annotations", "", "import inspect", "import json"]
+  if (body.includes("os.PathLike")) imports.push("import os")
+  imports.push("import re")
+  imports.push(body.includes("Sequence[") ? "from collections.abc import Callable, Sequence" : "from collections.abc import Callable")
+  imports.push("from pathlib import Path", "", "import ref_id")
+
+  const lines = [
+    "# SPDX-License-Identifier: Apache-2.0",
+    '"""GENERATED by scripts/gen-surface-python.mjs from spec/ref-id.json\'s openRPC key. Do not hand-edit.',
+    "",
+    "One annotated binding per declared method: mypy --strict fails when the function is missing or its",
+    "signature moved. The runtime test holds DECLARED to the specification and to ref_id.__all__.",
+    '"""',
+    ...imports,
+    "",
+    body,
+    "",
+    "# Arity per method, and the parameter names where x-argument-labels makes them part of the contract.",
+    "# Every other method takes unlabelled arguments, which Python spells positional-only.",
+    "PARAMETERS: dict[str, tuple[int, list[str] | None]] = {",
+    ...parameters,
+    "}",
+    "",
+    "DECLARED: list[str] = [",
+    ...declaredNames(doc).map((n) => `    "${n}",`),
+    "]",
+    "",
+    "",
+    "def _declared_from_spec() -> list[str]:",
+    '    root = Path(__file__).resolve().parents[2] / "spec" / "ref-id.json"',
+    '    doc = json.loads(root.read_text(encoding="utf-8"))["openRPC"]',
+    '    assert doc["x-casing"]["python"] == "snake_case"',
+    '    live = [m for m in doc["methods"] if "python" not in m.get("x-absent-from", [])]',
+    "    names = [re.sub(r\"[A-Z]\", lambda c: \"_\" + c.group(0).lower(), m[\"name\"]) for m in live]",
+    '    names += [a for m in live for a in m.get("x-deprecated-aliases", {}).get("python", [])]',
+    '    names += doc["x-extensions"].get("python", [])',
+    '    names += [doc["x-error-type"], *(kind + "Error" for kind in doc["components"]["errors"])]',
+    "    return sorted(names)",
+    "",
+    "",
+    "def test_declared_matches_spec() -> None:",
+    '    assert _declared_from_spec() == DECLARED, "regenerate with node scripts/gen-surface-python.mjs"',
+    "",
+    "",
+    "def test_parameter_kinds() -> None:",
+    "    for name, (arity, labels) in PARAMETERS.items():",
+    "        params = list(inspect.signature(getattr(ref_id, name)).parameters.values())",
+    "        assert len(params) == arity, name",
+    "        if labels is None:",
+    "            assert all(p.kind is inspect.Parameter.POSITIONAL_ONLY for p in params), name",
+    "        else:",
+    "            assert [p.name for p in params] == labels, name",
+    "            assert all(p.kind is not inspect.Parameter.POSITIONAL_ONLY for p in params), name",
+    "",
+    "",
+    "def test_declared_are_exported() -> None:",
+    "    missing = sorted(set(DECLARED) - set(ref_id.__all__))",
+    '    assert not missing, f"ref_id.__all__ lacks {missing}"',
+    "",
+  ]
+  return lines.join("\n")
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const doc = JSON.parse(readFileSync(SPEC_PATH, "utf8")).openRPC
+  let rendered
+  try {
+    rendered = render(doc)
+  } catch (error) {
+    console.error(error.message)
+    process.exit(1)
+  }
+  if (process.argv.includes("--check")) {
+    let existing
+    try {
+      existing = readFileSync(OUT_PATH, "utf8")
+    } catch {
+      console.error(`gen-surface-python --check: ${fileURLToPath(OUT_PATH)} does not exist`)
+      process.exit(1)
+    }
+    if (existing !== rendered) {
+      console.error("gen-surface-python --check: python/tests/test_surface.py is stale — regenerate with `node scripts/gen-surface-python.mjs`")
+      process.exit(1)
+    }
+    console.log("gen-surface-python --check: test_surface.py is up to date")
+  } else {
+    writeFileSync(OUT_PATH, rendered)
+    console.log(`wrote ${fileURLToPath(OUT_PATH)}`)
+  }
+}

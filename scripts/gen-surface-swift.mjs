@@ -107,6 +107,7 @@ function schemaToSwiftType(schema) {
 const declaredMethods = doc.methods.map((m) => m.name) // x-casing.swift is identity (camelCase already)
 
 const lines = []
+const aliasLines = []
 
 for (const method of doc.methods) {
   const paramNames = method.params.map((p) => p.name)
@@ -136,12 +137,13 @@ for (const method of doc.methods) {
 
   // A deprecated alias is bound with the method's own signature, by the full spelling `openRPC` declares
   // (labels included), so deleting it — or letting its signature drift from the method it stands for —
-  // fails the runner's build, as a missing method does. Referencing it raises a deprecation warning,
-  // which is the point of it being deprecated and does not fail the build.
+  // fails the runner's build, as a missing method does. The bindings live in a function that is itself
+  // deprecated, because Swift raises no deprecation warning for a reference made inside a deprecated
+  // context: the build still checks every alias, and the log stops reporting the deprecation it declared.
   for (const alias of method["x-deprecated-aliases"]?.swift ?? []) {
     if (hasUnion) throw new Error(`${method.name}: an alias of a method taking IdentifierOrParsed is not handled`)
-    lines.push(`    // ${method.name} — deprecated alias`)
-    lines.push(`    let _: (${paramTypes.map((t) => t.type).join(", ")}) ${throwsClause}-> ${resultType.type} = ${alias}`)
+    aliasLines.push(`    // ${method.name} — deprecated alias`)
+    aliasLines.push(`    let _: (${paramTypes.map((t) => t.type).join(", ")}) ${throwsClause}-> ${resultType.type} = ${alias}`)
   }
 }
 
@@ -175,7 +177,14 @@ let declaredMethods: [String] = [${methodsArrayLiteral}]
 func checkSurfaceReferences() {
 ${lines.join("\n")}
 }
-
+${aliasLines.length ? `
+/// Binds every deprecated alias \`openRPC\` declares to the signature of the method it stands for. It is
+/// deprecated itself so these references raise no warning, and it is never called: compiling it is the check.
+@available(*, deprecated, message: "binds the deprecated aliases; compiling it is the check")
+func checkDeprecatedAliases() {
+${aliasLines.join("\n")}
+}
+` : ""}
 /// Compares \`declaredMethods\` against the embedded specification's own \`openRPC.methods\`, in
 /// both directions, reading the raw JSON directly rather than through \`Spec\` (an executable
 /// target has no \`@testable\` access to its internal accessors). Returns one problem string per

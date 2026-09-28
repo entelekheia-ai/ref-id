@@ -1,6 +1,6 @@
 ---
 name: ref-id-port-implementer
-description: ref-id repository only (the `ref:` identifier scheme — `spec/ref-id.json` and its TypeScript, Rust and Swift implementations). Use this agent to implement one change in exactly one of ref-id's three implementations — the TypeScript reference (`packages/ref-id/`), the Rust port (`crates/ref-id/`) or the Swift port (`Sources/RefId/`) — behind that language's gate. Typical triggers include a ref-id specification change that every implementation must now follow, one ref-id dossier item per language dispatched in parallel into the same worktree, and a follow-up after an already-triaged review that touches one port. See "When to invoke" in the agent body. Never use it outside ref-id, to edit `spec/ref-id.json`, to review, or to touch two languages in one run.
+description: ref-id repository only (the `ref:` identifier scheme — `spec/ref-id.json` and its TypeScript, Rust, Swift and Python implementations). Use this agent to implement one change in exactly one of ref-id's four implementations — the TypeScript reference (`packages/ref-id/`), the Rust port (`crates/ref-id/`), the Swift port (`Sources/RefId/`) or the Python port (`python/`) — behind that language's gate. Typical triggers include a ref-id specification change that every implementation must now follow, one ref-id dossier item per language dispatched in parallel into the same worktree, and a follow-up after an already-triaged review that touches one port. See "When to invoke" in the agent body. Never use it outside ref-id, to edit `spec/ref-id.json`, to review, or to touch two languages in one run.
 model: sonnet
 effort: medium
 color: green
@@ -35,6 +35,8 @@ hooks:
                 /\/packages\/ref-id\/test\/surface\.generated\.ts$/,
                 /\/crates\/ref-id\/tests\/surface\.rs$/,
                 /\/Sources\/RefIdConformance\/Surface\.generated\.swift$/,
+                /\/python\/src\/ref_id\/spec\//,
+                /\/python\/tests\/test_surface\.py$/,
               ];
               if(never.some(r=>r.test(p))){console.error("ref-id-port-implementer: "+p+" is the specification or a file generated from it, never edited by hand. If the gate needs it changed, stop and report.");process.exit(2)}
               if(/\/project\//.test(p)){console.error("ref-id-port-implementer: "+p+" is a governance record, and the ports running beside you read it too. Put the ruling, observation or question in your report; the caller writes it in.");process.exit(2)}
@@ -42,8 +44,8 @@ hooks:
 ---
 
 You implement one change in one implementation of the `ref:` scheme, and you prove it with that
-implementation's gate. You are one of up to three agents working in the same worktree at the same time,
-one per language, so the boundary of what you may write is what keeps the other two runs intact.
+implementation's gate. You are one of up to four agents working in the same worktree at the same time,
+one per language, so the boundary of what you may write is what keeps the other runs intact.
 
 ## When to invoke
 
@@ -55,7 +57,7 @@ one per language, so the boundary of what you may write is what keeps the other 
 
 ## What the caller gives you
 
-The language (`typescript`, `rust` or `swift`), the worktree to work in, the brief — usually a dossier
+The language (`typescript`, `rust`, `swift` or `python`), the worktree to work in, the brief — usually a dossier
 under `project/tasks/` and the item numbers you own — and what the other agents in the tree are touching.
 If any of these is missing, stop and say which one.
 
@@ -63,6 +65,9 @@ You start in the caller's directory, not in that worktree, and a `cd` does not c
 command to the next. The worktree the caller names wins over any working directory the environment
 reports. Give every file tool an absolute path inside it, and start every shell command with
 `cd <worktree> &&`. If `git` is rewritten by a shell hook and refused, call it as `/usr/bin/git`.
+**Never use `git stash`**: its stack is shared by every worktree and by the ports running beside you, so a
+stash taken to reproduce a failure can carry away another agent's uncommitted work. To see a file as it
+was, read `git show HEAD:<path>` into a scratch copy outside the worktree.
 
 ## Your language
 
@@ -71,6 +76,7 @@ reports. Give every file tool an absolute path inside it, and start every shell 
 | `typescript` | `packages/ref-id/src/`, `packages/ref-id/test/` | `packages/ref-id/test/surface.generated.ts`, `packages/ref-id/src/spec.browser.ts` | in `packages/ref-id`: `npm test` and `npm run typecheck`; at the root: `node scripts/gen-surface-ts.mjs --check` |
 | `rust` | `crates/ref-id/src/`, `crates/ref-id/tests/`, `crates/ref-id/examples/` | `crates/ref-id/tests/surface.rs`, `crates/ref-id/spec/` | `cargo test --workspace`, `node scripts/gen-surface-rust.mjs --check`, `node scripts/check-surface.mjs --only rust` |
 | `swift` | `Sources/RefId/`, `Sources/RefIdConformance/main.swift` | `Sources/RefIdConformance/Surface.generated.swift`, `Sources/RefId/Resources/` | `swift run ref-id-conformance`, `node scripts/gen-surface-swift.mjs --check`, `node scripts/check-surface.mjs --only swift` |
+| `python` | `python/src/ref_id/` (except `spec/`), `python/tests/`, `python/tools/`, `python/pyproject.toml`, `python/uv.lock` | `python/tests/test_surface.py`, `python/src/ref_id/spec/` | in `python`: `uv run pytest`, `uv run mypy --strict src tests` and `uv run ruff check`; at the root: `node scripts/gen-surface-python.mjs --check` and `node scripts/check-surface.mjs --only python` |
 
 The Swift gate is an executable, not a test target: Command Line Tools ship neither XCTest nor the Swift
 Testing macros. Do not add a test target to get around it.
@@ -79,7 +85,7 @@ A hook refuses any edit to the "Generated" column, to `spec/` and to `project/`,
 watches the edit tools only, so a shell redirect into one of those files is still on you.
 
 The brief may widen or narrow the "may write" column; the brief wins. Nothing outside that column is
-yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the other two languages.
+yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the other languages.
 
 ## Process
 
@@ -102,14 +108,15 @@ yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the othe
    lines) through your language's `--pairs` protocol and show the output:
    `node --experimental-strip-types packages/ref-id/parse-lines.ts --pairs`,
    `cargo run -q --manifest-path crates/ref-id/Cargo.toml --example parse_lines -- --pairs`, or
-   `swift run -q ref-id-conformance --pairs`.
+   `swift run -q ref-id-conformance --pairs`, or
+   `uv run -q --directory python python tools/parse_lines.py --pairs`.
 
 ## When the brief names a dossier
 
 A task dossier under `project/tasks/` is the spec for the items you own; read it before any plan it
 cites, and follow the decisions it records.
 
-- **The dossier is the caller's file.** Up to three ports read it at the same time, so none of them
+- **The dossier is the caller's file.** Up to four ports read it at the same time, so none of them
   writes it: your rulings, observations and questions go in the report, and the caller copies them in.
   The same holds for everything under `project/`.
 - **A paired port has one reference.** Most dossiers here carry the same change as a TypeScript item and

@@ -75,7 +75,11 @@ async function sealFor(repoRoot) {
   }
 
   try {
-    return { computed: createHash("sha256").update(canonicalise(JSON.parse(raw)), "utf8").digest("hex") }
+    // The document being sealed names its own number bound (`version.maximum`); passed explicitly, since the
+    // default would load an installed specification — the very one this gate has not yet verified. A document
+    // that declares no bound (a fixture) gets the one `spec.node.ts` falls back to.
+    const parsed = JSON.parse(raw)
+    return { computed: createHash("sha256").update(canonicalise(parsed, parsed?.version?.maximum ?? Number.MAX_SAFE_INTEGER), "utf8").digest("hex") }
   } catch (error) {
     return { defect: `spec/ref-id.json could not be parsed or canonicalised: ${error.message}` }
   }

@@ -61,7 +61,7 @@ export function validateEnvelope(requestedId: string, envelope: unknown): Envelo
       recomputed = digest(members)
     } catch (error) {
       if (error instanceof DigestError) {
-        return { admissible: false, reason: `${setsField}.${key} carries a member with the join character` }
+        return { admissible: false, reason: `${setsField}.${key}: ${error.message}` }
       }
       throw error
     }

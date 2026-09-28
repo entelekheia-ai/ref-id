@@ -51,11 +51,12 @@ against vectors, never a re-derivation from this one's source.
 | `@entelekheia/ref-id` | TypeScript reference: parse, serialise, build, digest and validate `ref:` identifiers and envelopes against `spec/ref-id.json`. | [`packages/ref-id/`](packages/ref-id/README.md) |
 | `ref-id` (Rust) | A crate under `crates/ref-id`, held to the same vectors and to the declared surface; `cargo test --workspace` is its gate. | [`crates/ref-id/`](crates/ref-id/) |
 | `RefId` (Swift) | A Swift package at the repository root, held to the same vectors and to the declared surface; `swift run ref-id-conformance` is its gate. | [`Sources/RefId/`](Sources/RefId/) |
+| `ref-id` (Python) | A Python package under `python/`, held to the same vectors and to the declared surface; `uv run pytest` inside `python/` is its gate. | [`python/`](python/README.md) |
 
-**The three ports expose the same operations and give the same answers.** The specification declares the
+**The four implementations expose the same operations and give the same answers.** The specification declares the
 public surface — every operation and value type — and each port's own suite fails when its surface departs
 from it; names differ only by each language's casing (`samePackage`, `same_package`). A differential test
-runs all three, together with the TypeScript package's browser build as a fourth implementation, over every
+runs all four, together with the TypeScript package's browser build as a fifth row, over every
 input the specification names and every pair of them, and fails on the first disagreement
 (`npm run test:differential`), so a `ref:` identifier means the same thing in each.
 
@@ -75,13 +76,19 @@ embeds: pin `specVersion` through it rather than through the package version.
 ## Install
 
 ```sh
-npm install @entelekheia/ref-id
+npm install @entelekheia/ref-id   # TypeScript
+cargo add ref-id                  # Rust
+pip install ref-id                # Python
 ```
+
+Swift: add `https://github.com/entelekheia-ai/ref-id` as a package dependency and depend on the `RefId` product.
 
 ## Usage
 
 See the package README: [`packages/ref-id/`](packages/ref-id/README.md). The specification itself is
-[`spec/ref-id.json`](spec/); the reasoning behind each rule is in [`docs/explanation/`](docs/explanation/).
+[`spec/ref-id.json`](spec/); the reasoning behind each rule is in [`docs/explanation/`](docs/explanation/). The four implementations
+agree on every input the specification names; where their Package URL libraries differ is measured in
+[Known differences between implementations](docs/reference/implementation-differences.md).
 
 ## Requirements
 

@@ -15,7 +15,7 @@ import { decodeReserved, tableFor } from "./encoding.ts"
 import { fragmentPairGrammar, pattern, schemePrefix, statePairGrammar, topLevelGrammar } from "./grammar.ts"
 import { loadSpec, part, status, type RefIdSpec } from "./spec.ts"
 import type { Fragment, Pair, ParseResult } from "./types.ts"
-import { assertImplemented, delegatedString, rangeHolds, validateLocator } from "./validators.ts"
+import { assertImplemented, delegatedString, rangeHolds, validateLocator, withinMaximum } from "./validators.ts"
 
 /**
  * `keyFromInput` marks a part that is a key the identifier itself carries — a repeated key the spec never
@@ -146,7 +146,12 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
   const { version: versionText, type = "", locator = "", state, fragment: fragmentRaw } = match.groups
 
   const explicitVersion = versionText !== undefined
-  const version = explicitVersion ? Number(versionText) : spec.version.default
+  // A literal above the maximum every implementation holds exactly (`spec.version.maximumNote`) is
+  // reported as that maximum rather than the rounded, possibly-imprecise float `Number` would produce —
+  // it is `unsupported` either way (`spec.version.supported` names only what this package implements),
+  // but clamping keeps `version` a number this package's own arithmetic can trust.
+  const literalVersion = explicitVersion ? Number(versionText) : spec.version.default
+  const version = explicitVersion && literalVersion > spec.version.maximum ? spec.version.maximum : literalVersion
   const head: Partial<ParseResult> = { version, explicitVersion, type, locator }
   if (explicitVersion) {
     head.versionText = versionText
@@ -210,7 +215,7 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
 
   const nested: Record<string, string> = {}
   for (const [key, value] of qualifiers) {
-    const declared = spec.qualifiers[key]
+    const declared = Object.hasOwn(spec.qualifiers, key) ? spec.qualifiers[key] : undefined
     if (!declared) {
       continue // spec.grammar.state.unknownKey — carried through untouched, asserted in validators.ts
     }
@@ -228,17 +233,17 @@ function parseInternal(spec: RefIdSpec, input: string, depth: number): ParseResu
 
   if (fragment) {
     for (const [key, value] of fragment.refinements) {
-      const declared = spec.refinements[key]
+      const declared = Object.hasOwn(spec.refinements, key) ? spec.refinements[key] : undefined
       if (!declared) {
         continue // spec.unknownRefinement — carried through untouched, asserted in validators.ts
       }
-      if (!pattern(spec, declared.pattern).test(value) || !rangeHolds(declared, value)) {
+      if (!pattern(spec, declared.pattern).test(value) || !rangeHolds(declared, value) || !withinMaximum(spec, key, declared, value)) {
         return malformed(spec, input, key, head)
       }
     }
   }
 
-  const entry = spec.dispatch[type]
+  const entry = Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined
   if (!entry || delegated === undefined) {
     return { ...base, status: spec.unknownType }
   }

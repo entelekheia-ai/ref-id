@@ -30,3 +30,16 @@ for (const vector of vectors) {
     )
   })
 }
+
+// spec.digest.unicode: a member holding a lone surrogate is refused, never replaced with U+FFFD. No
+// vector binds this — a JSON string carrying a lone surrogate stops the Rust crate from loading the
+// specification at all, and Rust's and Swift's own string types cannot hold one — so this package pins
+// it with a unit test instead (Task-048, item 1).
+test("digest: a member holding a lone surrogate is refused, not replaced", () => {
+  const loneHighSurrogate = "a\uD800b"
+  assert.throws(
+    () => digest([loneHighSurrogate]),
+    (error: unknown) => error instanceof DigestError,
+    "expected a DigestError for a lone surrogate",
+  )
+})

@@ -37,6 +37,12 @@ impl Spec {
         Some(current)
     }
 
+    /// Resolves a JSON Pointer (`/version/maximum`) against the specification document itself — used by
+    /// a refinement's declared `maximum`, which names the bound by pointer rather than restating it.
+    pub(crate) fn pointer(&self, ptr: &str) -> Option<&Value> {
+        self.root.pointer(ptr)
+    }
+
     pub(crate) fn string(&self, path: &[&str]) -> &str {
         self.value(path).and_then(Value::as_str).unwrap_or("")
     }
@@ -117,6 +123,23 @@ impl Spec {
     pub fn grammar_expression(&self) -> &str {
         self.string(&["grammar", "expression"])
     }
+}
+
+static CANONICAL_MAXIMUM: OnceLock<i64> = OnceLock::new();
+
+/// The largest magnitude `canonicalise` accepts for a number, per `spec.canonicalisation.rules` and
+/// `spec.version.maximum` (the same key: a version literal above it and a canonical number above it
+/// are refused for the same reason). Read once from the embedded specification's own bytes rather than
+/// through a loaded `Spec`, because `canonicalise` computes the digest a `Spec` load checks and so
+/// cannot wait for one to exist — this is the bootstrap path only; every other read of the key goes
+/// through `Spec::int`.
+pub(crate) fn canonical_maximum() -> i64 {
+    *CANONICAL_MAXIMUM.get_or_init(|| {
+        serde_json::from_str::<Value>(EMBEDDED_JSON)
+            .ok()
+            .and_then(|v| v.get("version")?.get("maximum")?.as_i64())
+            .unwrap_or(i64::MAX)
+    })
 }
 
 fn validate(json: &str, sidecar: &str) -> Result<Spec, RefIdError> {

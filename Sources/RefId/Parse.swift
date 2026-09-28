@@ -54,12 +54,20 @@ private struct Parser {
         return .ok(out)
     }
 
+    /// Splits on the separator's Unicode scalar, not the default grapheme-cluster `components(separatedBy:)`
+    /// — a combining mark glued right after the separator forms one `Character` with it that no longer
+    /// equals the plain separator, which would hide the split from a grapheme-based scan.
+    func splitOnSeparator(_ raw: String, _ separator: String) -> [String] {
+        guard let scalar = separator.unicodeScalars.first else { return [raw] }
+        return raw.split(byScalar: scalar, omittingEmpty: false)
+    }
+
     func state(_ raw: String) -> Decomposed<[Pair]> {
-        pairs(grammar.statePair, raw.components(separatedBy: spec.string("grammar", "state", "separator")), "state")
+        pairs(grammar.statePair, splitOnSeparator(raw, spec.string("grammar", "state", "separator")), "state")
     }
 
     func fragment(_ raw: String) -> Decomposed<Fragment> {
-        let segments = raw.components(separatedBy: spec.string("grammar", "fragment", "separator"))
+        let segments = splitOnSeparator(raw, spec.string("grammar", "fragment", "separator"))
         let path = segments.first ?? ""
         if path.isEmpty { return .failed(part: "fragment") }
         switch pairs(grammar.fragmentPair, Array(segments.dropFirst()), "fragment") {
@@ -101,7 +109,20 @@ private struct Parser {
         let fragmentRaw = group(match, "fragment")
 
         let explicitVersion = versionText != nil
-        let version = versionText.flatMap { Int($0) } ?? spec.int("version", "default")
+        // A literal within Int's range is read as written; one past `version.maximum` (whether it
+        // still fits Int or overflows it entirely) reports the maximum instead, per
+        // `version.maximumNote` — `versionText` still keeps the literal, so nothing is lost.
+        let maximum = spec.int("version", "maximum")
+        let version: Int
+        if let versionText {
+            if let parsed = Int(versionText), parsed <= maximum {
+                version = parsed
+            } else {
+                version = maximum
+            }
+        } else {
+            version = spec.int("version", "default")
+        }
         var head = ParseResult(input: input, status: "", version: version, explicitVersion: explicitVersion, versionText: versionText, type: type, locator: locator, qualifiers: [], fragment: nil)
 
         if let stateRaw {
@@ -153,7 +174,7 @@ private struct Parser {
             for pair in fragment.refinements {
                 guard let declared = refinementsTable[pair.key] as? [String: Any] else { continue } // unknownRefinement: carry-through
                 let pattern = declared["pattern"] as? String ?? ""
-                if try !grammar.pattern(pattern).matches(pair.value) || !Validators.rangeHolds(declared, value: pair.value) {
+                if try !grammar.pattern(pattern).matches(pair.value) || !Validators.rangeHolds(spec, declared, value: pair.value) {
                     return try malformed(input, pair.key, head)
                 }
             }

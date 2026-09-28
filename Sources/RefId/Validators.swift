@@ -124,9 +124,30 @@ enum Validators {
         return try validator(spec, entry, delegated)
     }
 
-    static func rangeHolds(_ refinement: [String: Any], value: String) -> Bool {
+    /// True when no digit run in `value` exceeds the digit string named by a refinement's `maximum`
+    /// pointer — compared by digit-string length first, never by parsing into a fixed-width integer,
+    /// so a literal past `Int64` or `UInt64` still refuses rather than silently holding.
+    static func maximumHolds(_ spec: Spec, _ refinement: [String: Any], value: String, boundSeparator: String) -> Bool {
+        guard let pointer = refinement["maximum"] as? String, let maximum = spec.int64(atPointer: pointer) else { return true }
+        let maximumDigits = String(maximum)
+        let parts = boundSeparator.isEmpty ? [value] : value.components(separatedBy: boundSeparator)
+        return !parts.contains { exceedsDigitMaximum($0, maximumDigits: maximumDigits) }
+    }
+
+    /// Compares two non-negative decimal digit strings by magnitude — first by length once leading
+    /// zeros are stripped, then lexicographically, which agrees with numeric order for equal lengths.
+    static func exceedsDigitMaximum(_ digits: String, maximumDigits: String) -> Bool {
+        var stripped = digits
+        while stripped.count > 1 && stripped.hasPrefix("0") { stripped.removeFirst() }
+        if stripped.count != maximumDigits.count { return stripped.count > maximumDigits.count }
+        return stripped > maximumDigits
+    }
+
+    static func rangeHolds(_ spec: Spec, _ refinement: [String: Any], value: String) -> Bool {
+        let boundSeparator = refinement["boundSeparator"] as? String ?? ""
+        if !maximumHolds(spec, refinement, value: value, boundSeparator: boundSeparator) { return false }
         guard let range = refinement["range"] as? String, let check = ranges[range] else { return true }
-        return check(value, refinement["boundSeparator"] as? String ?? "")
+        return check(value, boundSeparator)
     }
 }
 
@@ -174,6 +195,19 @@ enum PackageURL {
 
     private static func percentEncode(_ segment: String) -> String {
         segment.addingPercentEncoding(withAllowedCharacters: unreserved) ?? segment
+    }
+
+    /// The version component's own unencoded set: `encodeURIComponent`'s unreserved characters
+    /// (letters, digits, `-._~!*'()`) plus `:` and `+`, which the reference validator (`packageurl-js`'s
+    /// `encodeVersion`) encodes and then restores to their literal spelling rather than leaving alone
+    /// from the start — the net effect is the same set of literal survivors, so it is expressed directly
+    /// here instead of as an encode-then-restore pass.
+    private static let unreservedVersion = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!*'():+"
+    )
+
+    private static func percentEncodeVersion(_ segment: String) -> String {
+        segment.addingPercentEncoding(withAllowedCharacters: unreservedVersion) ?? segment
     }
 
     /// The subpath's own canonical form: `.`/`..`/empty segments dropped, each remaining segment
@@ -225,6 +259,13 @@ enum PackageURL {
         percentEncode(segment.removingPercentEncoding ?? segment)
     }
 
+    /// The version component's re-encode pass, using `unreservedVersion` rather than `unreserved`: the
+    /// reference validator lets a version keep `:` and `+` literal, and encodes everything else that
+    /// `reEncode` would also encode, plus `=`, `/`, `#`, `?`, `@`, `%`, `&` and space.
+    private static func reEncodeVersion(_ segment: String) -> String {
+        percentEncodeVersion(segment.removingPercentEncoding ?? segment)
+    }
+
     /// The canonical spelling of a Package URL, per the specification's own normalisation rules.
     ///
     /// Three of them are not cosmetic, because two systems comparing identifiers by canonical form must
@@ -238,7 +279,7 @@ enum PackageURL {
             out += parsed.namespace.map(reEncode).joined(separator: "/") + "/"
         }
         out += reEncode(parsed.name)
-        if let version = parsed.version { out += "@" + version }
+        if let version = parsed.version { out += "@" + reEncodeVersion(version) }
         if let qualifiers = parsed.qualifiers, !qualifiers.isEmpty {
             let ordered = qualifiers
                 .split(separator: "&", omittingEmptySubsequences: true)
@@ -252,6 +293,40 @@ enum PackageURL {
         return out
     }
 
+    /// Uppercases the two hex digits of every `%XX` percent-escape in an already-built canonical string.
+    ///
+    /// The reference validator's canonical form always spells a percent-escape with uppercase hex — RFC
+    /// 3986's own canonical form — but this port's qualifier serialisation reorders the qualifier string
+    /// byte for byte rather than decoding and re-encoding each value (`serialise` above), so whatever hex
+    /// case a caller's `k=1%3bvalue` arrived with survives unless normalised here as a final pass. Walks
+    /// `utf8` bytes, not `Character`s, for the reason every other scan in this file gives: `%` and a hex
+    /// digit are each one ASCII byte that never occurs as a continuation byte of another code point.
+    private static func uppercasingPercentEscapes(_ canonical: String) -> String {
+        var bytes = Array(canonical.utf8)
+        let percent = UInt8(ascii: "%")
+        var index = 0
+        while index + 2 < bytes.count {
+            if bytes[index] == percent, isHexDigit(bytes[index + 1]), isHexDigit(bytes[index + 2]) {
+                bytes[index + 1] = uppercasedHexDigit(bytes[index + 1])
+                bytes[index + 2] = uppercasedHexDigit(bytes[index + 2])
+                index += 3
+            } else {
+                index += 1
+            }
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    private static func isHexDigit(_ byte: UInt8) -> Bool {
+        (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte)
+            || (UInt8(ascii: "a")...UInt8(ascii: "f")).contains(byte)
+            || (UInt8(ascii: "A")...UInt8(ascii: "F")).contains(byte)
+    }
+
+    private static func uppercasedHexDigit(_ byte: UInt8) -> UInt8 {
+        (UInt8(ascii: "a")...UInt8(ascii: "f")).contains(byte) ? byte - 32 : byte
+    }
+
     /// Validates a delegated `pkg:` string and, when it is valid, its canonical spelling — the subpath
     /// carried as the Package URL's own `#subpath` component, never left inline after the version.
     static func validate(_ delegated: String) -> Validation {
@@ -261,6 +336,6 @@ enum PackageURL {
         if let subpath, let encoded = encodeSubpath(subpath) {
             canonical += "#" + encoded
         }
-        return Validation(ok: true, canonical: canonical)
+        return Validation(ok: true, canonical: uppercasingPercentEscapes(canonical))
     }
 }

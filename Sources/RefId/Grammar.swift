@@ -59,7 +59,8 @@ final class Grammar {
         }
     }
 
-    /// Applies this dialect's declared adaptations, in order, then compiles.
+    /// Applies this dialect's declared adaptations — the replace pairs in order, then an `anchor` in place
+    /// of the `$` that ends the pattern — then compiles.
     static func compile(_ spec: Spec, _ pattern: String) throws -> Regex<AnyRegexOutput> {
         var adapted = pattern
         if let replacements = spec.value(["grammar", "adaptations", dialect, "replace"]) as? [[String]] {
@@ -67,8 +68,14 @@ final class Grammar {
                 adapted = adapted.replacingOccurrences(of: pair[0], with: pair[1])
             }
         }
+        if let anchor = spec.value(["grammar", "adaptations", dialect, "anchor"]) as? String, adapted.hasSuffix("$") {
+            adapted = String(adapted.dropLast()) + anchor
+        }
         do {
-            return try Regex(adapted)
+            // Unicode scalar semantics, not the default extended grapheme clusters: a combining mark
+            // glued right after a structural literal (`#`, `;`, a scheme colon) must not join it into
+            // one grapheme that no longer equals the literal and so hides it from the match.
+            return try Regex(adapted).matchingSemantics(.unicodeScalar)
         } catch {
             throw RefIdError.specVersion("pattern \(pattern) does not compile in \(dialect): \(error)")
         }

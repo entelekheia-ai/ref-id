@@ -116,9 +116,20 @@ function swiftSurface() {
   }
 }
 
+// Python's public surface is `ref_id.__all__`: a module without one exports every name it happens to
+// import, so its absence is reported as unreadable rather than read as "everything is public".
+function pythonSurface() {
+  const script = "import json, ref_id; print(json.dumps(getattr(ref_id, '__all__', None)))"
+  const out = execFileSync("uv", ["run", "-q", "--directory", "python", "python", "-c", script], { cwd: ROOT, encoding: "utf8" })
+  const all = JSON.parse(out)
+  if (!Array.isArray(all)) return { names: new Set(), titles: new Set(), unreadable: ["ref_id declares no __all__"] }
+  return { names: new Set(all), titles: new Set(all), unreadable: [] }
+}
+
 const languages = [
   { language: "rust", read: rustSurface },
   { language: "swift", read: swiftSurface },
+  { language: "python", read: pythonSurface },
 ].filter((entry) => !only || entry.language === only)
 
 let failures = 0

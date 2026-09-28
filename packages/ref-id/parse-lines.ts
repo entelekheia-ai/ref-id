@@ -9,7 +9,7 @@
 // invisible in exactly the implementation the others are compared against.
 //
 // `--canonical` keeps the delegated locator's canonical spelling. The default drops it, because the
-// validity verdict of a Package URL belongs to the format and the three validators differ at the edge;
+// validity verdict of a Package URL belongs to the format and the four validators differ at the edge;
 // canonicalisation is a separate question, and the two are not excluded together.
 //
 // `--browser` selects the browser entry point instead of the Node one — the same runner, the same

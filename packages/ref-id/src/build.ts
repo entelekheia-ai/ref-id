@@ -15,7 +15,7 @@ import { foldsType } from "./validators.ts"
 
 /** The form, among a qualifier's declared forms, that nests an identifier — where the encoding table lives. */
 export function nestingForm(spec: RefIdSpec, key: string): RefIdSpec["forms"][string] | undefined {
-  const declared = spec.qualifiers[key]
+  const declared = Object.hasOwn(spec.qualifiers, key) ? spec.qualifiers[key] : undefined
   if (!declared) {
     return undefined
   }

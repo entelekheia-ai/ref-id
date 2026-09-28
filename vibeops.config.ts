@@ -6,7 +6,7 @@
 import type { VibeOpsConfig } from "@entelekheia/vibe-ops-core";
 
 export default {
-  // The specification's own rules, plus the fact that it is embedded three times.
+  // The specification's own rules, plus the fact that it is embedded four times.
   //
   // Three rules hold `spec/ref-id.json` to itself: it must match its own sidecar digest
   // (`gate-spec-sealed`), its `relate` vectors must reduce to what the `comparison` vectors say
@@ -14,10 +14,10 @@ export default {
   // vectors it names (`gate-openrpc-valid`) — Plan-007. Each is a plain `.mjs` gate under `.vibe-ops/`, so the
   // commit gate refuses a broken specification at the moment it is made rather than on the pull request.
   //
-  // The specification is also embedded three times: the root copy under `spec/`, the Swift resource,
+  // The specification is also embedded four times: the root copy under `spec/`, the Python package, the Swift resource,
   // the crate's `include_str!`. Each port already refuses a copy whose bytes do not match its own
   // sidecar — but only when its own toolchain runs, so an edit that reseals the root and forgets a port
-  // reaches a commit unopposed. This holds the three against each other at commit time, with neither
+  // reaches a commit unopposed. This holds them against each other at commit time, with neither
   // cargo nor swift installed.
   //
   // TWO MIRROR ENTRIES FOR THE COPIES, BECAUSE THEY CATCH DIFFERENT MISTAKES AND EITHER ALONE READS AS

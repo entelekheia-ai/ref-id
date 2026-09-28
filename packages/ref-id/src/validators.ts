@@ -120,20 +120,23 @@ export function assertImplemented(spec: RefIdSpec): void {
     if (refinement.range !== undefined && !Object.hasOwn(ranges, refinement.range)) {
       throw new SpecVersionError(`spec.refinements.${key}.range declares ${JSON.stringify(refinement.range)}, which this package does not implement`)
     }
+    if (refinement.maximum !== undefined) {
+      resolveMaximum(spec, refinement.maximum, key)
+    }
   }
   policiesChecked.add(spec)
 }
 
 /** The string handed to the validator, or undefined when the type is not dispatched or its delegate mode is unknown here. */
 export function delegatedString(spec: RefIdSpec, type: string, locator: string): string | undefined {
-  const entry = spec.dispatch[type]
+  const entry = Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined
   const delegator = entry ? delegators[entry.delegate] : undefined
   return delegator ? delegator.form(type, locator) : undefined
 }
 
 /** True when a producer may pass the intact format string (`pkg:npm/x`) as the locator of this type. */
 export function foldsType(spec: RefIdSpec, type: string): boolean {
-  const entry = spec.dispatch[type]
+  const entry = Object.hasOwn(spec.dispatch, type) ? spec.dispatch[type] : undefined
   return entry ? (delegators[entry.delegate]?.foldsType ?? false) : false
 }
 
@@ -150,4 +153,37 @@ export function rangeHolds(refinement: RefIdSpec["refinements"][string], value: 
   }
   const check = ranges[refinement.range]
   return check ? check(value, refinement.boundSeparator ?? "") : true
+}
+
+/**
+ * Resolves a refinement's `maximum` — a JSON Pointer such as `/version/maximum` into the spec itself —
+ * to the number it names. A pointer that does not resolve to a number is the specification declaring a
+ * bound this package cannot back, refused loudly rather than silently treated as no bound at all.
+ */
+function resolveMaximum(spec: RefIdSpec, pointer: string, key: string): bigint {
+  const segments = pointer.split("/").filter((segment) => segment.length > 0)
+  let node: unknown = spec
+  for (const segment of segments) {
+    node = typeof node === "object" && node !== null ? (node as Record<string, unknown>)[segment] : undefined
+  }
+  if (typeof node !== "number") {
+    throw new SpecVersionError(`spec.refinements.${key}.maximum points at ${JSON.stringify(pointer)}, which is not a number`)
+  }
+  return BigInt(node)
+}
+
+/**
+ * True when every digit run inside the value is at most the refinement's declared `maximum` (or it
+ * declares none). `refinements.lines`, `.item` and `.para` each point the same key, `/version/maximum`,
+ * but the pointer is read generically rather than assuming that — the value is compared by `BigInt`
+ * rather than `Number`, so a digit run many times longer than the bound never rounds into agreement
+ * with it.
+ */
+export function withinMaximum(spec: RefIdSpec, key: string, refinement: RefIdSpec["refinements"][string], value: string): boolean {
+  if (refinement.maximum === undefined) {
+    return true
+  }
+  const bound = resolveMaximum(spec, refinement.maximum, key)
+  const digitRuns = value.match(/[0-9]+/g) ?? []
+  return digitRuns.every((run) => BigInt(run) <= bound)
 }

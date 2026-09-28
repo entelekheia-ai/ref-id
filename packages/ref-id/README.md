@@ -129,11 +129,15 @@ build, everything else takes the default. Nothing to configure, and the public A
   a given consumer never reads.
 
 The two builds are held to each other by `npm run test:differential`, which runs the browser build as a
-fourth implementation beside Node, Rust and Swift over every input the specification names, and fails on
+fifth implementation beside Node, Rust, Swift and Python over every input the specification names, and fails on
 the first disagreement. `npm run build` additionally walks the emitted browser module graph and refuses it
 if any Node builtin — or anything resolving a path against a module's own location — survives into it.
 
 Runtime dependencies: `packageurl-js` and `@noble/hashes`, both pure JavaScript. No native modules.
+
+`packageurl-js` decides whether a Package URL locator is valid and how its `canonical` field is spelled, and
+the Rust, Swift and Python implementations use other validators. Where they differ is measured in
+[Known differences between implementations](https://github.com/entelekheia-ai/ref-id/blob/main/docs/reference/implementation-differences.md).
 
 ## License
 

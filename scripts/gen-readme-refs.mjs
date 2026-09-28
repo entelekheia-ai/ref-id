@@ -52,6 +52,7 @@ const ports = [
   ["`@entelekheia/ref-id` (npm)", `npm/@entelekheia/ref-id@${version}`],
   ["`ref-id` (crates.io)", `cargo/ref-id@${version}`],
   ["`RefId` (Swift Package Manager)", `swift/github.com/entelekheia-ai/ref-id@${version}`],
+  ["`ref-id` (PyPI)", `pypi/ref-id@${version}`],
 ]
 const rows = ports.map(([name, locator]) => `| ${name} | \`${build({ type: "pkg", locator, fragment })}\` |`)
 

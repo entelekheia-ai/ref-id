@@ -38,7 +38,7 @@ export function canonicalIdentifier(identifier: string | ParseResult): string {
   if (parsed.status === status(spec, "malformed")) return serialise(parsed) // throws, naming the failing part
 
   const qualifiers = byKey(parsed.qualifiers).map(([key, value]): Pair => {
-    const nested = parsed.nested?.[key]
+    const nested = parsed.nested && Object.hasOwn(parsed.nested, key) ? parsed.nested[key] : undefined
     if (nested === undefined) return [key, value]
     const form = nestingForm(spec, key)
     if (!form) return [key, value]
@@ -64,7 +64,7 @@ export const canonical = canonicalIdentifier
  * An identifier with no decomposition — malformed, or at a scheme version this package does not
  * implement — names nothing, so it is the same identifier as nothing, itself included: the answer is
  * `false`, never a thrown refusal. That is what `identifierEquivalence.comparison` states and what the
- * `sameIdentifier` expectation of every comparison vector binds, in all three implementations.
+ * `sameIdentifier` expectation of every comparison vector binds, in all four implementations.
  */
 export function sameIdentifier(a: string | ParseResult, b: string | ParseResult): boolean {
   const spec = loadSpec()

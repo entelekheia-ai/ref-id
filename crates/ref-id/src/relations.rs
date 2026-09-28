@@ -15,6 +15,7 @@ use crate::serialise::serialise;
 use crate::spec::{load_spec, Spec};
 use crate::types::{Pair, ParseResult, RefIdError};
 use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// An identifier taken as `&str` or as an already-`parse`d `&ParseResult`, mixed freely — the
 /// specification's `IdentifierOrParsed`. `&str` is read with `parse`; a `&ParseResult` is used as is.
@@ -249,14 +250,33 @@ fn qualifier_relation(spec: &Spec, x: &ParseResult, y: &ParseResult, key: &str, 
 }
 
 /// The keys of a Pair slice, each once, in first-seen order across both sides.
+///
+/// The Vec stays the declared order (a `BTreeSet` alone would report key order, not first-seen order);
+/// the `BTreeSet` beside it turns the "have we seen this key" check from a scan of everything seen so far
+/// into a lookup, which is what keeps this linear rather than quadratic in the pair count. Not a
+/// `HashSet`: this crate compiles to WASM elsewhere, where `HashMap`/`HashSet` need a random seed the
+/// target does not have.
 fn declared_keys<'a>(x: &'a [Pair], y: &'a [Pair]) -> Vec<&'a str> {
     let mut keys: Vec<&str> = Vec::new();
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
     for pair in x.iter().chain(y.iter()) {
-        if !keys.contains(&pair.key.as_str()) {
+        if seen.insert(pair.key.as_str()) {
             keys.push(&pair.key);
         }
     }
     keys
+}
+
+/// The first value declared for each key in a Pair slice — same "first occurrence wins" rule `.find()`
+/// gave, but built once per side rather than rescanned once per key. A `BTreeMap` for the same reason
+/// `declared_keys` uses a `BTreeSet`: no random seed, and the lookup is what makes the per-key value
+/// reads in [`relate_result`] linear instead of quadratic in the pair count.
+fn first_values(pairs: &[Pair]) -> BTreeMap<&str, &str> {
+    let mut values: BTreeMap<&str, &str> = BTreeMap::new();
+    for pair in pairs {
+        values.entry(pair.key.as_str()).or_insert(pair.value.as_str());
+    }
+    values
 }
 
 /// `comparison.relate.result`: every dimension computed on its own, whatever the others found.
@@ -272,20 +292,22 @@ fn relate_result(spec: &Spec, x: &ParseResult, y: &ParseResult) -> RelateResult 
 
     let xr = x.fragment.as_ref().map(|f| f.refinements.as_slice()).unwrap_or(&[]);
     let yr = y.fragment.as_ref().map(|f| f.refinements.as_slice()).unwrap_or(&[]);
+    let (xr_values, yr_values) = (first_values(xr), first_values(yr));
     let fragment_refinements = declared_keys(xr, yr)
         .into_iter()
         .map(|key| {
-            let xv = xr.iter().find(|p| p.key == key).map(|p| p.value.as_str());
-            let yv = yr.iter().find(|p| p.key == key).map(|p| p.value.as_str());
+            let xv = xr_values.get(key).copied();
+            let yv = yr_values.get(key).copied();
             (key.to_string(), optional_relation(xv, yv))
         })
         .collect();
 
+    let (x_values, y_values) = (first_values(&x.qualifiers), first_values(&y.qualifiers));
     let qualifiers = declared_keys(&x.qualifiers, &y.qualifiers)
         .into_iter()
         .map(|key| {
-            let xv = x.qualifiers.iter().find(|p| p.key == key).map(|p| p.value.as_str());
-            let yv = y.qualifiers.iter().find(|p| p.key == key).map(|p| p.value.as_str());
+            let xv = x_values.get(key).copied();
+            let yv = y_values.get(key).copied();
             (key.to_string(), qualifier_relation(spec, x, y, key, xv, yv))
         })
         .collect();

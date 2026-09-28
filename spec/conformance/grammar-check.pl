@@ -2,7 +2,7 @@
 # Grammar-level conformance: the declared expression, adapted for pcre2, must decompose every parse vector as the JSON says.
 #!/usr/bin/env perl
 # Prove ref-id.json's grammar is engine-neutral: replay vectors.parse against
-# Perl's regex engine, using the unadapted expression (pcre2 adaptation is empty).
+# Perl's regex engine, using the expression through the declared pcre2 adaptation (its anchor).
 use strict;
 use warnings;
 use JSON::PP qw(decode_json);
@@ -17,11 +17,13 @@ close($fh);
 my $spec = decode_json($raw);
 
 my $expr = $spec->{grammar}{expression};
-# pcre2 adaptation's replace list is empty -- expression used unadapted.
+# The pcre2 adaptation: its replace pairs everywhere, then its anchor in place of the final \$.
 for my $pair (@{ $spec->{grammar}{adaptations}{pcre2}{replace} }) {
     my ($old, $new) = @$pair;
     $expr =~ s/\Q$old\E/$new/g;
 }
+my $anchor = $spec->{grammar}{adaptations}{pcre2}{anchor};
+$expr =~ s/\$\z/$anchor/ if defined $anchor;
 
 my $rx = qr/$expr/;
 
@@ -78,6 +80,8 @@ for my $vec (@$vectors) {
             if (exists $expect->{version}) {
                 my $raw_v = $g{version};
                 my $version = (defined($raw_v) && $raw_v ne '') ? int($raw_v) : $spec->{version}{default};
+                # A literal above the declared maximum reports the maximum (spec.version.maximumNote).
+                $version = $spec->{version}{maximum} if $version > $spec->{version}{maximum};
                 if ($version != $expect->{version}) {
                     ($ok, $reason) = (0, "version $version != expect $expect->{version}");
                 }

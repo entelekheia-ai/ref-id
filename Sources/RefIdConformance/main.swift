@@ -60,7 +60,7 @@ func verdictResultToJSON(_ result: VerdictResult?) -> Any {
 // surface the differential test against the TypeScript reference reads.
 if CommandLine.arguments.contains("--parse") {
     // `--canonical` keeps the field the default protocol drops. The drop is deliberate: a locator's
-    // validity belongs to the format, and the three purl validators disagree at the edge, so the shared
+    // validity belongs to the format, and the four purl validators disagree at the edge, so the shared
     // protocol compares every field except that verdict. Canonicalisation is a different question —
     // two systems that compare identifiers by canonical form must agree on it — so it is measurable
     // here rather than silently excluded with the verdict.
@@ -151,7 +151,7 @@ func buildParts(_ json: [String: Any]) -> BuildParts {
 /// runner cannot yet run must say so, not stay silent.
 func checkEveryVectorGroupRuns() throws {
     let spec = try loadSpec()
-    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict"]
+    let executed: Set<String> = ["parse", "canonical", "roundtrip", "build", "digest", "envelope", "comparison", "relate", "verdict", "canonicalisation"]
     let missing = spec.vectorClasses().filter { !executed.contains($0) }.sorted()
     check(missing.isEmpty, "every-vector-group-runs: spec/ref-id.json declares vector groups this runner does not execute: \(missing)")
 }
@@ -321,6 +321,18 @@ func run() throws {
         check(verdict(b, a) == mirroredVerdict(forward), "verdict: \(name) — verdict(b, a)")
     }
 
+    // canonicalisation — parsed with Foundation's own JSON reader, then canonicalised; `expect` is
+    // already in canonical form, or `refused: true` names a `RefIdError.specIntegrity` instead.
+    for vector in try vectors("canonicalisation") {
+        let name = vector["name"] as? String ?? "?"
+        let json = try JSONSerialization.jsonObject(with: Data((vector["json"] as! String).utf8), options: [.fragmentsAllowed])
+        if let expected = vector["expect"] as? String {
+            do { check(try canonical(json) == expected, "canonicalisation: \(name)") } catch { check(false, "canonicalisation: \(name) threw \(error)") }
+        } else {
+            do { _ = try canonical(json); check(false, "canonicalisation: \(name) must refuse") } catch RefIdError.specIntegrity { check(true, "") } catch { check(false, "canonicalisation: \(name) threw the wrong error: \(error)") }
+        }
+    }
+
     // integrity: the embedded copy is the repository's spec (when run from the repository)
     let repositorySpec = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("spec")
     let urls = try embeddedSpecURLs()
@@ -343,6 +355,74 @@ func run() throws {
     try (RefId.sha256Hex(try RefId.canonicalise(try JSONSerialization.jsonObject(with: data))) + "\n").write(to: tmp.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
     do { _ = try loadSpecFrom(tmp); check(false, "integrity: specVersion 2.0.0 loaded") } catch RefIdError.specVersion { check(true, "") } catch { check(false, "integrity: version 2 threw \(error)") }
     check(try loadSpec().scheme == "ref", "integrity: the embedded spec does not load")
+
+    // security: a hostile spec file must never crash the process — `loadSpecFrom` canonicalises the
+    // raw JSON to check it against the sidecar digest before anything else, and every number in it
+    // must come back either an `Int64` or a refusal, never a trap. The sidecar content does not matter
+    // here: canonicalisation runs, and must refuse, before the digest comparison is reached.
+    let hostile = FileManager.default.temporaryDirectory.appendingPathComponent("ref-id-hostile-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: hostile, withIntermediateDirectories: true)
+    try "not a digest\n".write(to: hostile.appendingPathComponent("ref-id.json.sha256"), atomically: true, encoding: .utf8)
+
+    func expectHostileRefusal(_ json: String, _ label: String) throws {
+        try json.write(to: hostile.appendingPathComponent("ref-id.json"), atomically: true, encoding: .utf8)
+        do {
+            _ = try loadSpecFrom(hostile)
+            check(false, "security: \(label) loaded instead of being refused")
+        } catch RefIdError.specIntegrity {
+            check(true, "")
+        } catch {
+            check(false, "security: \(label) threw the wrong error: \(error)")
+        }
+    }
+    // A Double at the Int64 magnitude bound: `Double(Int64.max)` rounds up to `2^63`, one past what
+    // `Int64` holds, so a naive `abs(double) <= Double(maximum)` guard passes and `Int64(double)` traps.
+    try expectHostileRefusal(#"{"a":9223372036854775808.0}"#, "a Double at Int64's magnitude bound")
+    // The same bound, reached through `version.maximum` itself rather than through the default —
+    // paired with a value at that same bound, the field the bound is meant to police.
+    try expectHostileRefusal(
+        #"{"version":{"maximum":9223372036854775807},"a":9223372036854775808.0}"#,
+        "version.maximum at Int64.max, paired with a Double at that bound"
+    )
+    // An unsigned NSNumber above Int64.max: JSONSerialization parses `18446744073709551615` as an
+    // NSNumber whose objCType is "Q" (unsigned long long) and whose `int64Value` wraps to `-1` — the
+    // form the other three implementations refuse rather than silently reinterpreting.
+    try expectHostileRefusal(#"{"a":[18446744073709551615]}"#, "an unsigned NSNumber above Int64.max")
+
+    // Package URL canonicalisation: no vector binds these, because purl canonicalisation is this port's
+    // own declared exception (see Validators.swift's header) — the differential test against the
+    // reference (`packageurl-js`) is what catches a drift here, and these two are what it found.
+    //
+    // The version component must be re-encoded from its decoded value the same way the namespace and
+    // name already are, keeping only what `packageurl-js`'s `encodeVersion` keeps literal (`:` and `+`)
+    // and encoding everything else `encodeURIComponent` would, including `=`.
+    func purlCanonical(_ input: String) throws -> String? { try parse(input).canonical }
+
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S")
+            == "pkg:npm/x@1.0.0%3Bstate%3Dswh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "purl: version component encodes '=' as the reference does"
+    )
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000")
+            == "pkg:npm/x@1.0.0%3Bstate%3Dswh:1:rev:7e29bb6000000000000000000000000000000000",
+        "purl: version component encodes '=' as the reference does, with no trailing fragment"
+    )
+    // A percent-escape's hex digits are uppercase in the canonical form, matching the reference across
+    // every component — including a qualifier value, whose serialisation here reorders the query string
+    // rather than decoding and re-encoding each value, so an escape's case only reaches uppercase
+    // through the pass this checks.
+    check(
+        try purlCanonical("ref:pkg:npm/@acme/x@2.%3b0.0")
+            == "pkg:npm/%40acme/x@2.%3B0.0",
+        "purl: a percent-escape carried in from the input is uppercased in the canonical form"
+    )
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0?k=1%3b2")
+            == "pkg:npm/x@1.0.0?k=1%3B2",
+        "purl: a qualifier value's percent-escape is uppercased in the canonical form"
+    )
+
     // the dialect measurement: does the canonical expression compile unchanged here?
     let expression = try loadSpec().grammarExpression()
     check((try? Regex(expression)) != nil, "dialect: the canonical expression does not compile unchanged in swift-regex")
