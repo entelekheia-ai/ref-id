@@ -199,8 +199,9 @@ with its `[model-routing]` declaration line, and each verified result is judged 
       seal gate's `fix()` writing a file that every port embeds, the dynamic import's `skipped` path,
       and the hook's exit codes. The main loop triages the findings; any fix is dispatched back as in
       Track 1.
-- [ ] **Track 4 — Report what vibe-ops should fix.** File the three defects in Open questions as
-      vibe-ops issues, each with its reproduction from this plan.
+- [x] **Track 4 — Report what vibe-ops should fix.** File the defects in Open questions that vibe-ops
+      does not already track, each with its reproduction. Filed: vibe-ops issue #46 (absolute
+      `core.hooksPath`); the other two were already #36 and #37.
       *Routing:* **main loop**. Filing an issue publishes content outward, so each issue's text is
       shown to the maintainer before `gh issue create` runs.
 - [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
@@ -296,8 +297,8 @@ Nothing yet — the plan has not started.
 Three things in vibe-ops this plan works around rather than fixes:
 
 - `vibe-ops harness resolve` reports `HOOK=(none)` when `core.hooksPath` is absolute, because
-  `cli/packages/harness/src/resolve.ts` joins the absolute path onto the repository root. Filed by Track
-  4. `git config core.hooksPath .githooks` sidesteps it locally.
+  `cli/packages/harness/src/resolve.ts` joins the absolute path onto the repository root — vibe-ops
+  issue #46. `git config core.hooksPath .githooks` sidesteps it locally.
 - No terminal command runs a gate's `fix()` — vibe-ops issue #37. It is the one reason
   `scripts/seal-spec.mjs` survives.
 - `--self-test` run from a hook writes into the commit's index — vibe-ops issue #36. The hook's `env -u`
