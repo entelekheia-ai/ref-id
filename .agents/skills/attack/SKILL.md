@@ -31,7 +31,7 @@ stack is shared with every worktree and every agent working beside you.
 sh .agents/skills/attack/scripts/build.sh
 ```
 
-It prints one line per implementation — `typescript: built`, `rust: …`, `swift: …`, `python: …`. A
+It prints `<implementation>: built` once for each of the four. A
 failed build stops the review: a probe against a stale binary judges code that is no longer there.
 
 ## Step 2 — The implementations agree on hostile corpora, or each disagreement is a candidate
@@ -61,15 +61,26 @@ Each run ends with a verdict line, and the verdict decides what happens next:
 | Verdict | Do |
 |---|---|
 | `agree` | nothing — record the corpus as checked clean |
-| `package-url-edge-only <n>` | read the listed groups against the known edges below; a group outside them is a candidate |
+| `package-url-edge-only <n>` | triage every group by the rule below |
 | `disagree <n>` | every group is a candidate: reproduce it (Step 6) |
 
 The four Package URL validators are different software and part at the edge — `packageurl-js`,
 `packageurl-python`, the `packageurl` crate and the Swift port's in-house grammar. `compare.mjs` lists a
 difference as an edge when it sits on a `pkg` locator and only in `status`, `part`, `serialised` or
-`canonical`, and, in `--pairs`, when either member already parts that way on its own. **An edge is still
-read, not skipped.** A validity difference is exempt; two different identifiers reaching one
-`canonical` in the same implementation is identity confusion (class 5) even when it sits on the edge.
+`canonical`, and, in `--pairs`, when either member already parts that way on its own parse.
+
+**Triage every edge group; an edge is read, never skipped.** Put the group's input alone in a file and run
+`compare.mjs` on it, then file it as one of three:
+
+| What differs | It is |
+|---|---|
+| `status` and `part` (and `serialised`, which follows) | a validity verdict — exempt when it matches a known edge below; otherwise a new edge to name to the maintainer, NOTE severity |
+| `canonical` only | a canonical-spelling disagreement — SHOULD. The Package URL `canonical` is informational: a `ref:` identifier's identity is its `canonical_identifier`, which never passes through it |
+| two *different* inputs reaching one `canonical_identifier` in one implementation | identity confusion, class 5 — BLOCKER, whether or not it sits on the edge |
+
+A `--pairs` edge group is inherited from a member's own parse edge and needs no separate reproduction once
+that member's parse group is triaged. A pair that disagrees while both members agree on parse is filed
+under disagreements, never as an edge, and every such group is reproduced.
 
 ## Step 3 — No hostile value crashes a process or escapes as an undeclared error
 
@@ -85,7 +96,7 @@ Each battery prints one line per case. What each line means:
 
 | Line | Meaning |
 |---|---|
-| `OK`, `decl` | the call returned, or refused with a declared `RefIdError` |
+| `OK`, `decl` | the call returned, or refused with a declared `RefIdError` — in Python also a `TypeError`, which is how Python refuses a statically ill-typed argument |
 | `typed` | a call the type checker refuses (labelled `ill-typed …`) failed some other way — reported, not a finding |
 | `ESCAPE` (TypeScript, Python) | an undeclared exception type left the public API — a finding |
 | `exit=None` or non-zero (Rust), `SIGNAL` (Swift) | the process aborted — a finding, unless the case is named `in-memory-…` |
@@ -112,7 +123,7 @@ node $A/backtrack.mjs
 
 `timing.mjs` feeds one generated identifier per size (10k, 100k, 1M characters by default) to every
 implementation and ends each generator with `verdict <generator>: linear` or `super-linear <implementation>
-×<growth>`. Growth is judged between the two largest sizes; more than three times the size growth, or a
+×<growth>`, and an `amplification` line Step 5 reads. Growth is judged between the two largest sizes; more than three times the size growth, or a
 timeout, is super-linear. `TIMEOUT` (seconds) bounds each run. Add a generator when a change introduces a
 repeatable shape — a new qualifier, refinement or form.
 
@@ -124,11 +135,12 @@ what reaches it.
 
 ## Step 5 — No input amplifies memory
 
-For each generator in `timing.mjs` and each implementation, compare the length of an output line with the
-length of its input: percent-encoding may triple a character and nothing else in the scheme should grow an
-identifier. An output more than three times its input, or a process whose memory grows faster than its
-input across the timing sizes, is a finding. Where no generator exercises a new shape, say so in the table
-rather than marking the class clean.
+Read the `amplification <generator>:` lines Step 4 printed. Each cell of the rows above them carries
+`out×`, the longest single field of the result over the input's UTF-8 byte length; percent-encoding may
+triple a byte and nothing else in the scheme should grow an identifier, so `timing.mjs` flags any ratio
+above 3 and exits non-zero.
+A flagged generator is a finding once reproduced. Where no generator builds a new shape, say so in the
+table rather than marking the class clean — and add the generator.
 
 ## Step 6 — Every candidate is reproduced and graded
 
@@ -142,8 +154,13 @@ meets:
 | SHOULD | the same reachable only through `build`, an envelope, `canonicalise` or a specification file; a cost cliff; an implementation disagreeing with the reference outside the known edges |
 | NOTE | reachable only from code that builds the value itself, or a difference with no consequence for a caller |
 
-For each finding, say whether the change under review introduced it or it predates it (`git log -S` on the
-line, or the same probe on the base commit), and propose the fix. A fix that changes what an identifier
+For each finding, say whether the change under review introduced it or it predates it, and propose the
+fix. The baseline is the base of the branch under review — `git merge-base HEAD origin/main`. Run the same
+probe there, in a detached worktree (`git worktree add --detach <dir> <base>`, then `sh
+.agents/skills/attack/scripts/build.sh` inside it), and remove it afterwards with `git worktree remove
+<dir>`, or `git worktree prune` when the directory was deleted by hand. An implementation absent at the
+base means the finding was introduced with it. With no branch under review — a periodic run on `main` —
+write "present at <commit>" instead. A fix that changes what an identifier
 means is a specification change first — a rule and a vector in `spec/ref-id.json` — and every
 implementation follows it; a fix inside one implementation's code is that implementation's.
 

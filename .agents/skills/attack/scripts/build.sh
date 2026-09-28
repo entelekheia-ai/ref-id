@@ -8,6 +8,6 @@ ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
 cd "$ROOT"
 npm ci --silent >/dev/null 2>&1 || npm install --silent >/dev/null
 npm run build --silent >/dev/null && echo "typescript: built"
-cargo build -q --example parse_lines && echo "rust: target/debug/examples/parse_lines"
-swift build -q --product ref-id-conformance && echo "swift: .build/debug/ref-id-conformance"
-(cd python && uv sync -q) && echo "python: python/.venv"
+cargo build -q --example parse_lines && echo "rust: built"
+swift build -q --product ref-id-conformance && echo "swift: built"
+(cd python && uv sync -q) && echo "python: built"
