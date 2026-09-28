@@ -29,19 +29,19 @@ const spec = JSON.parse(readFileSync(join(ROOT, "spec/ref-id.json"), "utf8"))
  * a list here means the corpus grows whenever a vector is added, with nothing to remember.
  */
 function corpus() {
+  // Every identifier any vector group carries — inputs, both sides of a pair, a build's expected output,
+  // an envelope's requested id and members. The groups were once listed here by name, and the ones left
+  // out (relate, verdict, build, envelope) held an input one port canonicalised differently.
   const seen = new Set()
-  for (const group of ["parse", "roundtrip", "canonical"]) {
-    for (const vector of spec.vectors[group] ?? []) {
-      const input = typeof vector === "string" ? vector : vector.input
-      if (typeof input === "string") seen.add(input)
+  const walk = (value) => {
+    if (typeof value === "string") {
+      if (value.startsWith("ref:")) seen.add(value)
+    } else if (value && typeof value === "object") {
+      for (const child of Object.values(value)) walk(child)
     }
   }
-  for (const vector of spec.vectors.comparison) {
-    for (const side of [vector.a, vector.b]) {
-      if (typeof side === "string") seen.add(side)
-    }
-  }
-  // A literal newline or carriage return would break the line protocol, and the two ports unescape these
+  walk(spec.vectors)
+  // A literal newline or carriage return would break the line protocol, and the ports unescape these
   // on the way in — so they leave here escaped, exactly as those ports expect to receive them.
   return [...seen].map((input) => input.replace(/\n/g, "\\n").replace(/\r/g, "\\r"))
 }
@@ -98,7 +98,7 @@ function compare(name, mine, theirs, input) {
 
 const inputs = corpus()
 
-// **All three speak the protocol, and all three are run the same way.** Calling the reference in-process
+// **Every implementation speaks the protocol, and all are run the same way.** Calling the reference in-process
 // while spawning the other two would judge it by a path they never take, so a defect living only in the
 // protocol's own serialisation would be invisible in exactly the implementation the others are compared
 // against. The first row is the reference the other two are compared to; it is otherwise an ordinary port.
@@ -119,6 +119,7 @@ const ports = [
   ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--canonical", "--browser"]],
   ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--canonical"]],
   ["swift", "swift", ["run", "-q", "ref-id-conformance", "--parse", "--canonical"]],
+  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--canonical"]],
 ]
 
 let failures = 0
@@ -192,6 +193,7 @@ const pairPorts = [
   ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs", "--browser"]],
   ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--pairs"]],
   ["swift", "swift", ["run", "-q", "ref-id-conformance", "--pairs"]],
+  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--pairs"]],
 ]
 
 const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))

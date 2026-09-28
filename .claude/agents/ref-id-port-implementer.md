@@ -73,7 +73,7 @@ reports. Give every file tool an absolute path inside it, and start every shell 
 | `typescript` | `packages/ref-id/src/`, `packages/ref-id/test/` | `packages/ref-id/test/surface.generated.ts`, `packages/ref-id/src/spec.browser.ts` | in `packages/ref-id`: `npm test` and `npm run typecheck`; at the root: `node scripts/gen-surface-ts.mjs --check` |
 | `rust` | `crates/ref-id/src/`, `crates/ref-id/tests/`, `crates/ref-id/examples/` | `crates/ref-id/tests/surface.rs`, `crates/ref-id/spec/` | `cargo test --workspace`, `node scripts/gen-surface-rust.mjs --check`, `node scripts/check-surface.mjs --only rust` |
 | `swift` | `Sources/RefId/`, `Sources/RefIdConformance/main.swift` | `Sources/RefIdConformance/Surface.generated.swift`, `Sources/RefId/Resources/` | `swift run ref-id-conformance`, `node scripts/gen-surface-swift.mjs --check`, `node scripts/check-surface.mjs --only swift` |
-| `python` | `python/src/ref_id/` (except `spec/`), `python/tests/`, `python/tools/`, `python/pyproject.toml`, `python/uv.lock` | `python/tests/test_surface.py`, `python/src/ref_id/spec/` | in `python`: `uv run pytest`, `uv run mypy --strict src tests` and `uv run ruff check`; at the root: `node scripts/gen-surface-python.mjs --check` |
+| `python` | `python/src/ref_id/` (except `spec/`), `python/tests/`, `python/tools/`, `python/pyproject.toml`, `python/uv.lock` | `python/tests/test_surface.py`, `python/src/ref_id/spec/` | in `python`: `uv run pytest`, `uv run mypy --strict src tests` and `uv run ruff check`; at the root: `node scripts/gen-surface-python.mjs --check` and `node scripts/check-surface.mjs --only python` |
 
 The Swift gate is an executable, not a test target: Command Line Tools ship neither XCTest nor the Swift
 Testing macros. Do not add a test target to get around it.
@@ -105,7 +105,8 @@ yours, including `spec/`, `scripts/`, `Package.swift`, `Cargo.toml` and the othe
    lines) through your language's `--pairs` protocol and show the output:
    `node --experimental-strip-types packages/ref-id/parse-lines.ts --pairs`,
    `cargo run -q --manifest-path crates/ref-id/Cargo.toml --example parse_lines -- --pairs`, or
-   `swift run -q ref-id-conformance --pairs`.
+   `swift run -q ref-id-conformance --pairs`, or
+   `uv run -q --directory python python tools/parse_lines.py --pairs`.
 
 ## When the brief names a dossier
 

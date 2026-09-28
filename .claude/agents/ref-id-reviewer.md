@@ -134,6 +134,7 @@ One input per line on stdin, one JSON result per line on stdout — the same inv
 | Browser build | the Node line plus `--browser` | the Node line plus `--browser` |
 | Rust | `cargo run -q --manifest-path crates/ref-id/Cargo.toml --example parse_lines -- --canonical` | `… -- --pairs` |
 | Swift | `swift run -q ref-id-conformance --parse --canonical` | `swift run -q ref-id-conformance --pairs` |
+| Python | `uv run -q --directory python python tools/parse_lines.py --canonical` | `… tools/parse_lines.py --pairs` |
 
 Compare them the way the differential does: `delegated` and `nested` are shapes each implementation forms
 for itself and are left out, and so is a Package URL's validity verdict. A byte comparison of the whole

@@ -27,7 +27,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
-      - name: gates — build, tests, grammar in three engines, Rust port
+      - name: gates — build, tests, the pcre2 grammar runner, Rust port
         run: |
           npm run build
           npm test

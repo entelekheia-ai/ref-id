@@ -4,6 +4,29 @@
   "summary": "The specification's own rules — sealed, self-consistent, tied to its openRPC surface — and its three embedded copies, which must not part company",
   "gates": [
     {
+      "gate": "./.vibe-ops/gate-python-conformance/index.mjs",
+      "label": "python-conformance",
+      "paths": ["python/pyproject.toml"],
+      "fixture": {
+        "expect": ["python-conformance-failed"],
+        "options": { "command": ["sh", "-c", "cp junit.xml \"${1#--junitxml=}\"; exit 1", "sh"] },
+        "files": {
+          "python/pyproject.toml": "[project]\nname = \"fixture\"\n",
+          "junit.xml": "<testsuite><testcase classname=\"tests.t\" name=\"x\"><failure message=\"no\"/></testcase></testsuite>\n"
+        }
+      }
+    },
+    {
+      "gate": "./.vibe-ops/gate-surface-generated/index.mjs",
+      "label": "surface-generated",
+      "paths": ["spec/ref-id.json"],
+      "fixture": {
+        "expect": ["surface-stale"],
+        "options": { "generators": ["scripts/gen-surface-stale.mjs"] },
+        "files": { "scripts/gen-surface-stale.mjs": "process.exit(1)\n" }
+      }
+    },
+    {
       "gate": "./.vibe-ops/gate-spec-sealed/index.mjs",
       "label": "spec-sealed",
       "paths": ["spec/ref-id.json", "spec/ref-id.json.sha256"],

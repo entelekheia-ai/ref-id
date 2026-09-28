@@ -215,7 +215,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       Acceptance: all four suites run the group; `1.0` and `1e2` canonicalise to `1` and `100`, `1.5` and
       `9007199254740992` are refused, everywhere; an oversized version literal is `unsupported` with
       `versionText` kept, and a lone-surrogate digest member is refused, in all four, each by a vector.
-- [ ] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
+- [x] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
       `scripts/differential.mjs`, the `python` language in `scripts/check-surface.mjs`, the two new gates
       with fixtures and tests, and a `python` job in `.github/workflows/gates.yml` plus Python and `uv` in
       the macOS `differential` job, the differential's corpus drawn from every vector group carrying
@@ -368,6 +368,23 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 ---
 
 ## Open questions
+
+- **No track — the Package URL canonical spelling is the library's, and the four libraries spell it
+  differently.** One identifier, `ref:pkg:npm/@AcMe/X@2.0.0`, gets three canonical forms: TypeScript
+  lowercases namespace and name (`%40acme/x`), Rust and Python the name only (`%40AcMe/x`), Swift neither;
+  and in a version the three libraries disagree on `/` (TypeScript `%2F`, Rust and Python literal), `&`
+  (Rust literal) and `+` (Rust and Python `%2B`), where Swift now follows TypeScript.
+  The field is informational — a `ref:` identifier's identity is its `canonical_identifier`, which never
+  passes through it — but the differential compares it, and a consumer may store it. Options: (a)
+  **recommended** — the specification declares, per Package URL type it dispatches, the normalisation its
+  canonical form applies (npm lowercases namespace and name), bound by vectors, and every implementation
+  applies it after its library; (b) the canonical form is declared informational and dropped from the
+  differential's comparison; (c) leave it recorded.
+- **No track — `%23` inside an npm namespace is valid only for `packageurl-js`.** `ref:folder:a;by=
+  ref:pkg:npm/@ac%23me/profiles@0.1.0` parses as `ok` in TypeScript and `malformed` at `by` in the other
+  three. Options: (a) **recommended** — record it among the known validity edges, as the empty name and
+  the trailing `/` already are; (b) the specification refuses an encoded `#` in a Package URL namespace
+  itself, with a vector.
 
 - Whether `packageurl-python`'s acceptance of a version ending in `/` should be reported upstream, as the
   Rust and Swift validators refuse it; it does not block this plan, which reports whatever the validator

@@ -389,6 +389,40 @@ func run() throws {
     // form the other three implementations refuse rather than silently reinterpreting.
     try expectHostileRefusal(#"{"a":[18446744073709551615]}"#, "an unsigned NSNumber above Int64.max")
 
+    // Package URL canonicalisation: no vector binds these, because purl canonicalisation is this port's
+    // own declared exception (see Validators.swift's header) — the differential test against the
+    // reference (`packageurl-js`) is what catches a drift here, and these two are what it found.
+    //
+    // The version component must be re-encoded from its decoded value the same way the namespace and
+    // name already are, keeping only what `packageurl-js`'s `encodeVersion` keeps literal (`:` and `+`)
+    // and encoding everything else `encodeURIComponent` would, including `=`.
+    func purlCanonical(_ input: String) throws -> String? { try parse(input).canonical }
+
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000%23S")
+            == "pkg:npm/x@1.0.0%3Bstate%3Dswh:1:rev:7e29bb6000000000000000000000000000000000%23S",
+        "purl: version component encodes '=' as the reference does"
+    )
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0%3Bstate=swh:1:rev:7e29bb6000000000000000000000000000000000")
+            == "pkg:npm/x@1.0.0%3Bstate%3Dswh:1:rev:7e29bb6000000000000000000000000000000000",
+        "purl: version component encodes '=' as the reference does, with no trailing fragment"
+    )
+    // A percent-escape's hex digits are uppercase in the canonical form, matching the reference across
+    // every component — including a qualifier value, whose serialisation here reorders the query string
+    // rather than decoding and re-encoding each value, so an escape's case only reaches uppercase
+    // through the pass this checks.
+    check(
+        try purlCanonical("ref:pkg:npm/@acme/x@2.%3b0.0")
+            == "pkg:npm/%40acme/x@2.%3B0.0",
+        "purl: a percent-escape carried in from the input is uppercased in the canonical form"
+    )
+    check(
+        try purlCanonical("ref:pkg:npm/x@1.0.0?k=1%3b2")
+            == "pkg:npm/x@1.0.0?k=1%3B2",
+        "purl: a qualifier value's percent-escape is uppercased in the canonical form"
+    )
+
     // the dialect measurement: does the canonical expression compile unchanged here?
     let expression = try loadSpec().grammarExpression()
     check((try? Regex(expression)) != nil, "dialect: the canonical expression does not compile unchanged in swift-regex")

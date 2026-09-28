@@ -7,8 +7,8 @@
 # up here as `npm test`, and showed up nowhere at all while this workflow did not exist.
 #
 # Swift is its own job on macOS. The conformance runner is the only thing that exercises the Swift port's
-# 433 vectors and it had no automated caller, which for a repository whose headline property is
-# three-implementation parity left exactly one implementation unevidenced. It is an executable rather
+# vectors and it had no automated caller, which for a repository whose headline property is parity across
+# its implementations left exactly one of them unevidenced. It is an executable rather
 # than a test target on purpose (see Package.swift): it runs on a toolchain with no XCTest.
 name: gates
 on:
@@ -28,6 +28,8 @@ jobs:
         with:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
+      # uv on this runner is what lets the python-conformance gate run rather than skip.
+      - uses: astral-sh/setup-uv@v10
       - run: npm ci
       - name: the commit gate, run the way the hook runs it
         # Ahead of the suite because the specification's own rules live here: the sidecar seal (the
@@ -48,12 +50,12 @@ jobs:
           npm i -g @entelekheia/vibe-ops-cli@0.2.0
           vibe-ops check --self-test
           out=$(vibe-ops check --verbose) || { printf '%s\n' "$out" | grep -E '^(FAIL|WARN) ' || printf '%s\n' "$out"; exit 1; }
-          if printf '%s\n' "$out" | grep -E '^SKIP +\[(spec-sealed|relate-consistent|openrpc-valid)\]'; then
+          if printf '%s\n' "$out" | grep -E '^SKIP +\[(spec-sealed|relate-consistent|openrpc-valid|python-conformance|surface-generated)\]'; then
             echo "one of this repository's own gates skipped — its instrument is missing on this runner" >&2
             exit 1
           fi
           npm run test:gates
-      - name: build, tests, grammar in three engines, Rust port
+      - name: build, tests, the pcre2 grammar runner, Rust port
         # typecheck is what holds the TypeScript surface to openRPC by signature: the generated
         # test/surface.generated.ts is checked by tsc alone, and `npm test` strips types without checking
         # them, so without this line a narrowed parameter or a changed return type merges green.
@@ -63,8 +65,25 @@ jobs:
           npm test
           npm run test:grammar
           cargo test --quiet
+          node --test scripts/gen-surface-python.test.mjs
       - name: the identify skill's script resolves a corpus without leaking the caller's environment
         run: npm run test:identify
+
+  # The Python port on the oldest interpreter it supports and on the newest the image carries. The commit
+  # gate above already runs its suite once through python-conformance; this job adds 3.11, the type check
+  # over every test file (test_surface.py holds the port to openRPC by signature) and the linter.
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10
+      - name: the Python port's suite, types and lint
+        working-directory: python
+        run: |
+          uv run pytest -q
+          uv run --python 3.11 pytest -q
+          uv run mypy --strict src tests
+          uv run ruff check
 
   swift:
     runs-on: macos-latest
@@ -73,8 +92,8 @@ jobs:
       - name: swift conformance
         run: swift run ref-id-conformance
 
-  # The only job where all three implementations can run, because Swift needs macOS and the differential
-  # needs the three on one machine. Each suite above proves its own implementation agrees with the
+  # The only job where every implementation can run, because Swift needs macOS and the differential
+  # needs them all on one machine. Each suite above proves its own implementation agrees with the
   # specification; none of them proves the three agree with *each other*, and a field no vector
   # constrains can be decided three ways with every suite green — which is what happened to Package URL
   # canonicalisation for as long as the line protocol dropped that field.
@@ -86,11 +105,13 @@ jobs:
         with:
           node-version: '24.x'
       - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v10
       - run: npm ci
       - name: every implementation answers the same for every input the specification names
         run: npm run test:differential
       # Each suite fails when a declared method is missing or its signature moved; none of them can see
       # a public function nobody declared. This reads Rust through tree-sitter and Swift through its
-      # compiler's symbol graph, which is why it runs here, beside the Swift toolchain.
+      # compiler's symbol graph and Python through `ref_id.__all__`, which is why it runs here, beside the
+      # Swift toolchain.
       - name: no implementation exposes a public function the specification does not declare
         run: npm run test:surface
