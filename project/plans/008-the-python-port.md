@@ -176,13 +176,13 @@ The existing `spec-bytes` and `spec-seal` mirror entries each gain one pair, the
 
 `scripts/sync-versions.sh` copies the npm package's version into `python/pyproject.toml` beside the
 crate manifest. `.github/workflows/release.yml` gains a PyPI probe in its "did this run release?" step and
-a conditional job that builds with `uv build` inside `python/` and publishes with
-`pypa/gh-action-pypi-publish` pinned to `v1.13.0`, `packages-dir: python/dist`, `skip-existing: true`, in
-a job with `permissions: id-token: write` and the `pypi` environment. The first publish goes through a
-pending trusted publisher on pypi.org for project `ref-id`, repository `entelekheia-ai/ref-id`, workflow
-`release.yml`, with no environment restriction — declared 2026-09-27, so nothing in the release is manual.
-The job still names the `pypi` environment, because that is where GitHub can require an approval before a
-publish; the publisher accepts it either way. One changeset on `@entelekheia/ref-id` versions all
+conditional steps in the same release job that build with `uv build` inside `python/` and publish with
+`pypa/gh-action-pypi-publish` pinned to `v1.14.2`, `packages-dir: python/dist`, `skip-existing: true`,
+under the job's existing `permissions: id-token: write`. The first publish goes through a pending trusted
+publisher on pypi.org for project `ref-id`, repository `entelekheia-ai/ref-id`, workflow `release.yml`,
+with no environment restriction — declared 2026-09-27, so nothing in the release is manual. The steps
+name no GitHub environment: an environment is set per job, and naming one here would put the npm and crate
+publishes behind it too. One changeset on `@entelekheia/ref-id` versions all
 four artifacts, as it already does for three.
 
 ## Tracks
@@ -225,7 +225,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       alone and the step names stop saying "three engines". Acceptance: `npm run test:differential`
       reports five rows and no failure; `vibe-ops check --self-test` sees both new gates fire on their
       fixtures; a deliberately broken vector in a scratch branch is refused at commit.
-- [ ] **Track 6 — Release and documents.** `scripts/sync-versions.sh`, the PyPI probe and publish job in
+- [x] **Track 6 — Release and documents.** `scripts/sync-versions.sh`, the PyPI probe and publish job in
       `.github/workflows/release.yml`, the changeset, and every place that counts or lists the
       implementations: `AGENTS.md`, `README.md` and `scripts/gen-readme-refs.mjs`, `vibeops.config.ts`,
       the `.vibe-ops/ops.json` summary, the comments in `scripts/differential.mjs` and the line servers,
@@ -276,8 +276,9 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 
 - Decision: PyPI in the same release, at the same version, through trusted publishing.
   Rationale: the repository's rule is one version line and no publishing token. The pending publisher was
-  declared on pypi.org on 2026-09-27 without an environment restriction; the job names `pypi` anyway so
-  an approval rule can be added there without touching the publisher.
+  declared on pypi.org on 2026-09-27 without an environment restriction, and the publish steps run in the
+  existing release job without one — an environment is per job, so a PyPI-only approval rule would need a
+  job of its own.
   Date / Author: 2026-09-27 / Danilo Borges
 
 - Decision: delegation follows the workspace model-routing rule. The port tracks (2–4) go to

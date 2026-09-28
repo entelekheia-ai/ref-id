@@ -75,13 +75,15 @@ jobs:
           done
           tagged=$([ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ] && echo yes || echo no)
           crated=$(curl -s -o /dev/null -w '%{http_code}' -A 'entelekheia-ref-id release workflow (github actions)' "https://crates.io/api/v1/crates/ref-id/$VERSION")
-          echo "npm=$on_npm tag=$tagged crates.io=$crated"
-          if [ "$on_npm" = yes ] && { [ "$tagged" = no ] || [ "$crated" != 200 ]; }; then
+          pypied=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/ref-id/$VERSION/json")
+          echo "npm=$on_npm tag=$tagged crates.io=$crated pypi=$pypied"
+          if [ "$on_npm" = yes ] && { [ "$tagged" = no ] || [ "$crated" != 200 ] || [ "$pypied" != 200 ]; }; then
             echo "released=true" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
           echo "crated=$crated" >> "$GITHUB_OUTPUT"
+          echo "pypied=$pypied" >> "$GITHUB_OUTPUT"
           echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
       # The Rust crate follows the same version, synced into Cargo.toml by `npm run version`, and publishes
       # through crates.io trusted publishing — declared once on crates.io, no token. The first version is
@@ -94,6 +96,21 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates.outputs.token }}
         run: cargo publish -p ref-id
+      # The Python package follows the same version, synced into python/pyproject.toml by `npm run version`,
+      # and publishes to PyPI through trusted publishing: a publisher is declared on pypi.org for this
+      # repository and this workflow, with no environment restriction, and the job's `id-token: write` is
+      # the whole credential. `skip-existing` makes a rerun after a partial release safe.
+      - uses: astral-sh/setup-uv@v10
+        if: steps.released.outputs.released == 'true' && steps.released.outputs.pypied != '200'
+      - name: build the Python package
+        if: steps.released.outputs.released == 'true' && steps.released.outputs.pypied != '200'
+        run: uv build --directory python --out-dir dist
+      - name: publish the Python package, unless PyPI already has this version
+        if: steps.released.outputs.released == 'true' && steps.released.outputs.pypied != '200'
+        uses: pypa/gh-action-pypi-publish@v1.14.2
+        with:
+          packages-dir: python/dist
+          skip-existing: true
       # Swift Package Manager has no registry here: it resolves the package from this repository by a
       # semver tag, so every release also carries a plain `v<version>` tag beside the changesets one.
       - name: GitHub release on the v<version> tag — the one tag SwiftPM resolves and humans read
@@ -103,4 +120,4 @@ jobs:
         run: |
           VERSION=${{ steps.released.outputs.version }}
           node -e "const c=require('fs').readFileSync('packages/ref-id/CHANGELOG.md','utf8');const m=c.split(/^## /m).find(s=>s.startsWith('$VERSION'));process.stdout.write(m?m.slice(m.indexOf('\n')+1).trim():'')" > /tmp/notes.md
-          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION — @entelekheia/ref-id, ref-id crate, RefId" --notes-file /tmp/notes.md
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION — @entelekheia/ref-id, ref-id crate, RefId, ref-id on PyPI" --notes-file /tmp/notes.md

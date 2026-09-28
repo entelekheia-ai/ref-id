@@ -60,7 +60,7 @@ func verdictResultToJSON(_ result: VerdictResult?) -> Any {
 // surface the differential test against the TypeScript reference reads.
 if CommandLine.arguments.contains("--parse") {
     // `--canonical` keeps the field the default protocol drops. The drop is deliberate: a locator's
-    // validity belongs to the format, and the three purl validators disagree at the edge, so the shared
+    // validity belongs to the format, and the four purl validators disagree at the edge, so the shared
     // protocol compares every field except that verdict. Canonicalisation is a different question —
     // two systems that compare identifiers by canonical form must agree on it — so it is measurable
     // here rather than silently excluded with the verdict.

@@ -1,7 +1,7 @@
 {
   "id": "spec",
   "version": "0.0.1",
-  "summary": "The specification's own rules — sealed, self-consistent, tied to its openRPC surface — and its three embedded copies, which must not part company",
+  "summary": "The specification's own rules — sealed, self-consistent, tied to its openRPC surface — and its embedded copies, which must not part company",
   "gates": [
     {
       "gate": "./.vibe-ops/gate-python-conformance/index.mjs",
@@ -70,7 +70,8 @@
         "pairs": [
           ["spec/ref-id.json", "Sources/RefId/Resources/ref-id.json"],
           ["spec/ref-id.json", "crates/ref-id/spec/ref-id.json"],
-          ["spec/ref-id.json", "python/src/ref_id/spec/ref-id.json"]
+          ["spec/ref-id.json", "python/src/ref_id/spec/ref-id.json"],
+          ["LICENSE", "python/LICENSE"]
         ]
       },
       "fixture": {

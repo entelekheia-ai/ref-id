@@ -76,7 +76,7 @@ fn run_pairs() -> i32 {
 
 fn main() {
     // `--canonical` keeps the field the default protocol drops. The drop is deliberate: a locator's
-    // validity belongs to the format, and the three purl libraries disagree at the edge, so the shared
+    // validity belongs to the format, and the four purl libraries disagree at the edge, so the shared
     // protocol compares every field except that verdict. Canonicalisation is a different question —
     // two systems that compare identifiers by canonical form must agree on it — so it is measurable
     // here rather than silently excluded with the verdict.

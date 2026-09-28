@@ -2,7 +2,9 @@
 "@entelekheia/ref-id": minor
 ---
 
-Spec 1.6.0: the edges a fourth implementation exposed are now rules, each bound by vectors.
+Spec 1.6.0: the edges a fourth implementation exposed are now rules, each bound by vectors. The same release
+publishes that implementation — `ref-id` on PyPI, a Python package held to the same vectors, the same
+surface and the same differential as the TypeScript, Rust and Swift ones.
 
 - `canonicalise` defines its numbers: an integer whose magnitude is at most `version.maximum`
   (9007199254740991) is written as that integer, an integral value written as `1.0` or `1e2` is that

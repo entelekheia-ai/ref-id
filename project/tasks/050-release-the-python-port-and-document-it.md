@@ -1,0 +1,78 @@
+---
+vibe-ops-template: task@3
+---
+
+<!--
+ Copyright (c) 2026 Danilo Borges (https://github.com/daniloborges)
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+-->
+
+# Task: Release the Python port and document it
+
+| Field | Value |
+|---|---|
+| Status | Done |
+| Created | 2026-09-28 |
+| Author | Danilo Borges |
+| Issue | <https://github.com/entelekheia-ai/ref-id/issues/50> |
+| Plan | plans/008-the-python-port.md — Track 6 |
+
+---
+
+## Context
+
+The Python port is complete and held by the harness (Tracks 1–5, 7). This track makes the release publish
+it and every document that counts or lists the implementations say so. The pending trusted publisher for
+`ref-id` was declared on pypi.org on 2026-09-28 — repository `entelekheia-ai/ref-id`, workflow
+`release.yml`, no environment restriction — so nothing in the release is manual. Main loop throughout
+(Plan-008 Decision Log).
+
+## Work items
+
+| # | Priority | Item | Effort |
+|---|---|---|---|
+| 1 | P0 | `scripts/sync-versions.sh` writes the version into `python/pyproject.toml` and relocks | S |
+| 2 | P0 | `release.yml` probes PyPI and publishes through trusted publishing | S |
+| 3 | P0 | The changeset names the Python package | S |
+| 4 | P0 | README (packages, install, the generated ref-ids block), AGENTS.md, the config and code comments | S |
+| 5 | P0 | The wheel carries a README fit for PyPI and the licence | S |
+
+## Implementation order
+
+- [x] P0 — items 1–5, and the whole gate: `vibe-ops check` 65 checks, 0 failed; `spec-bytes` 4 pairs
+      (the licence copy included); `npm test` and `npm run test:gates` green
+
+## Surprises & Discoveries
+
+- Observation: `npm run version` is `changeset version` followed by the sync, not the sync alone; run
+  locally to test the sync, it consumed both pending changesets, bumped every manifest to 0.7.0 and wrote
+  the changelog — the step `AGENTS.md` assigns to CI's "Version Packages" pull request.
+  Evidence: `git status` after the run showed both `.changeset/*.md` deleted and six manifests changed;
+  every one was restored from `HEAD` before any commit, and `sh scripts/sync-versions.sh` alone was then
+  run to test the sync (0.6.0 → 0.6.0, no change).
+
+- Ruling: the publish step pins `pypa/gh-action-pypi-publish@v1.14.2`, the current release, rather than
+  the plan's `v1.13.0` — cost if wrong: none; both take `packages-dir` and `skip-existing`.
+
+- Ruling: the PyPI steps run in the existing release job with no `environment:`, where the plan said the
+  job names `pypi` — an environment is set per job, so naming one would put the npm and crate publishes
+  behind it too, and the declared publisher accepts any environment — cost if wrong: an approval rule
+  for PyPI alone later needs a separate job with the built distribution handed over.
+
+- Ruling: the licence ships as `python/LICENSE`, a copy the `spec-bytes` mirror gate holds against the
+  root `LICENSE`, because `hatchling` refuses a licence path outside the project directory — cost if
+  wrong: none; the gate refuses a copy that drifts.
+
+- Ruling: `scripts/gen-readme-refs.mjs` gains the PyPI row but leaves the generated block as it is while
+  changesets are pending; the release's `npm run version` writes it with the new version and spec
+  1.6.0 — cost if wrong: none; `test:readme-refs` holds the block.
+
+## Closure
+
+- [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually
+      runs; a dossier that looks otherwise finished but has this box open is not done.
