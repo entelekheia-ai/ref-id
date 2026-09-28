@@ -31,3 +31,35 @@ def test_a_bare_str_is_refused_though_it_satisfies_sequence_str() -> None:
     with pytest.raises(DigestError) as excinfo:
         ref_id.digest("ref:npm:left-pad")
     assert excinfo.value.part == "member"
+
+
+def test_a_generator_is_refused() -> None:
+    with pytest.raises(DigestError) as excinfo:
+        ref_id.digest(x for x in ["a", "b"])  # type: ignore[arg-type]
+    assert excinfo.value.part == "member"
+
+
+def test_a_set_is_refused() -> None:
+    with pytest.raises(DigestError) as excinfo:
+        ref_id.digest({"a", "b"})  # type: ignore[arg-type]
+    assert excinfo.value.part == "member"
+
+
+def test_a_non_string_member_is_refused() -> None:
+    with pytest.raises(DigestError) as excinfo:
+        ref_id.digest([1])  # type: ignore[list-item]
+    assert excinfo.value.part == "member"
+
+
+def test_a_none_member_is_refused() -> None:
+    with pytest.raises(DigestError) as excinfo:
+        ref_id.digest([None])  # type: ignore[list-item]
+    assert excinfo.value.part == "member"
+
+
+def test_a_lone_surrogate_member_is_refused() -> None:
+    # A lone surrogate cannot be encoded as UTF-8 — the digest covers UTF-8 bytes, so a member that
+    # cannot become one is refused rather than silently mangled.
+    with pytest.raises(DigestError) as excinfo:
+        ref_id.digest(["\ud800"])
+    assert excinfo.value.part == "member"

@@ -199,6 +199,29 @@ name exists.
   `Sequence[str]`, the reason the runtime refusal exists — and `mypy --strict src tests` reported it.
   Evidence: `tests/test_digest.py:32`; removed by the caller before commit.
 
+- Ruling (review follow-up): `digest` refuses anything that is not a `list` or `tuple`, then works on a
+  snapshot, and refuses a non-`str` member ("a member must be a string") and one that does not encode as
+  UTF-8 ("a member must encode as UTF-8"), both at part `member` — the TypeScript reference refuses the
+  same inputs; a generator had silently digested as the empty list — cost if wrong: a caller passing
+  another sequence type converts it first.
+
+- Ruling (review follow-up): `digest` imports the grammar's `FIELD`, superseding the earlier ruling that
+  kept a local literal; `canonicalise` joins a split surrogate pair before escaping it, as JavaScript sees
+  one character; `embedded_spec_text` decodes bytes rather than reading text, so no newline translation
+  applies — cost if wrong: none.
+
+- Observation: `forms.origin-url.pattern` did not compile under the `python-re` adaptation, because a
+  plain replace of `$` reached the `$` inside its character classes.
+  Evidence: `re.compile` raised `bad escape \Z at position 84`; `pcre2`'s `$` → `\z` has the same flaw;
+  the retired grammar runners adapted only the top expression. Parked, answered by the maintainer
+  (Plan-008 Decision Log, the `anchor` field), carried out in Track 3.
+
+- Deferred minor: `load_spec_from` still reads through text mode; the integrity check digests the
+  canonicalised parse, so a CRLF copy verifies the same — declined as a defect, noted for a reader who
+  expects byte reads there too.
+
+- Deferred minor: the wheel ships no LICENSE file, because `python/` has none — Track 6.
+
 ## Closure
 
 - [ ] Run `/vibe-ops:close-task` — do not just delete this file. Stays unchecked until closure actually

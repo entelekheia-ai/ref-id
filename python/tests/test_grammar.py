@@ -4,8 +4,11 @@ and `$` -> `\\Z`.
 """
 from __future__ import annotations
 
+import pytest
+
+from ref_id.errors import SpecVersionError
 from ref_id.grammar import Grammar
-from ref_id.spec import load_spec
+from ref_id.spec import Spec, load_spec
 
 
 def test_top_expression_compiles_and_matches_a_minimal_identifier() -> None:
@@ -40,3 +43,19 @@ def test_state_and_fragment_pair_grammars_compile() -> None:
     assert state_match.group("value") == "value"
     fragment_match = grammar.fragment_pair.match("key=value")
     assert fragment_match is not None
+
+
+def test_a_pair_grammar_not_shaped_key_equals_value_is_refused() -> None:
+    # `_assert_structure` checks every declared pair grammar separates its key and value with `=`
+    # (`grammar.py:42`); a spec whose `state.pair` uses a different separator names a dialect this
+    # package's structural literals no longer match, and must be refused rather than silently compiled.
+    root = {
+        "scheme": "ref",
+        "grammar": {
+            "expression": "^ref:(?P<type>[a-z]+):(?P<locator>[^#\\r\\n]+)#(?P<fragment>.*)$",
+            "state": {"pair": "^(?P<key>[a-z]+)-(?P<value>[a-z]+)$"},
+            "fragment": {"pair": "^(?P<key>[a-z]+)=(?P<value>[a-z]+)$"},
+        },
+    }
+    with pytest.raises(SpecVersionError):
+        Grammar.compile_for(Spec(root))

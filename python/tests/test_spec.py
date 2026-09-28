@@ -64,3 +64,40 @@ def test_load_spec_from_an_unsupported_major_raises_version_error(tmp_path: Path
 def test_load_spec_from_a_missing_directory_raises_integrity_error(tmp_path: Path) -> None:
     with pytest.raises(SpecIntegrityError):
         ref_id.load_spec_from(tmp_path / "does-not-exist")
+
+
+class _FakeResource:
+    """A minimal `importlib.resources.abc.Traversable` stand-in whose `read_text` reproduces the
+    universal-newline translation the real one performs, so a regression to it is caught the same way
+    it would be missed by comparing only `read_bytes`."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def read_bytes(self) -> bytes:
+        return self._data
+
+    def read_text(self, encoding: str = "utf-8") -> str:
+        return self._data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
+
+
+class _FakeDirectory:
+    def __init__(self, children: dict[str, _FakeResource | _FakeDirectory]) -> None:
+        self._children = children
+
+    def joinpath(self, name: str) -> _FakeResource | _FakeDirectory:
+        return self._children[name]
+
+
+def test_embedded_spec_text_does_not_translate_newlines(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A JSON file byte for byte identical to the root copy except one field carries a literal CRLF —
+    # `importlib.resources`' `read_text` would translate it away, which would compute a different digest
+    # from the one the sidecar names for the real bytes on disk.
+    json_bytes = b'{"a":"line1\r\nline2"}'
+    sidecar_bytes = b"deadbeef\n"
+    fake_root = _FakeDirectory({"spec": _FakeDirectory({"ref-id.json": _FakeResource(json_bytes), "ref-id.json.sha256": _FakeResource(sidecar_bytes)})})
+    monkeypatch.setattr("ref_id.spec.resources.files", lambda _name: fake_root)
+    json_text, sidecar_text = ref_id.embedded_spec_text()
+    assert json_text == '{"a":"line1\r\nline2"}'
+    assert "\r\n" in json_text
+    assert sidecar_text == "deadbeef\n"

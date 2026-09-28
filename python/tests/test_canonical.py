@@ -29,6 +29,36 @@ def test_lone_surrogate_and_control_character_match_json_stringify() -> None:
     assert result == '{"a":"\\ud800 \\u001f"}'
 
 
+def test_every_c0_char_del_line_separators_and_a_lone_surrogate_match_the_typescript_reference() -> None:
+    # Expected output taken from `packages/ref-id/src/spec.ts`'s `canonicalise`, run with:
+    #   node --experimental-strip-types -e '
+    #     import("./src/spec.ts").then(async (mod) => {
+    #       let s = ""; for (let i = 0; i < 32; i++) s += String.fromCharCode(i);
+    #       s += "\u007f  \ud800";
+    #       console.log(JSON.stringify([...mod.canonicalise({s})].map(c => c.charCodeAt(0))));
+    #     });'
+    # from `packages/ref-id`, on 2026-09-28. DEL (U+007F) and the line separators U+2028/U+2029 are not
+    # among `JSON.stringify`'s mandatory escapes and pass through literally, exactly as this port's own
+    # escaper leaves them.
+    every_c0 = "".join(chr(i) for i in range(0x20))
+    value = every_c0 + "\x7f" + " " + " " + "\ud800"
+    expected = '{"s":"\\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\b\\t\\n\\u000b\\f\\r\\u000e\\u000f\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\x7f  \\ud800"}'
+    assert canonicalise({"s": value}) == expected
+
+
+def test_split_surrogate_pair_canonicalises_the_same_as_the_joined_character() -> None:
+    # A high surrogate and a low surrogate held as two separate Python `str` characters name one
+    # character in JavaScript's UTF-16 representation; canonicalising them separately must equal
+    # canonicalising the single joined character, or the two ports would digest different bytes for
+    # data that came from a JavaScript producer as one string.
+    split = chr(0xD83D) + chr(0xDE00)
+    joined = "\U0001F600"
+    assert len(split) == 2
+    assert len(joined) == 1
+    assert canonicalise(split) == canonicalise(joined)
+    assert canonicalise(joined) == '"😀"'
+
+
 def test_float_is_refused() -> None:
     with pytest.raises(SpecIntegrityError):
         canonicalise({"a": 1.5})

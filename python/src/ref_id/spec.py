@@ -137,9 +137,11 @@ def embedded_spec_text() -> tuple[str, str]:
     """The embedded specification's bytes, so a runner can prove them byte-identical to the repository's file."""
     # `ref_id.spec` carries no `__init__.py` of its own — it is a byte-identical copy of `spec/`, not a
     # subpackage — so the anchor is `ref_id` and `spec/` is addressed as a resource path under it.
+    # `Traversable.read_text` opens in text mode, which performs universal-newline translation; the
+    # digest covers the file's actual bytes, so this reads them raw and decodes them itself instead.
     package = resources.files("ref_id").joinpath("spec")
-    json_text = package.joinpath("ref-id.json").read_text(encoding="utf-8")
-    sidecar_text = package.joinpath("ref-id.json.sha256").read_text(encoding="utf-8")
+    json_text = package.joinpath("ref-id.json").read_bytes().decode("utf-8")
+    sidecar_text = package.joinpath("ref-id.json.sha256").read_bytes().decode("utf-8")
     return json_text, sidecar_text
 
 

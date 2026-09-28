@@ -26,8 +26,23 @@ _ESCAPES = {
 
 def _escape(string: str) -> str:
     out: list[str] = ['"']
-    for char in string:
+    index = 0
+    length = len(string)
+    while index < length:
+        char = string[index]
         code = ord(char)
+        # A Python `str` may hold an unpaired surrogate half where JavaScript would already have joined
+        # it into one UTF-16 code unit pair naming a single character. Joining a high/low pair back into
+        # its codepoint before deciding how to write it keeps this port's output identical to
+        # `JSON.stringify`'s for a string built the way JavaScript itself would see it — two `str` halves
+        # from splitting an astral character must canonicalise the same as that one character.
+        if 0xD800 <= code <= 0xDBFF and index + 1 < length:
+            next_code = ord(string[index + 1])
+            if 0xDC00 <= next_code <= 0xDFFF:
+                combined = 0x10000 + (code - 0xD800) * 0x400 + (next_code - 0xDC00)
+                out.append(chr(combined))
+                index += 2
+                continue
         if char in _ESCAPES:
             out.append(_ESCAPES[char])
         elif code < 0x20 or 0xD800 <= code <= 0xDFFF:
@@ -36,6 +51,7 @@ def _escape(string: str) -> str:
             out.append(f"\\u{code:04x}")
         else:
             out.append(char)
+        index += 1
     out.append('"')
     return "".join(out)
 

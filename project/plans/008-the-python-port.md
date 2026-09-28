@@ -201,11 +201,18 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       pass with the new pairs.
 - [ ] **Track 3 — Parse, serialise, build and the envelope.** `parse`, `serialise`, `build`,
       `canonical_identifier`, `validate_envelope`, and the validator registry delegating to
-      `packageurl-python`. Acceptance: the `parse`, `canonical`, `roundtrip`, `build` and `envelope`
+      `packageurl-python`; first, by the main loop, the `anchor` field of the dialect adaptations (see the
+      Decision Log) and a Python test that every pattern the specification declares compiles. Acceptance: the `parse`, `canonical`, `roundtrip`, `build` and `envelope`
       groups pass.
 - [ ] **Track 4 — Relations.** `covers`, `same_package`, `same_identifier`, `relate`, `verdict`, including
       the descent into nested identifiers. Acceptance: every group passes, the group-refusal test lists
       none, and `mypy --strict` passes on the generated surface file.
+- [ ] **Track 7 — Integers in canonicalisation.** Runs after Track 4 and before Track 5. Add the rule to
+      `/canonicalisation` and a `canonicalisation` vector group whose inputs are raw JSON text, reseal and
+      copy; then each implementation parses the text with its own JSON parser and canonicalises it —
+      TypeScript, Rust, Swift and Python, each adding the group to the list its runner executes.
+      Acceptance: all four suites run the group; `1.0` and `1e2` canonicalise to `1` and `100`, `1.5` and
+      `9007199254740992` are refused, everywhere.
 - [ ] **Track 5 — The port joins the harness.** `python/tools/parse_lines.py`, the `python` rows in
       `scripts/differential.mjs`, the `python` language in `scripts/check-surface.mjs`, the two new gates
       with fixtures and tests, and a `python` job in `.github/workflows/gates.yml` plus Python and `uv` in
@@ -277,6 +284,27 @@ Tracks 1, 5 and 6 are the harness shared between languages.
   Rationale: the maintainer's direction on 2026-09-27 to follow the routing rule; the port is a
   well-specified implement behind a real gate, the harness is a coupled change.
   Date / Author: 2026-09-27 / Danilo Borges
+
+- Decision: a dialect adaptation gains an `anchor` field that replaces only the `$` ending a pattern;
+  `replace` keeps the substitutions that apply everywhere (`(?<` → `(?P<` for `python-re`). `python-re`
+  declares `anchor: "\\Z"` and `pcre2` `anchor: "\\z"`; no `specVersion` change, since no identifier's
+  meaning moves. Carried out in Track 3, by the main loop before the implementer is dispatched.
+  Rationale: a plain replace of every `$` reached the `$` inside character classes of
+  `forms.origin-url.pattern`, which then did not compile in Python and would have refused every origin
+  identifier; `grammar.anchors` already said the adaptation exists for the final `$`. The maintainer chose
+  this over rewriting the pattern or special-casing it in code.
+  Date / Author: 2026-09-28 / Danilo Borges
+
+- Decision: canonicalisation defines its numbers — a number is canonical when it is an integer whose
+  magnitude is below 2^53, written as that integer; an integral value written with a fraction or an
+  exponent (`1.0`, `1e2`) is that integer; any other number is refused with `SpecIntegrityError`. A new
+  vector group `canonicalisation` binds it, with raw JSON text as input, and all four implementations run
+  it. Carried out in Track 7.
+  Rationale: `/canonicalisation` said "integers only" without saying what `1.0` or a large integer
+  becomes, and the implementations disagreed; JavaScript cannot tell `1.0` from `1`, which forces the
+  integral-value half, and cannot hold an integer at or above 2^53 exactly, which forces the bound. The
+  Swift port already applied this rule. The maintainer chose to resolve it in this plan.
+  Date / Author: 2026-09-28 / Danilo Borges
 
 ## Outcomes & Retrospective
 

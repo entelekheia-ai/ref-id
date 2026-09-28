@@ -20,7 +20,7 @@ from ref_id.spec import load_spec
 EXECUTED = ["digest"]
 
 
-@pytest.mark.xfail(strict=True, reason="Tracks 3-4 add the remaining groups")
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Tracks 3-4 add the remaining groups")
 def test_every_vector_group_runs() -> None:
     spec = load_spec()
     missing = sorted(set(spec.vector_classes()) - set(EXECUTED))
