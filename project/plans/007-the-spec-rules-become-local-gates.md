@@ -341,6 +341,9 @@ Two criteria were met in weaker forms than written:
   hook, `scripts/seal-spec.mjs`, and the need to set `core.hooksPath` back to `.githooks` by hand;
 - RFC-0006 item 12 — vibe-ops. It retires the `scripts/` ownership entries that `harness resolve` still
   reports as absent here.
+- vibe-ops issue #47 — vibe-ops. What the review taught about skips (invisible in a plain run and in a
+  hook's filter, so reserved for an absent instrument) belongs in the `new-signal` skill every gate author
+  reads. Until it lands there, the CI step that fails on a skipped spec gate carries it here.
 
 ---
 
