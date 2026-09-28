@@ -49,6 +49,12 @@ it and every document that counts or lists the implementations say so. The pendi
 
 ## Surprises & Discoveries
 
+- Observation: the release published 0.7.0 everywhere, PyPI for the first time. The Version Packages pull
+  request (#52) carried `python/uv.lock` relocked to 0.7.0 by `sync-versions.sh`, and every publish step
+  of `release.yml` succeeded: npm, crates.io, PyPI (wheel and sdist) and the `v0.7.0` GitHub release.
+  Evidence: release run 36499074528; `npm view`, the crates.io and PyPI JSON APIs, all at 0.7.0; a clean
+  `uv run --no-project --isolated --with ref-id==0.7.0` parsing `ref:pkg:npm/@acme/scanner-core@0.1.0#Observation`.
+
 - Observation: `npm run version` is `changeset version` followed by the sync, not the sync alone; run
   locally to test the sync, it consumed both pending changesets, bumped every manifest to 0.7.0 and wrote
   the changelog — the step `AGENTS.md` assigns to CI's "Version Packages" pull request.

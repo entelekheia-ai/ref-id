@@ -426,8 +426,9 @@ found defects the three existing ones shared or split on — a dialect adaptatio
 numbers with no canonical rule, an oversized version read as version 1 by three implementations, a lossy
 surrogate digest and prototype-keyed lookups in TypeScript, Swift trapping on hostile numbers and
 matching by grapheme cluster, quadratic relations in Rust — each fixed across every implementation and
-bound by vectors, in spec 1.6.0. Against the goals: all five are met on the branch; the PyPI one is met
-when the release runs.
+bound by vectors, in spec 1.6.0. Against the goals: all five are met. The release of 0.7.0 (PRs #51 and
+#52) published `ref-id` to PyPI for the first time through trusted publishing, beside the npm package,
+the crate and the `v0.7.0` tag; a clean `uv run --with ref-id==0.7.0` installs it and parses.
 
 ---
 
