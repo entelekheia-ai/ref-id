@@ -16,6 +16,7 @@
     "test:grammar": "python3 spec/conformance/grammar-check.py && perl spec/conformance/grammar-check.pl",
     "test:relate": "node scripts/check-relate.mjs",
     "test:openrpc": "node scripts/check-openrpc.mjs",
+    "test:gates": "node --test .vibe-ops/",
     "test:surface": "node scripts/check-surface.mjs",
     "gen:spec": "node scripts/gen-spec.mjs",
     "release": "npm run build && changeset publish",

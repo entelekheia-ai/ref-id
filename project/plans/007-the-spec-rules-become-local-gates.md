@@ -6,7 +6,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | Backlog |
+| Status | In Progress |
 | Created | 2026-09-27 |
 | Author | Danilo Borges |
 | Related | vibe-ops RFC-0006 (the repository as a source of vibe-ops units), vibe-ops RFC-0013 (the gate's CI entrypoint) |
@@ -160,7 +160,7 @@ excludes this repository. So the one implementing delegation is a `general-purpo
 with its `[model-routing]` declaration line, and each verified result is judged once with
 `node .eita/probe-delegation/record.mjs <agent id>` from the workspace root.
 
-- [ ] **Track 1 — The three gates.** Port `check-relate.mjs` and `check-openrpc.mjs` into their gates,
+- [x] **Track 1 — The three gates.** Port `check-relate.mjs` and `check-openrpc.mjs` into their gates,
       write `gate-spec-sealed` with `run()` and `fix()`, the pointer-to-line helper, the decoy tests and
       one `fixture` each in `.vibe-ops/ops.json`, renamed `spec`. Each gate is observed **red before
       green**: its fixture and decoy test fail against a stub, then pass. At the end, `vibe-ops check
