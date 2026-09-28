@@ -58,6 +58,18 @@ class Spec:
         value = self.value(*path)
         return value if isinstance(value, dict) else None
 
+    def get_ints(self, *path: str) -> list[int]:
+        value = self.value(*path)
+        if not isinstance(value, list):
+            return []
+        return [item for item in value if isinstance(item, int) and not isinstance(item, bool)]
+
+    def get_table(self, *path: str) -> list[tuple[str, str]]:
+        obj = self.get_object(*path)
+        if obj is None:
+            return []
+        return [(key, value) for key, value in obj.items() if isinstance(value, str)]
+
     def spec_version(self) -> str:
         return self.get_str("specVersion")
 
@@ -95,7 +107,9 @@ class Spec:
         """The canonical grammar expression, for a dialect measurement."""
         return self.get_str("grammar", "expression")
 
-    def _grammar_instance(self) -> Grammar:
+    def grammar(self) -> Grammar:
+        """The patterns this spec compiles to, lazily compiled and cached — every reader shares one
+        instance per loaded spec."""
         from .grammar import Grammar
 
         if self._grammar is None:

@@ -199,7 +199,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       `digest`, the grammar with the `python-re` adaptation, and the group-refusal test. Acceptance: the
       `digest` vectors pass, the group-refusal test lists every group not yet run, and the mirror gates
       pass with the new pairs.
-- [ ] **Track 3 — Parse, serialise, build and the envelope.** `parse`, `serialise`, `build`,
+- [x] **Track 3 — Parse, serialise, build and the envelope.** `parse`, `serialise`, `build`,
       `canonical_identifier`, `validate_envelope`, and the validator registry delegating to
       `packageurl-python`; first, by the main loop, the `anchor` field of the dialect adaptations (see the
       Decision Log) and a Python test that every pattern the specification declares compiles. Acceptance: the `parse`, `canonical`, `roundtrip`, `build` and `envelope`

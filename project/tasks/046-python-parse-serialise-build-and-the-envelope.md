@@ -16,7 +16,7 @@ vibe-ops-template: task@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Done |
 | Created | 2026-09-28 |
 | Author | Danilo Borges |
 | Issue | <https://github.com/entelekheia-ai/ref-id/issues/46> |
@@ -174,8 +174,8 @@ The gate, from inside `python/`: `uv run pytest --ignore tests/test_surface.py`,
 `uv run ruff check`; at the root, `node scripts/gen-surface-python.mjs --check`.
 
 - [x] P0 — caller: item 0, and every implementation's gate after it
-- [ ] P0 — implementer: items 1–8, TDD, each group watched failing first
-- [ ] P0 — caller: read the diff, rerun the gate, break one detection on purpose, commit
+- [x] P0 — implementer: items 1–8, TDD, each group watched failing first
+- [x] P0 — caller: read the diff, rerun the gate, break one detection on purpose, commit
 
 ## Surprises & Discoveries
 
@@ -192,6 +192,31 @@ The gate, from inside `python/`: `uv run pytest --ignore tests/test_surface.py`,
   Evidence: `npm test` 330 pass; `npm run test:grammar` 158/158 in `python-re` and in `pcre2`; `cargo
   test --workspace` 17 pass; `swift run ref-id-conformance` 1074 passed; the differential 226 inputs and
   51076 pairs × 4, 0 disagreements; Python's two new grammar tests fail with the anchor disabled.
+
+- Ruling: `Spec.grammar()` becomes public and `Spec` gains `get_ints` and `get_table` — the new modules need
+  a compiled grammar and integer-array and table lookups — cost if wrong: a rename, no data involved.
+
+- Ruling: `assert_implemented` caches per `Spec` in a `weakref.WeakSet`, not by `id()` — a short-lived
+  `Spec` from `load_spec_from` frees its id for the next one, which an id-keyed cache would then skip —
+  cost if wrong: none.
+
+- Ruling: `BuildParts.fragment` is `str | Fragment`, a path-only fragment being `Fragment(path, ())`, where
+  the crate has two enum variants — only the string and the `{path, refinements}` shapes are observable —
+  cost if wrong: a caller testing for a dedicated tag uses `isinstance(fragment, str)`.
+
+- Observation: every `pkg` vector asserting `canonical` matches `packageurl-python` 0.17.6 byte for byte.
+  Evidence: the implementer checked each against the library directly; the `parse` group passes.
+
+- Deferred minor: `serialise` and `canonical_identifier` of a result malformed at a key the specification
+  does not declare raise `SpecVersionError` instead of `SerialiseError`, because they name the failing
+  part through the declared-part table. This predates the port and is the same in every implementation.
+  Evidence: `ref:folder:a;zz=1;zz=2` — TypeScript and Python both raise `SpecVersionError: this package
+  names the part "zz", which spec 1.5.0 does not declare`, and Rust's line protocol emits no
+  `serialised` for it; no vector binds the case.
+
+- Observation (caller verification): a planted fault disabling percent-encoding failed only 2 of 274
+  tests — the vectors bind encoding thinly, though the detection holds.
+  Evidence: `encode` returning its input unchanged: `2 failed, 272 passed`.
 
 ## Closure
 
