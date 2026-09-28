@@ -16,7 +16,7 @@ vibe-ops-template: plan@3
 
 | Field | Value |
 |---|---|
-| Status | In Progress |
+| Status | Shipped |
 | Created | 2026-09-27 |
 | Author | Danilo Borges |
 | Depends on | Plan-007 (the local gates this plan extends) |
@@ -246,7 +246,7 @@ Tracks 1, 5 and 6 are the harness shared between languages.
       and the line-protocol row Python gains in `.claude/agents/ref-id-reviewer.md` (both agent definitions
       learned Python's gate in Track 1, before the implementer was first dispatched). Acceptance: `npm run version` leaves the three manifests on one version, and the first release
       puts `ref-id` on PyPI through the pending publisher already declared.
-- [ ] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
+- [x] Run `/vibe-ops:close-plan` — retrospective against the goals, the demotion check, the tracking
       issue closed. The plan file itself is kept. Stays unchecked until the plan is actually closed; a
       track list that is otherwise complete but has this box open is not finished.
 
@@ -413,22 +413,45 @@ Tracks 1, 5 and 6 are the harness shared between languages.
 
 ## Outcomes & Retrospective
 
-Every track landed on branch `plan-008-python-port`; nothing is merged or published yet, and the plan
-closes with `/vibe-ops:close-plan` after the pull request merges and the first release reaches PyPI.
+Shipped in 0.7.0 (pull requests #51 and #52, 2026-09-28): the Python port on PyPI, beside the npm package,
+the crate and the Swift tag, with spec 1.6.0. Every track landed; none was cut.
 
-What exists that did not: a complete Python implementation (`python/`, 711 tests on 3.11 and 3.14,
-`mypy --strict`), a differential of five implementations over every identifier the vectors carry
-(304 inputs, 92,416 pairs, 0 disagreements), two local gates (`python-conformance`,
-`surface-generated`), PyPI publishing through trusted publishing, and the `verify-hostile-input` skill.
+Against the goals, one by one, each success criterion run on 2026-09-28 after the release:
 
-What the port changed beyond itself: writing a fourth implementation and reviewing it adversarially
-found defects the three existing ones shared or split on — a dialect adaptation that broke a pattern,
-numbers with no canonical rule, an oversized version read as version 1 by three implementations, a lossy
-surrogate digest and prototype-keyed lookups in TypeScript, Swift trapping on hostile numbers and
-matching by grapheme cluster, quadratic relations in Rust — each fixed across every implementation and
-bound by vectors, in spec 1.6.0. Against the goals: all five are met. The release of 0.7.0 (PRs #51 and
-#52) published `ref-id` to PyPI for the first time through trusted publishing, beside the npm package,
-the crate and the `v0.7.0` tag; a clean `uv run --with ref-id==0.7.0` installs it and parses.
+- **The package.** `python/` implements the fourteen `openRPC` methods and passes every vector group — 711
+  tests on 3.11 and on 3.14, `mypy --strict` clean over 27 source files, `ruff` clean. Met.
+- **The differential.** Five rows over every input the vectors carry and every ordered pair — 305 inputs,
+  93,025 pairs, 0 disagreements. Met, and weaker than it reads: an undecodable percent-escape in a Package
+  URL is `malformed` in TypeScript and `ok` in the other three, and the differential stayed green over it
+  because no vector carries one. Agreement on the vector corpus says nothing about the inputs no vector
+  names; the security review, not the differential, found that edge. It is documented in
+  `docs/reference/implementation-differences.md` as a known edge, by the maintainer's decision.
+- **The surface.** `npm run test:surface` exits 1 with an undeclared function in `ref_id.__all__` and 0
+  without it; `mypy` over the generated `test_surface.py` holds each declared signature. Met.
+- **The commit gate.** `python-conformance` (711 examined) and `surface-generated` (4 examined) run, not
+  skip, and an edit to `python/src/ref_id/spec/ref-id.json` alone is refused. Met.
+- **PyPI.** Merging the Version Packages pull request published `ref-id` 0.7.0 through trusted
+  publishing, with no token stored; `pip install ref-id==0.7.0` in a fresh 3.14 environment parses
+  `ref:pkg:npm/left-pad@1.0.0` as `ok`. Met.
+
+**The prediction that was wrong: that a port needs no specification change.** The plan scoped a port held
+to the vectors as they stood. Writing a fourth implementation, and reviewing it adversarially, found
+defects the three existing ones shared or split on — a dialect adaptation that broke a pattern, numbers
+with no canonical rule, an oversized version read as version 1 by three implementations, a lossy surrogate
+digest and prototype-keyed lookups in TypeScript, Swift trapping on hostile numbers and matching by
+grapheme cluster, quadratic relations in Rust. Each was fixed across every implementation and bound by
+vectors, in two rounds of spec 1.6.0 (Track 7, added mid-plan). A new implementation is the cheapest
+adversarial review the specification gets.
+
+**Beyond the goals:** the `verify-hostile-input` skill, a reusable security review of the four
+implementations; the Package URL edge table as a user-facing reference; a gates workflow cut from four
+jobs to two, and a differential that overlaps its runs (3m34s to under 2 minutes on the runner).
+
+**Open, and who inherits it:**
+
+- The Package URL canonical spelling becomes a specification rule, per Package URL type (Decision Log,
+  2026-09-28) — a plan of its own, not yet written.
+- The deferred minors of dossiers 044–050, listed in each closure's breadcrumb commit, none blocking.
 
 ---
 
