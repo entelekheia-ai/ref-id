@@ -11,7 +11,7 @@
 // The inputs are drawn from the vector groups themselves, so the corpus grows with the specification
 // instead of with this file.
 
-import { execFileSync } from "node:child_process"
+import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -56,15 +56,34 @@ function corpus() {
  * every line. A failure that names no cause is a failure nobody acts on.
  */
 function port(command, args, inputs) {
-  let out
-  try {
-    out = execFileSync(command, args, { cwd: ROOT, input: `${inputs.join("\n")}\n`, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
-  } catch (error) {
-    const said = String(error.stderr ?? "").trim() || String(error.stdout ?? "").trim()
-    throw new Error(said ? `${error.message.split("\n")[0]}\n${said.split("\n").slice(0, 5).join("\n")}` : error.message)
-  }
-  return out.trim().split("\n").map((line) => JSON.parse(line))
+  return new Promise((resolvePort, rejectPort) => {
+    const child = spawn(command, args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] })
+    const out = []
+    const err = []
+    child.stdout.on("data", (chunk) => out.push(chunk))
+    child.stderr.on("data", (chunk) => err.push(chunk))
+    child.on("error", rejectPort)
+    child.on("close", (code) => {
+      const stdout = Buffer.concat(out).toString("utf8")
+      if (code !== 0) {
+        const said = Buffer.concat(err).toString("utf8").trim() || stdout.trim()
+        const message = `Command failed: ${command} ${args.join(" ")} (exit ${code})`
+        rejectPort(new Error(said ? `${message}\n${said.split("\n").slice(0, 5).join("\n")}` : message))
+        return
+      }
+      try {
+        resolvePort(stdout.trim().split("\n").map((line) => JSON.parse(line)))
+      } catch (error) {
+        rejectPort(error)
+      }
+    })
+    child.stdin.on("error", () => {}) // a child that exits early reports through its exit code
+    child.stdin.end(`${inputs.join("\n")}\n`)
+  })
 }
+
+/** Settles every run at once; each entry is `{ rows }` or `{ error }`, in the order given. */
+const settle = (runs) => Promise.all(runs.map((run) => run.then((rows) => ({ rows }), (error) => ({ error }))))
 
 /**
  * Which fields are compared, and the one that is deliberately not.
@@ -122,6 +141,31 @@ const ports = [
   ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--canonical"]],
 ]
 
+const pairPorts = [
+  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs"]],
+  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs", "--browser"]],
+  ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--pairs"]],
+  ["swift", "swift", ["run", "-q", "ref-id-conformance", "--pairs"]],
+  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--pairs"]],
+]
+
+const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))
+const pairLines = pairs.flatMap(([a, b]) => [a, b])
+
+// **Every run starts at once and is compared afterwards, in row order.** The ten runs — five
+// implementations, parse and pairs — are independent processes, and run one after another they were
+// most of the job's time on one core. The compiled ports are built first, once each and side by side,
+// so two runs of one port never contend for its build directory. Starting together changes no verdict:
+// each row is still judged against row 0, which is still the reference whether or not it ran first.
+await settle([
+  port("cargo", ["build", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines"], []),
+  port("swift", ["build", "-q", "--product", "ref-id-conformance"], []),
+]).then((built) => built.forEach(({ error }) => error && console.error(`build: ${error.message}`)))
+const [parseRuns, pairRuns] = await Promise.all([
+  settle(ports.map(([, command, args]) => port(command, args, inputs))),
+  settle(pairPorts.map(([, command, args]) => port(command, args, pairLines))),
+])
+
 let failures = 0
 let known = 0
 let reference = null
@@ -134,10 +178,8 @@ for (const [index, [name, command, args]] of ports.entries()) {
   // naming a reference that had never executed, and comparing Rust and Swift against a build that
   // was never meant to be the standard. The count was true and the claim underneath it was not.
   const isReference = index === 0
-  let rows
-  try {
-    rows = port(command, args, inputs)
-  } catch (error) {
+  const { rows, error } = parseRuns[index]
+  if (error) {
     console.error(`${name}: could not run — ${error.message}`)
     failures += 1
     if (isReference) break
@@ -188,24 +230,13 @@ console.log(`differential: ${inputs.length} inputs × ${ports.length} implementa
 //
 // Two lines per pair rather than a separator, because the grammar admits a tab inside a locator.
 
-const pairPorts = [
-  ["typescript", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs"]],
-  ["typescript-browser", "node", ["--experimental-strip-types", "packages/ref-id/parse-lines.ts", "--pairs", "--browser"]],
-  ["rust", "cargo", ["run", "-q", "--manifest-path", "crates/ref-id/Cargo.toml", "--example", "parse_lines", "--", "--pairs"]],
-  ["swift", "swift", ["run", "-q", "ref-id-conformance", "--pairs"]],
-  ["python", "uv", ["run", "-q", "--directory", "python", "python", "tools/parse_lines.py", "--pairs"]],
-]
 
-const pairs = inputs.flatMap((a) => inputs.map((b) => [a, b]))
-const pairLines = pairs.flatMap(([a, b]) => [a, b])
 let pairFailures = 0
 let pairReference = null
 for (const [index, [name, command, args]] of pairPorts.entries()) {
   const isReference = index === 0
-  let rows
-  try {
-    rows = port(command, args, pairLines)
-  } catch (error) {
+  const { rows, error } = pairRuns[index]
+  if (error) {
     console.error(`${name} (pairs): could not run — ${error.message}`)
     pairFailures += 1
     if (isReference) break

@@ -60,12 +60,18 @@ func checkSurfaceReferences() {
     let _: (String, Any?) throws -> EnvelopeResult = validateEnvelope(requestedId:envelope:)
     // canonicalise
     let _: (Any?) throws -> String = canonicalise(_:)
-    // canonicalise — deprecated alias
-    let _: (Any?) throws -> String = canonicalJSON(_:)
     // loadSpec
     let _: () throws -> Spec = loadSpec
     // loadSpecFrom
     let _: (URL) throws -> Spec = loadSpecFrom(_:)
+}
+
+/// Binds every deprecated alias `openRPC` declares to the signature of the method it stands for. It is
+/// deprecated itself so these references raise no warning, and it is never called: compiling it is the check.
+@available(*, deprecated, message: "binds the deprecated aliases; compiling it is the check")
+func checkDeprecatedAliases() {
+    // canonicalise — deprecated alias
+    let _: (Any?) throws -> String = canonicalJSON(_:)
     // loadSpecFrom — deprecated alias
     let _: (URL) throws -> Spec = loadSpec(from:)
 }
