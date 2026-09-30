@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "ref-id"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "packageurl",
  "regex",
