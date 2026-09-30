@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 [project]
 name = "ref-id"
-version = "0.7.0"
+version = "0.7.1"
 description = "The ref: identifier scheme — a Python port held to the specification's conformance vectors"
 readme = "README.md"
 license = "Apache-2.0"

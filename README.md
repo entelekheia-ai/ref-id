@@ -67,10 +67,10 @@ embeds: pin `specVersion` through it rather than through the package version.
 
 | Port | Identifier |
 |---|---|
-| `@entelekheia/ref-id` (npm) | `ref:pkg:npm/@entelekheia/ref-id@0.7.0#spec@1.6.0` |
-| `ref-id` (crates.io) | `ref:pkg:cargo/ref-id@0.7.0#spec@1.6.0` |
-| `RefId` (Swift Package Manager) | `ref:pkg:swift/github.com/entelekheia-ai/ref-id@0.7.0#spec@1.6.0` |
-| `ref-id` (PyPI) | `ref:pkg:pypi/ref-id@0.7.0#spec@1.6.0` |
+| `@entelekheia/ref-id` (npm) | `ref:pkg:npm/@entelekheia/ref-id@0.7.1#spec@1.6.0` |
+| `ref-id` (crates.io) | `ref:pkg:cargo/ref-id@0.7.1#spec@1.6.0` |
+| `RefId` (Swift Package Manager) | `ref:pkg:swift/github.com/entelekheia-ai/ref-id@0.7.1#spec@1.6.0` |
+| `ref-id` (PyPI) | `ref:pkg:pypi/ref-id@0.7.1#spec@1.6.0` |
 
 <!-- ref-ids:end -->
 
