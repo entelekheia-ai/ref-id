@@ -9,7 +9,10 @@ import PackageDescription
 
 let package = Package(
     name: "RefId",
-    platforms: [.macOS(.v13)],
+    // The floor is Swift's `Regex` (the grammar is compiled from the specification at runtime), which
+    // every Apple platform ships from the same release onwards. A platform left out defaults to a
+    // deployment target older than `Regex`, and the package then fails to build there.
+    platforms: [.macOS(.v13), .iOS(.v16), .macCatalyst(.v16), .tvOS(.v16), .watchOS(.v9), .visionOS(.v1)],
     products: [
         .library(name: "RefId", targets: ["RefId"]),
         .executable(name: "ref-id-conformance", targets: ["RefIdConformance"]),
