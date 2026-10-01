@@ -55,34 +55,40 @@ mkdir -p "$GATE_ARTIFACT_DIR"
 # https://github.com/entelekheia-ai/vibe-ops/issues/36 — drop the `env -u` once that is fixed.
 if git diff --cached --name-only --diff-filter=ACMRD | grep -q '^\.vibe-ops/\|^vibeops\.config\.'; then
   if ! SELF_TEST=$(env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_OBJECT_DIRECTORY \
-      vibe-ops check --self-test "$ROOT" 2>&1); then
+      vibe-ops check --self-test --json "$ROOT" 2>/dev/null); then
     echo "pre-commit: a gate stopped firing on its own fixture — commit refused." >&2
-    # NOT `^FAIL `: a self-test prints every fixture's findings as FAIL lines — dozens of them, each one a
-    # detector working correctly on a tree built to be broken. The defect is only the gate whose fixture
-    # did not fire, plus the summary. Anything else refusing (no FAIL line of that shape) prints whole.
-    printf '%s\n' "$SELF_TEST" | grep -E 'declared fixture did not fire|^■' >&2 || printf '%s\n' "$SELF_TEST" >&2
+    # Read from `--json`, never from the text: a self-test prints every fixture's findings as FAIL lines —
+    # dozens of them, each one a detector working correctly on a tree built to be broken. The defect is
+    # only the suite whose `code` is non-zero, so that suite's output is what prints. Output that is not
+    # the JSON shape — the gate itself could not run — falls through whole.
+    printf '%s\n' "$SELF_TEST" | node -e '
+      let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", () => {
+        let j; try { j = JSON.parse(d) } catch { process.stdout.write(d); return }
+        for (const s of j.suites ?? []) if (s.code !== 0) console.log(`suite ${s.id} (exit ${s.code}):\n${s.output}`)
+      })' >&2
     exit 1
   fi
 fi
 
-# --verbose, and it is load-bearing: without it the CLI filters its own output and drops the
-# `N checks, M failed` line, so a run could say nothing whether or not it ran. The output is captured and
-# filtered here instead, so asking for the full run costs the reader nothing.
-OUTPUT=$(vibe-ops check --verbose "$ROOT" 2>&1)
+if [ "${GATE_VERBOSE:-}" = "1" ]; then
+  vibe-ops check --verbose "$ROOT"
+  exit $?
+fi
+
+# The verdict is the exit code; what prints is drawn from `--json`, never from the text lines, whose
+# layout is free to change. stderr is kept out of the JSON and printed only when no JSON came back.
+ERR=$(mktemp); trap 'rm -f "$ERR"' EXIT
+OUTPUT=$(vibe-ops check --json "$ROOT" 2>"$ERR")
 RC=$?
 
-if [ "${GATE_VERBOSE:-}" = "1" ]; then
-  printf '%s\n' "$OUTPUT"
-  exit "$RC"
-fi
-
-# A failing run prints its FAIL and WARN lines and nothing else. A refusal with no FAIL line — the gate
-# itself could not run, a unit did not resolve — falls through to the whole message, which is correct:
-# there the message is the finding.
-if [ "$RC" -ne 0 ]; then
-  printf '%s\n' "$OUTPUT" | grep -E '^(FAIL|WARN) ' || printf '%s\n' "$OUTPUT"
-  exit "$RC"
-fi
-
-printf '%s\n' "$OUTPUT" | grep -E '^WARN ' || true
-exit 0
+# A failing run prints its fail and warn findings; a passing one only its warnings. A refusal that is not
+# JSON — the gate itself could not run, a unit did not resolve — prints whole: there the message is the
+# finding.
+printf '%s\n' "$OUTPUT" | RC="$RC" node -e '
+  let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", () => {
+    let j; try { j = JSON.parse(d) } catch { if (d.trim()) console.log(d.trim()); process.exitCode = 3; return }
+    const levels = process.env.RC === "0" ? ["warn"] : ["fail", "warn"]
+    for (const f of j.findings ?? []) if (levels.includes(f.level))
+      console.log(`${f.level.toUpperCase().padEnd(5)} [${f.check}] ${f.evidence}`)
+  })' || cat "$ERR" >&2
+exit "$RC"
