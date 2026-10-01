@@ -57,11 +57,23 @@ jobs:
         run: |
           npm i -g @entelekheia/vibe-ops-cli@0.2.0
           vibe-ops check --self-test
-          out=$(vibe-ops check --verbose) || { printf '%s\n' "$out" | grep -E '^(FAIL|WARN) ' || printf '%s\n' "$out"; exit 1; }
-          if printf '%s\n' "$out" | grep -E '^SKIP +\[(spec-sealed|relate-consistent|openrpc-valid|python-conformance|surface-generated)\]'; then
-            echo "one of this repository's own gates skipped — its instrument is missing on this runner" >&2
-            exit 1
-          fi
+          # The verdict is the exit code; the skip test reads `skipped[].check` from --json, never the text
+          # layout. Output that is not JSON (the gate could not run) prints whole.
+          rc=0; out=$(vibe-ops check --json) || rc=$?
+          printf '%s\n' "$out" | RC=$rc node -e '
+            let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", () => {
+              let j; try { j = JSON.parse(d) } catch { console.log(d); process.exit(1) }
+              for (const f of j.findings ?? []) if (f.level === "fail" || f.level === "warn")
+                console.log(`${f.level.toUpperCase().padEnd(5)} [${f.check}] ${f.evidence}`)
+              if (process.env.RC !== "0") process.exit(1)
+              const own = ["spec-sealed", "relate-consistent", "openrpc-valid", "python-conformance", "surface-generated"]
+              const hit = (j.skipped ?? []).filter((s) => own.includes(s.check))
+              for (const s of hit) console.error(`SKIP  [${s.check}] ${s.reason}`)
+              if (hit.length) {
+                console.error("one of this repository\x27s own gates skipped — its instrument is missing on this runner")
+                process.exit(1)
+              }
+            })'
           npm run test:gates
       - name: build, tests, the pcre2 grammar runner, Rust port
         # typecheck is what holds the TypeScript surface to openRPC by signature: the generated
