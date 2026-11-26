@@ -45,6 +45,7 @@ repository:
     url: https://github.com/entelekheia-ai/ref-id/blob/main/LICENSE
     expression: Apache-2.0
   documentation:
+    contributing-guide: https://github.com/entelekheia-ai/ref-id/blob/main/CONTRIBUTING.md
     governance: https://github.com/entelekheia-ai/ref-id/blob/main/GOVERNANCE.md
     security-policy: https://github.com/entelekheia-ai/ref-id/blob/main/SECURITY.md
   release:

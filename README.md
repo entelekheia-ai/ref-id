@@ -116,4 +116,5 @@ Report a vulnerability privately, never in a public issue — see [`SECURITY.md`
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE). Governance & decisions: [`project/`](project/) (see
-[`GOVERNANCE.md`](GOVERNANCE.md)). Docs: [`docs/`](docs/).
+[`GOVERNANCE.md`](GOVERNANCE.md)). Docs: [`docs/`](docs/). Contributing, including the skills and agents
+the repository ships: [`CONTRIBUTING.md`](CONTRIBUTING.md).
