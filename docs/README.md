@@ -15,7 +15,9 @@ New here? Start with the tutorial
 [`tutorials/your-first-identifiers.md`](tutorials/your-first-identifiers.md). Then read
 [`reference/the-ref-scheme.md`](reference/the-ref-scheme.md) for the scheme itself, and
 [`explanation/why-a-declared-name.md`](explanation/why-a-declared-name.md) for why it is shaped that way.
-To refuse a forged digest at ingestion, follow
+To name your own things, follow [`how-to/identify-a-file.md`](how-to/identify-a-file.md) or
+[`how-to/mint-an-identifier.md`](how-to/mint-an-identifier.md). To find them again from an identifier,
+[`how-to/write-a-resolver.md`](how-to/write-a-resolver.md). To refuse a forged digest at ingestion,
 [`how-to/check-a-digest-before-storing.md`](how-to/check-a-digest-before-storing.md).
 
 The **source of truth is the code**; these docs describe intent. When they diverge, the code wins.

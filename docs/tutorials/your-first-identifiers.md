@@ -143,6 +143,9 @@ Swift and Python packages with the same answers.
 
 Next:
 
+- [Find the identifier of a file](../how-to/identify-a-file.md) and
+  [Mint an identifier](../how-to/mint-an-identifier.md) name your own things.
+- [Write a resolver](../how-to/write-a-resolver.md) finds a file again from its identifier.
 - [Check a digest before you store an identifier](../how-to/check-a-digest-before-storing.md) applies
   step 5 to data you receive.
 - [The `ref:` scheme](../reference/the-ref-scheme.md) describes every part, qualifier and status.
