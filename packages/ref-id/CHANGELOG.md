@@ -1,5 +1,11 @@
 # @entelekheia/ref-id
 
+## 0.7.2
+
+### Patch Changes
+
+- 3f37dfb: The published build no longer ships source maps. They carried the full original source, and nothing in the package read them.
+
 ## 0.7.1
 
 ### Patch Changes
