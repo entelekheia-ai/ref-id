@@ -17,7 +17,7 @@ is expected and is checked against the same vectors, never against this code.
 | `Cargo.toml`, `crates/ref-id/` | The Rust port (`ref-id` crate, `ref_id` library) under a root Cargo workspace. Embeds `crates/ref-id/spec/`, a byte-identical copy of the root spec held by a test, so the crate packages on its own. Version synced from the npm package by `scripts/sync-versions.sh`. Gate: `cargo test --workspace`. Delegates the purl to the `packageurl` crate. |
 | `spec/conformance/` | The grammar-level runner for the `pcre2` dialect, in Perl — the one dialect no implementation proves (`npm run test:grammar`). |
 | `.vibe-ops/` | **The specification's own commit gates**: its seal, the `relate` reductions against the `comparison` group, the `openRPC` document, and the byte-identity of the ports' copies, the Python suite, and every generated surface file. Plain-module gates composed by `vibeops.config.ts`, run by `vibe-ops check` from `.githooks/pre-commit` and CI; `npm run test:gates` holds their decoys. `node scripts/seal-spec.mjs` reseals through the seal gate's `fix()`. |
-| `docs/` | Diátaxis: `explanation/` carries the scheme's rationale and the rejected alternatives; `reference/` the API. |
+| `docs/` | Diátaxis: `tutorials/` the first-run lesson, `how-to/` task recipes, `explanation/` the scheme's rationale and the rejected alternatives, `reference/` the API. |
 | `project/` | Governance records (ADR / RFC / plan / task / log / research) — lifecycles in `.agents/rules/governance.md`. |
 
 ## How this repo works

@@ -74,6 +74,15 @@ embeds: pin `specVersion` through it rather than through the package version.
 
 <!-- ref-ids:end -->
 
+## Stability
+
+Pre-1.0. The packages are versioned `0.x`, and a minor release may change the API or what a call
+returns; read [the changelog](packages/ref-id/CHANGELOG.md) before upgrading. The specification
+versions itself separately: an identifier written today keeps parsing under every later `specVersion`
+of the same major, and only the two changes listed in
+[the version slot](docs/reference/the-ref-scheme.md#the-version-slot) mint a new one. Feedback on the
+scheme is the most useful contribution right now — open an issue.
+
 ## Install
 
 ```sh
@@ -86,7 +95,9 @@ Swift: add `https://github.com/entelekheia-ai/ref-id` as a package dependency an
 
 ## Usage
 
-See the package README: [`packages/ref-id/`](packages/ref-id/README.md). The specification itself is
+New to the scheme? [Your first `ref:` identifiers](docs/tutorials/your-first-identifiers.md) is a
+ten-minute walk through every call. The API is in the package README:
+[`packages/ref-id/`](packages/ref-id/README.md). The specification itself is
 [`spec/ref-id.json`](spec/); the reasoning behind each rule is in [`docs/explanation/`](docs/explanation/). The four implementations
 agree on every input the specification names; where their Package URL libraries differ is measured in
 [Known differences between implementations](docs/reference/implementation-differences.md).
@@ -97,6 +108,10 @@ Node.js 22 or later, and — for `@entelekheia/ref-id` — any browser reached t
 ships a second build whose specification is compiled in, served through the `browser` condition of its
 `exports`, with the same public API and nothing to configure. What that build gives up is stated in
 [its own README](packages/ref-id/README.md#environments). No native dependencies.
+
+## Security
+
+Report a vulnerability privately, never in a public issue — see [`SECURITY.md`](SECURITY.md).
 
 ## License
 

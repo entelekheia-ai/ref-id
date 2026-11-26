@@ -1,0 +1,68 @@
+# OpenSSF Security Insights — https://github.com/ossf/security-insights (schema v2.2.0)
+# Machine-readable summary of this repository's security posture. The human-readable policy is
+# SECURITY.md; the two say the same thing.
+header:
+  schema-version: 2.2.0
+  last-updated: '2026-11-26'
+  last-reviewed: '2026-11-26'
+  url: https://github.com/entelekheia-ai/ref-id/blob/main/security-insights.yml
+  comment: Reviewed when SECURITY.md changes.
+
+project:
+  name: ref-id
+  homepage: https://github.com/entelekheia-ai/ref-id
+  administrators:
+    - name: Danilo Borges
+      primary: true
+  repositories:
+    - name: ref-id
+      url: https://github.com/entelekheia-ai/ref-id
+      comment: The ref identifier specification, published as data, and its TypeScript, Rust, Swift and Python implementations.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    policy: https://github.com/entelekheia-ai/ref-id/blob/main/SECURITY.md
+    comment: Report privately through GitHub private vulnerability reporting, as SECURITY.md describes.
+    in-scope:
+      - An identifier or envelope written by someone other than the user that makes an implementation crash, hang or exhaust resources, accept an envelope whose members do not recompute to the claimed digest, disagree with another implementation so that one identifier passes for another, or serialise something other than what was parsed.
+    out-of-scope:
+      - Vulnerabilities in third-party dependencies (report upstream).
+      - Behaviour that requires the user to load a malicious specification file of their own.
+      - The measured differences in the informational canonical field of a Package URL, which do not affect identity.
+  documentation:
+    design: https://github.com/entelekheia-ai/ref-id/blob/main/docs/explanation/why-a-declared-name.md
+
+repository:
+  url: https://github.com/entelekheia-ai/ref-id
+  status: active
+  accepts-change-request: true
+  accepts-automated-change-request: true
+  bug-fixes-only: false
+  core-team:
+    - name: Danilo Borges
+      primary: true
+  license:
+    url: https://github.com/entelekheia-ai/ref-id/blob/main/LICENSE
+    expression: Apache-2.0
+  documentation:
+    governance: https://github.com/entelekheia-ai/ref-id/blob/main/GOVERNANCE.md
+    security-policy: https://github.com/entelekheia-ai/ref-id/blob/main/SECURITY.md
+  release:
+    automated-pipeline: true
+    changelog: https://github.com/entelekheia-ai/ref-id/releases
+    distribution-points:
+      - uri: https://www.npmjs.com/package/@entelekheia/ref-id
+        comment: the TypeScript reference
+      - uri: https://crates.io/crates/ref-id
+        comment: the Rust port
+      - uri: https://pypi.org/project/ref-id/
+        comment: the Python port
+      - uri: https://github.com/entelekheia-ai/ref-id
+        comment: the Swift port, resolved by Swift Package Manager from the v<version> tag
+  security:
+    assessments:
+      self:
+        comment: Every change to how an implementation reads input runs hostile input against all four implementations before it merges, and a differential test compares them over every input and pair the specification names.
+        date: '2026-11-26'
+        evidence: https://github.com/entelekheia-ai/ref-id/blob/main/.agents/skills/verify-hostile-input/SKILL.md
+      third-party: []
