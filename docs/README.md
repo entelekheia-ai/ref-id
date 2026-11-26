@@ -11,7 +11,11 @@ its topic fits.
 | [`how-to/`](how-to/) | Tasks — goal-oriented recipes | trying to get something done |
 | [`tutorials/`](tutorials/) | Learning — step-by-step lessons for newcomers | learning by doing |
 
-Start with [`reference/the-ref-scheme.md`](reference/the-ref-scheme.md) for the scheme itself, and
+New here? Start with the tutorial
+[`tutorials/your-first-identifiers.md`](tutorials/your-first-identifiers.md). Then read
+[`reference/the-ref-scheme.md`](reference/the-ref-scheme.md) for the scheme itself, and
 [`explanation/why-a-declared-name.md`](explanation/why-a-declared-name.md) for why it is shaped that way.
+To refuse a forged digest at ingestion, follow
+[`how-to/check-a-digest-before-storing.md`](how-to/check-a-digest-before-storing.md).
 
 The **source of truth is the code**; these docs describe intent. When they diverge, the code wins.
